@@ -1,0 +1,26 @@
+﻿@import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap");
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  font-family: "Space Grotesk", system-ui, -apple-system, sans-serif;
+  background: radial-gradient(1200px 600px at 15% 5%, rgba(34, 211, 238, 0.12), transparent 55%),
+    radial-gradient(900px 500px at 80% 10%, rgba(129, 140, 248, 0.2), transparent 60%),
+    radial-gradient(900px 600px at 50% 90%, rgba(248, 113, 113, 0.14), transparent 60%),
+    #020409;
+  min-height: 100vh;
+}
+
+.font-mono {
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+}
+
+.glass {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  backdrop-filter: blur(18px);
+}
