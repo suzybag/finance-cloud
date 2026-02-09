@@ -48,8 +48,13 @@ $$;
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   display_name text,
+  avatar_url text,
+  avatar_path text,
   created_at timestamptz not null default now()
 );
+
+alter table public.profiles add column if not exists avatar_url text;
+alter table public.profiles add column if not exists avatar_path text;
 
 create table if not exists public.accounts (
   id uuid primary key default gen_random_uuid(),
