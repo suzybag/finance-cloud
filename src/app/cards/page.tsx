@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { Archive, Calendar, CreditCard, Pencil } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { supabase } from "@/lib/supabaseClient";
 import { brl, toNumber } from "@/lib/money";
@@ -215,83 +216,98 @@ export default function CardsPage() {
             </div>
 
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            {cardSummaries.map(({ card, summary }) => (
-              <div key={card.id} className="rounded-xl2 bg-card border border-stroke shadow-soft p-5">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs text-muted">{card.issuer || "Titular"}</p>
-                    <p className="text-2xl font-extrabold">{card.name}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-muted">Fatura atual</p>
-                    <p className="text-xl font-extrabold">{brl(summary.currentTotal)}</p>
-                  </div>
-                </div>
+              {cardSummaries.map(({ card, summary }) => {
+                const usedPct = card.limit_total
+                  ? Math.min((summary.limitUsed / card.limit_total) * 100, 100)
+                  : 0;
 
-                <div className="mt-3">
-                  <p className="text-xs text-muted">Limite usado</p>
-                  <div className="mt-2 h-2 rounded-full bg-appbg border border-stroke overflow-hidden">
-                    <div
-                      className="h-full bg-sky-400"
-                      style={{
-                        width: `${card.limit_total ? Math.min((summary.limitUsed / card.limit_total) * 100, 100) : 0}%`,
-                      }}
-                    />
-                  </div>
-                </div>
+                return (
+                  <div key={card.id} className="rounded-xl2 bg-card border border-stroke shadow-soft p-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-3">
+                        <div className="h-10 w-10 rounded-xl border border-stroke bg-appbg flex items-center justify-center">
+                          <CreditCard className="h-5 w-5 text-sky-400" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted">{card.issuer || "Titular"}</p>
+                          <p className="text-2xl font-extrabold">{card.name}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-muted">Fatura atual</p>
+                        <p className="text-xl font-extrabold">{brl(summary.currentTotal)}</p>
+                      </div>
+                    </div>
 
-                <div className="mt-3 grid gap-3 md:grid-cols-3 text-sm">
-                  <div>
-                    <p className="text-xs text-muted">Limite usado</p>
-                    <p className="font-extrabold text-rose-400">{brl(summary.limitUsed)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted">Limite disponivel</p>
-                    <p className="font-extrabold text-emerald-400">{brl(summary.limitAvailable)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted">Limite total</p>
-                    <p className="font-extrabold">{brl(card.limit_total)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted">Fechamento</p>
-                    <p className="font-semibold">Todo dia {card.closing_day}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted">Vencimento</p>
-                    <p className="font-semibold">Todo dia {card.due_day}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted">Fatura prevista</p>
-                    <p className="font-extrabold">{brl(summary.forecastTotal)}</p>
-                  </div>
-                </div>
+                    <div className="mt-4">
+                      <p className="text-xs text-muted">Limite usado</p>
+                      <div className="mt-2 h-2 rounded-full bg-appbg border border-stroke overflow-hidden">
+                        <div className="h-full bg-sky-400" style={{ width: `${usedPct}%` }} />
+                      </div>
+                    </div>
 
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Link
-                    className="rounded-xl border border-stroke bg-card px-3 py-2 text-xs font-semibold hover:bg-appbg"
-                    href={`/cards/${card.id}/invoice`}
-                  >
-                    Ver detalhes da fatura
-                  </Link>
-                  <button
-                    className="rounded-xl border border-stroke bg-card px-3 py-2 text-xs font-semibold hover:bg-appbg"
-                    onClick={() => handleEdit(card)}
-                  >
-                    Editar
-                  </button>
-                  <button
-                    className="rounded-xl border border-stroke bg-card px-3 py-2 text-xs font-semibold hover:bg-appbg"
-                    onClick={() => handleArchive(card)}
-                  >
-                    {card.archived ? "Desarquivar" : "Arquivar"}
-                  </button>
-                </div>
-              </div>
-            ))}
-            {!cardSummaries.length && (
-              <div className="text-sm text-muted">Nenhum cartao cadastrado.</div>
-            )}
+                    <div className="mt-4 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 text-sm">
+                      <div>
+                        <p className="text-xs text-muted">Limite usado</p>
+                        <p className="font-extrabold text-rose-400">{brl(summary.limitUsed)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted">Limite disponivel</p>
+                        <p className="font-extrabold text-emerald-400">{brl(summary.limitAvailable)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted">Limite total</p>
+                        <p className="font-extrabold">{brl(card.limit_total)}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 grid-cols-1 sm:grid-cols-2 text-sm">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-muted" />
+                        <div>
+                          <p className="text-xs text-muted">Fechamento</p>
+                          <p className="font-semibold">Todo dia {card.closing_day}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-muted" />
+                        <div>
+                          <p className="text-xs text-muted">Vencimento</p>
+                          <p className="font-semibold">Todo dia {card.due_day}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+                      <Link
+                        className="rounded-xl border border-stroke bg-card px-4 py-2 text-xs font-semibold hover:bg-appbg"
+                        href={`/cards/${card.id}/invoice`}
+                      >
+                        Ver detalhes da fatura
+                      </Link>
+                      <div className="flex gap-2">
+                        <button
+                          className="h-9 w-9 rounded-xl border border-stroke bg-card flex items-center justify-center hover:bg-appbg"
+                          onClick={() => handleEdit(card)}
+                          aria-label="Editar cartao"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          className="h-9 w-9 rounded-xl border border-stroke bg-card flex items-center justify-center hover:bg-appbg"
+                          onClick={() => handleArchive(card)}
+                          aria-label="Arquivar cartao"
+                        >
+                          <Archive className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {!cardSummaries.length && (
+                <div className="text-sm text-muted">Nenhum cartao cadastrado.</div>
+              )}
             </div>
           </section>
 
