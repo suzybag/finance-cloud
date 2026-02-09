@@ -1,24 +1,23 @@
-"use client";
+ï»¿"use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ResponsiveContainer,
-  LineChart,
+  Bar,
+  BarChart,
+  Cell,
   Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  Tooltip,
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar,
 } from "recharts";
-import { format } from "date-fns";
 import { AppShell } from "@/components/AppShell";
-import { supabase } from "@/lib/supabaseClient";
 import { brl, formatPercent, toNumber } from "@/lib/money";
+import { supabase } from "@/lib/supabaseClient";
 import {
   Account,
   Alert,
@@ -30,69 +29,100 @@ import {
   computeAvailableBalance,
   computeCardSummary,
   computeForecastBalance,
-  groupByCategory,
   getMonthKey,
+  groupByCategory,
 } from "@/lib/finance";
 
-const COLORS = ["#38bdf8", "#818cf8", "#f472b6", "#f59e0b", "#22c55e"];
+const COLORS = ["#22c55e", "#0ea5e9", "#f59e0b", "#8b5cf6", "#ef4444", "#14b8a6"];
+
+const monthInputValue = (date = new Date()) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+
+const toFriendlyDbError = (raw?: string) => {
+  const msg = raw || "";
+  const lower = msg.toLowerCase();
+
+  if (lower.includes("schema cache") || lower.includes("could not find the table")) {
+    return "Banco nao inicializado no Supabase. Rode o arquivo supabase.sql no SQL Editor e atualize a pagina.";
+  }
+
+  if (lower.includes("permission") || lower.includes("rls")) {
+    return "Sem permissao para ler os dados. Verifique RLS/policies no Supabase.";
+  }
+
+  return msg || "Falha ao carregar dados.";
+};
 
 export default function DashboardPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [cards, setCards] = useState<Card[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [alertsSynced, setAlertsSynced] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
 
+  const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [alertsSynced, setAlertsSynced] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const [period, setPeriod] = useState(monthInputValue());
   const [aiQuestion, setAiQuestion] = useState("");
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
-    const [accountsRes, cardsRes, txRes, alertRes] = await Promise.all([
+    setMessage(null);
+
+    const [accountsRes, cardsRes, txRes, alertsRes] = await Promise.all([
       supabase.from("accounts").select("*").order("created_at"),
       supabase.from("cards").select("*").order("created_at"),
       supabase
         .from("transactions")
         .select("*")
         .order("occurred_at", { ascending: false })
-        .limit(500),
-      supabase.from("alerts").select("*").order("created_at", { ascending: false }),
+        .limit(1000),
+      supabase.from("alerts").select("*").order("created_at", { ascending: false }).limit(50),
     ]);
 
-    setAccounts((accountsRes.data as Account[]) || []);
-    setCards((cardsRes.data as Card[]) || []);
-    setTransactions((txRes.data as Transaction[]) || []);
-    setAlerts((alertRes.data as Alert[]) || []);
+    if (accountsRes.error || cardsRes.error || txRes.error || alertsRes.error) {
+      setMessage(
+        toFriendlyDbError(
+          accountsRes.error?.message ||
+            cardsRes.error?.message ||
+            txRes.error?.message ||
+            alertsRes.error?.message,
+        ),
+      );
+      setLoading(false);
+      return;
+    }
+
+    setAccounts((accountsRes.data as Account[]) ?? []);
+    setCards((cardsRes.data as Card[]) ?? []);
+    setTransactions((txRes.data as Transaction[]) ?? []);
+    setAlerts((alertsRes.data as Alert[]) ?? []);
     setLoading(false);
   };
 
   const syncAlerts = useCallback(
-    async (currentCards: Card[], existing: Alert[]) => {
-      if (!currentCards.length || !userId) return;
-      const generated = buildCardAlerts(currentCards.filter((c) => !c.archived));
+    async (currentCards: Card[], currentAlerts: Alert[]) => {
+      if (!userId) return;
+
+      const generated = buildCardAlerts(currentCards.filter((card) => !card.archived));
       if (!generated.length) return;
 
       const existingKeys = new Set(
-        existing.map((alert) => `${alert.type}-${alert.card_id}-${alert.due_at}`),
+        currentAlerts.map((alert) => `${alert.type}-${alert.card_id}-${alert.due_at}`),
       );
 
       const toInsert = generated
-        .filter(
-          (alert) => !existingKeys.has(`${alert.type}-${alert.card_id}-${alert.due_at}`),
-        )
-        .map((alert) => ({
-          user_id: userId,
-          ...alert,
-          is_read: false,
-        }));
+        .filter((alert) => !existingKeys.has(`${alert.type}-${alert.card_id}-${alert.due_at}`))
+        .map((alert) => ({ user_id: userId, ...alert, is_read: false }));
 
       if (!toInsert.length) return;
-      const { data } = await supabase.from("alerts").insert(toInsert).select();
-      if (data?.length) {
-        setAlerts((prev) => [...data, ...prev]);
+      const { data, error } = await supabase.from("alerts").insert(toInsert).select();
+      if (!error && data?.length) {
+        setAlerts((prev) => [...(data as Alert[]), ...prev]);
       }
     },
     [userId],
@@ -109,300 +139,300 @@ export default function DashboardPage() {
     }
   }, [loading, alertsSynced, cards, alerts, syncAlerts]);
 
-  const monthKey = getMonthKey(new Date());
-  const monthTxs = useMemo(
-    () => transactions.filter((tx) => getMonthKey(new Date(tx.occurred_at)) === monthKey),
-    [transactions, monthKey],
+  const periodDate = useMemo(() => {
+    const [year, month] = period.split("-");
+    const y = Number(year);
+    const m = Number(month);
+    if (!y || !m) return new Date();
+    return new Date(y, m - 1, 1);
+  }, [period]);
+
+  const periodKey = useMemo(() => getMonthKey(periodDate), [periodDate]);
+
+  const periodTransactions = useMemo(
+    () => transactions.filter((tx) => getMonthKey(new Date(tx.occurred_at)) === periodKey),
+    [transactions, periodKey],
   );
 
-  const monthIncome = monthTxs
-    .filter((tx) => tx.type === "income")
-    .reduce((sum, tx) => sum + toNumber(tx.amount), 0);
-  const monthExpense = monthTxs
-    .filter((tx) => tx.type === "expense" || tx.type === "card_payment")
-    .reduce((sum, tx) => sum + toNumber(tx.amount), 0);
-
-  const availableBalance = computeAvailableBalance(accounts, transactions);
-  const forecastBalance = computeForecastBalance(accounts, transactions);
-
-  const monthlySeries = useMemo(
-    () => buildMonthlySeries(transactions),
-    [transactions],
+  const monthIncome = useMemo(
+    () =>
+      periodTransactions
+        .filter((tx) => tx.type === "income")
+        .reduce((sum, tx) => sum + toNumber(tx.amount), 0),
+    [periodTransactions],
   );
 
+  const monthExpense = useMemo(
+    () =>
+      periodTransactions
+        .filter((tx) => tx.type === "expense" || tx.type === "card_payment")
+        .reduce((sum, tx) => sum + toNumber(tx.amount), 0),
+    [periodTransactions],
+  );
+
+  const availableBalance = useMemo(
+    () => computeAvailableBalance(accounts, transactions),
+    [accounts, transactions],
+  );
+
+  const forecastBalance = useMemo(
+    () => computeForecastBalance(accounts, transactions),
+    [accounts, transactions],
+  );
+
+  const monthlySeries = useMemo(() => buildMonthlySeries(transactions), [transactions]);
   const categoryData = useMemo(
-    () => groupByCategory(transactions),
-    [transactions],
+    () => groupByCategory(transactions, periodDate),
+    [transactions, periodDate],
   );
-
-  const insights = useMemo(
-    () => calculateInsights(transactions),
-    [transactions],
-  );
+  const insights = useMemo(() => calculateInsights(transactions, periodDate), [transactions, periodDate]);
 
   const cardSummaries = useMemo(
     () =>
       cards
         .filter((card) => !card.archived)
-        .map((card) => ({ card, summary: computeCardSummary(card, transactions) })),
-    [cards, transactions],
+        .map((card) => ({ card, summary: computeCardSummary(card, transactions, periodDate) })),
+    [cards, transactions, periodDate],
   );
 
-  const handleAskAi = async () => {
+  const markAlertRead = async (id: string) => {
+    const { error } = await supabase.from("alerts").update({ is_read: true }).eq("id", id);
+    if (error) {
+      setMessage(toFriendlyDbError(error.message));
+      return;
+    }
+    setAlerts((prev) => prev.map((alert) => (alert.id === id ? { ...alert, is_read: true } : alert)));
+  };
+
+  const askAi = async () => {
     setAiLoading(true);
     setAiAnswer(null);
 
-    const payload = {
-      month: monthKey,
-      question: aiQuestion,
-      summary: {
-        income: monthIncome,
-        expense: monthExpense,
-        categories: categoryData.slice(0, 6),
-      },
-    };
-
-    const res = await fetch("/api/ai/insights", {
+    const response = await fetch("/api/ai/insights", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        month: period,
+        question: aiQuestion,
+        summary: {
+          income: monthIncome,
+          expense: monthExpense,
+          categories: categoryData.slice(0, 6),
+        },
+      }),
     });
 
-    const data = await res.json();
-    setAiAnswer(data.answer || data.message || "Sem resposta agora.");
+    const data = await response.json();
+    setAiAnswer(data.answer || "Sem resposta no momento.");
     setAiLoading(false);
   };
 
+  const actions = (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        className="rounded-xl border border-stroke bg-card px-3 py-2 text-sm font-semibold hover:bg-appbg transition"
+        onClick={() => setPeriod(monthInputValue())}
+      >
+        Limpar filtro
+      </button>
+      <button
+        type="button"
+        className="rounded-xl border border-stroke bg-card px-3 py-2 text-sm font-semibold hover:bg-appbg transition"
+        onClick={loadData}
+      >
+        Atualizar
+      </button>
+      <input
+        type="month"
+        className="rounded-xl border border-stroke bg-card px-3 py-2 text-sm"
+        value={period}
+        onChange={(event) => setPeriod(event.target.value)}
+      />
+    </div>
+  );
+
   return (
-    <AppShell title="Dashboard" subtitle="Resumo geral do seu dinheiro">
-      {loading ? (
-        <div className="rounded-2xl border border-slate-800/80 bg-slate-900/50 p-6 text-slate-300">
-          Carregando dados...
+    <AppShell title="Dashboard" subtitle="Resumo financeiro" actions={actions}>
+      {message ? (
+        <div className="mb-4 rounded-xl border border-amber-700/60 bg-amber-950/40 px-4 py-3 text-sm text-amber-100">
+          {message}
         </div>
+      ) : null}
+
+      {loading ? (
+        <div className="rounded-xl2 bg-card border border-stroke shadow-soft p-6 text-muted">Carregando...</div>
       ) : (
-        <div className="flex flex-col gap-8">
-          <section className="grid gap-4 lg:grid-cols-4">
-            <div className="glass rounded-2xl p-5">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
-                Saldo disponivel
-              </p>
-              <p className="mt-3 text-2xl font-semibold text-white">
-                {brl(availableBalance)}
-              </p>
-              <p className="mt-2 text-xs text-slate-500">
-                Previsto: {brl(forecastBalance)}
-              </p>
+        <div className="space-y-6">
+          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-xl2 bg-card border border-stroke shadow-soft p-4">
+              <p className="text-sm text-muted">Saldo disponivel</p>
+              <p className="mt-1 text-3xl font-extrabold">{brl(availableBalance)}</p>
+              <p className="mt-1 text-xs text-muted">Saldo bancario total</p>
             </div>
-            <div className="glass rounded-2xl p-5">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
-                Receitas do mes
-              </p>
-              <p className="mt-3 text-2xl font-semibold text-emerald-300">
-                {brl(monthIncome)}
-              </p>
-              <p className="mt-2 text-xs text-slate-500">
-                Base: {format(new Date(), "MMMM yyyy")}
-              </p>
+            <div className="rounded-xl2 bg-card border border-stroke shadow-soft p-4">
+              <p className="text-sm text-muted">Saldo previsto</p>
+              <p className="mt-1 text-3xl font-extrabold">{brl(forecastBalance)}</p>
+              <p className="mt-1 text-xs text-muted">Com base em movimentos futuros</p>
             </div>
-            <div className="glass rounded-2xl p-5">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
-                Despesas do mes
-              </p>
-              <p className="mt-3 text-2xl font-semibold text-rose-300">
-                {brl(monthExpense)}
-              </p>
-              <p className="mt-2 text-xs text-slate-500">
-                Variacao: {formatPercent(insights.deltaPct)}
-              </p>
+            <div className="rounded-xl2 bg-card border border-stroke shadow-soft p-4">
+              <p className="text-sm text-muted">Receitas ({period})</p>
+              <p className="mt-1 text-3xl font-extrabold text-emerald-400">{brl(monthIncome)}</p>
+              <p className="mt-1 text-xs text-muted">Entradas do periodo</p>
             </div>
-            <div className="glass rounded-2xl p-5">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
-                Resultado do mes
-              </p>
-              <p className="mt-3 text-2xl font-semibold text-white">
-                {brl(monthIncome - monthExpense)}
-              </p>
-              <p className="mt-2 text-xs text-slate-500">
-                Top categoria: {insights.topCategory?.name ?? "--"}
-              </p>
+            <div className="rounded-xl2 bg-card border border-stroke shadow-soft p-4">
+              <p className="text-sm text-muted">Despesas ({period})</p>
+              <p className="mt-1 text-3xl font-extrabold text-rose-400">{brl(monthExpense)}</p>
+              <p className="mt-1 text-xs text-muted">Resultado: {brl(monthIncome - monthExpense)}</p>
             </div>
           </section>
 
-          <section className="grid gap-6 lg:grid-cols-3">
-            <div className="glass rounded-2xl p-5 lg:col-span-2">
+          <section className="grid gap-4 xl:grid-cols-3">
+            <div className="rounded-xl2 bg-card border border-stroke shadow-soft p-4 xl:col-span-2">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Receitas x Despesas</h2>
-                <span className="text-xs text-slate-400">Ultimos 12 meses</span>
+                <h2 className="text-xl font-extrabold">Receitas x despesas</h2>
+                <span className="text-xs text-muted">Ultimos 12 meses</span>
               </div>
               <div className="mt-4 h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={monthlySeries}>
-                    <XAxis dataKey="month" stroke="#94a3b8" />
-                    <YAxis stroke="#94a3b8" />
-                    <Tooltip
-                      contentStyle={{
-                        background: "#0f172a",
-                        border: "1px solid #1e293b",
-                      }}
-                    />
-                    <Line type="monotone" dataKey="income" stroke="#34d399" strokeWidth={2} />
-                    <Line type="monotone" dataKey="expense" stroke="#fb7185" strokeWidth={2} />
+                    <XAxis dataKey="month" stroke="#64748b" />
+                    <YAxis stroke="#64748b" />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="income" stroke="#22c55e" strokeWidth={2.5} />
+                    <Line type="monotone" dataKey="expense" stroke="#ef4444" strokeWidth={2.5} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
-            <div className="glass rounded-2xl p-5">
+            <div className="rounded-xl2 bg-card border border-stroke shadow-soft p-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Categorias</h2>
-                <span className="text-xs text-slate-400">Mes atual</span>
+                <h2 className="text-xl font-extrabold">Categorias</h2>
+                <span className="text-xs text-muted">{period}</span>
               </div>
               <div className="mt-4 h-56">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={categoryData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={90}>
+                    <Pie data={categoryData} dataKey="value" nameKey="name" innerRadius={45} outerRadius={85}>
                       {categoryData.map((_, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        <Cell key={`cat-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        background: "#0f172a",
-                        border: "1px solid #1e293b",
-                      }}
-                    />
+                    <Tooltip />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
-              <div className="mt-4 space-y-2 text-sm">
-                {categoryData.slice(0, 4).map((cat) => (
-                  <div key={cat.name} className="flex justify-between text-slate-300">
-                    <span>{cat.name}</span>
-                    <span>{brl(cat.value)}</span>
-                  </div>
-                ))}
-              </div>
             </div>
           </section>
 
-          <section className="grid gap-6 lg:grid-cols-3">
-            <div className="glass rounded-2xl p-5">
-              <h2 className="text-lg font-semibold">Insights rapidos</h2>
-              <ul className="mt-4 space-y-3 text-sm text-slate-300">
-                <li>
-                  Top categoria: <strong>{insights.topCategory?.name ?? "Sem dados"}</strong> com
-                  {" "}
-                  <strong>{insights.topCategory ? brl(insights.topCategory.value) : "--"}</strong>.
-                </li>
-                <li>
-                  Variacao vs mes anterior: <strong>{formatPercent(insights.deltaPct)}</strong>.
-                </li>
-                <li>
-                  Total de transacoes neste mes: <strong>{monthTxs.length}</strong>.
-                </li>
-              </ul>
+          <section className="grid gap-4 xl:grid-cols-3">
+            <div className="rounded-xl2 bg-card border border-stroke shadow-soft p-4">
+              <h2 className="text-xl font-extrabold">Insights</h2>
+              <div className="mt-3 space-y-2 text-sm">
+                <p>
+                  Top categoria: <strong>{insights.topCategory?.name ?? "Sem dados"}</strong>
+                </p>
+                <p>
+                  Valor top: <strong>{insights.topCategory ? brl(insights.topCategory.value) : "-"}</strong>
+                </p>
+                <p>
+                  Variacao vs mes anterior: <strong>{formatPercent(insights.deltaPct)}</strong>
+                </p>
+                <p>
+                  Total de lancamentos no periodo: <strong>{periodTransactions.length}</strong>
+                </p>
+              </div>
             </div>
 
-            <div className="glass rounded-2xl p-5 lg:col-span-2">
+            <div className="rounded-xl2 bg-card border border-stroke shadow-soft p-4 xl:col-span-2">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Cartoes</h2>
-                <span className="text-xs text-slate-400">Limites e faturas</span>
+                <h2 className="text-xl font-extrabold">Cartoes</h2>
+                <span className="text-xs text-muted">Faturas e limites</span>
               </div>
-              <div className="mt-4 grid gap-4 md:grid-cols-2">
+
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
                 {cardSummaries.map(({ card, summary }) => (
-                  <div key={card.id} className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold text-white">{card.name}</p>
-                        <p className="text-xs text-slate-400">Fecha dia {card.closing_day} • Vence dia {card.due_day}</p>
-                      </div>
-                      <span className="text-xs text-slate-400">{card.issuer ?? ""}</span>
-                    </div>
-                    <div className="mt-3 text-sm text-slate-300">
-                      <div className="flex justify-between">
-                        <span>Fatura atual</span>
-                        <span>{brl(summary.currentTotal)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Prevista</span>
-                        <span>{brl(summary.forecastTotal)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Limite disponivel</span>
-                        <span>{brl(summary.limitAvailable)}</span>
-                      </div>
+                  <div key={card.id} className="rounded-xl border border-stroke bg-appbg p-3">
+                    <p className="font-bold">{card.name}</p>
+                    <p className="text-xs text-muted">Fecha dia {card.closing_day} | Vence dia {card.due_day}</p>
+                    <div className="mt-2 text-sm space-y-1">
+                      <div className="flex justify-between"><span>Fatura atual</span><span>{brl(summary.currentTotal)}</span></div>
+                      <div className="flex justify-between"><span>Fatura prevista</span><span>{brl(summary.forecastTotal)}</span></div>
+                      <div className="flex justify-between"><span>Limite disponivel</span><span>{brl(summary.limitAvailable)}</span></div>
                     </div>
                   </div>
                 ))}
-                {!cardSummaries.length && (
-                  <div className="text-sm text-slate-500">Nenhum cartao cadastrado.</div>
-                )}
+                {!cardSummaries.length ? <div className="text-sm text-muted">Nenhum cartao cadastrado.</div> : null}
               </div>
             </div>
           </section>
 
-          <section className="grid gap-6 lg:grid-cols-2">
-            <div className="glass rounded-2xl p-5">
-              <h2 className="text-lg font-semibold">Alertas</h2>
-              <div className="mt-4 space-y-3">
+          <section className="grid gap-4 xl:grid-cols-2">
+            <div className="rounded-xl2 bg-card border border-stroke shadow-soft p-4">
+              <h2 className="text-xl font-extrabold">Alertas</h2>
+              <div className="mt-3 space-y-2">
                 {alerts.length ? (
                   alerts.map((alert) => (
-                    <div
-                      key={alert.id}
-                      className={`rounded-2xl border border-slate-800/80 p-4 text-sm ${
-                        alert.is_read ? "bg-slate-900/40" : "bg-slate-900/70"
-                      }`}
-                    >
-                      <div className="font-semibold text-white">{alert.title}</div>
-                      <div className="mt-2 text-slate-400">{alert.body}</div>
+                    <div key={alert.id} className="rounded-xl border border-stroke bg-appbg p-3">
+                      <div className="font-semibold">{alert.title}</div>
+                      <div className="text-sm text-muted mt-1">{alert.body}</div>
+                      <div className="mt-2 flex items-center justify-between text-xs text-muted">
+                        <span>{alert.due_at ?? "Sem data"}</span>
+                        {!alert.is_read ? (
+                          <button
+                            type="button"
+                            className="rounded-lg border border-stroke bg-card px-2 py-1 text-xs font-semibold"
+                            onClick={() => markAlertRead(alert.id)}
+                          >
+                            Marcar como lido
+                          </button>
+                        ) : (
+                          <span>Lido</span>
+                        )}
+                      </div>
                     </div>
                   ))
                 ) : (
-                  <div className="text-sm text-slate-500">Sem alertas no momento.</div>
+                  <div className="text-sm text-muted">Sem alertas no momento.</div>
                 )}
               </div>
             </div>
 
-            <div className="glass rounded-2xl p-5">
-              <h2 className="text-lg font-semibold">ChatGPT Insights</h2>
-              <p className="mt-2 text-sm text-slate-400">
-                Pergunte algo sobre seus gastos e receitas. Ex: onde estou exagerando?
+            <div className="rounded-xl2 bg-card border border-stroke shadow-soft p-4">
+              <h2 className="text-xl font-extrabold">ChatGPT</h2>
+              <p className="text-sm text-muted mt-1">
+                Pergunte sobre seus dados: onde estou gastando mais? como reduzir custos?
               </p>
               <textarea
-                className="mt-4 h-28 w-full rounded-2xl border border-slate-800 bg-slate-900/70 p-3 text-sm text-white"
+                className="mt-3 w-full h-28 rounded-xl border border-stroke bg-appbg px-3 py-2 text-sm outline-none"
                 placeholder="Digite sua pergunta"
                 value={aiQuestion}
                 onChange={(event) => setAiQuestion(event.target.value)}
               />
               <button
-                className="mt-3 rounded-xl bg-gradient-to-r from-sky-400 to-indigo-500 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
-                onClick={handleAskAi}
+                type="button"
+                className="mt-3 rounded-xl bg-greenbar text-white px-4 py-2 text-sm font-bold shadow-softer disabled:opacity-60"
+                onClick={askAi}
                 disabled={aiLoading}
               >
                 {aiLoading ? "Analisando..." : "Gerar insight"}
               </button>
-              {aiAnswer && (
-                <div className="mt-4 rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 text-sm text-slate-200">
-                  {aiAnswer}
-                </div>
-              )}
+              {aiAnswer ? (
+                <div className="mt-3 rounded-xl border border-stroke bg-appbg p-3 text-sm">{aiAnswer}</div>
+              ) : null}
             </div>
           </section>
 
-          <section className="glass rounded-2xl p-5">
-            <h2 className="text-lg font-semibold">Fluxo por categoria</h2>
-            <div className="mt-4 h-64">
+          <section className="rounded-xl2 bg-card border border-stroke shadow-soft p-4">
+            <h2 className="text-xl font-extrabold">Despesas por categoria</h2>
+            <div className="mt-3 h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={categoryData}>
-                  <XAxis dataKey="name" stroke="#94a3b8" />
-                  <YAxis stroke="#94a3b8" />
-                  <Tooltip
-                    contentStyle={{
-                      background: "#0f172a",
-                      border: "1px solid #1e293b",
-                    }}
-                  />
-                  <Bar dataKey="value" fill="#38bdf8" radius={[8, 8, 0, 0]} />
+                  <XAxis dataKey="name" stroke="#64748b" />
+                  <YAxis stroke="#64748b" />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="#22c55e" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
