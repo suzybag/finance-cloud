@@ -222,3 +222,53 @@ create index if not exists idx_cards_user on public.cards(user_id);
 create index if not exists idx_tx_user_date on public.transactions(user_id, occurred_at desc);
 create index if not exists idx_alerts_user_date on public.alerts(user_id, created_at desc);
 create index if not exists idx_whatsapp_user_date on public.whatsapp_messages(user_id, created_at desc);
+
+-- Storage bucket for avatars (public)
+insert into storage.buckets (id, name, public)
+values ('avatars', 'avatars', true)
+on conflict (id) do update set public = true;
+
+-- Storage policies for avatars
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'storage' and tablename = 'objects' and policyname = 'avatars_read_public'
+  ) then
+    create policy avatars_read_public
+    on storage.objects
+    for select
+    using (bucket_id = 'avatars');
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'storage' and tablename = 'objects' and policyname = 'avatars_insert_auth'
+  ) then
+    create policy avatars_insert_auth
+    on storage.objects
+    for insert
+    with check (bucket_id = 'avatars' and auth.role() = 'authenticated');
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'storage' and tablename = 'objects' and policyname = 'avatars_update_own'
+  ) then
+    create policy avatars_update_own
+    on storage.objects
+    for update
+    using (bucket_id = 'avatars' and auth.uid() = owner);
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'storage' and tablename = 'objects' and policyname = 'avatars_delete_own'
+  ) then
+    create policy avatars_delete_own
+    on storage.objects
+    for delete
+    using (bucket_id = 'avatars' and auth.uid() = owner);
+  end if;
+end
+$$;
