@@ -10,6 +10,8 @@ import {
   PieChart,
   ResponsiveContainer,
   Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
 import { AppShell } from "@/components/AppShell";
 import { brl, formatPercent, toNumber } from "@/lib/money";
