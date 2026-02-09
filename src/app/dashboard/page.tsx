@@ -6,14 +6,10 @@ import {
   Bar,
   BarChart,
   Cell,
-  Line,
-  LineChart,
   Pie,
   PieChart,
   ResponsiveContainer,
   Tooltip,
-  XAxis,
-  YAxis,
 } from "recharts";
 import { AppShell } from "@/components/AppShell";
 import { brl, formatPercent, toNumber } from "@/lib/money";
@@ -24,7 +20,6 @@ import {
   Card,
   Transaction,
   buildCardAlerts,
-  buildMonthlySeries,
   calculateInsights,
   computeAvailableBalance,
   computeCardSummary,
@@ -180,12 +175,19 @@ export default function DashboardPage() {
     [accounts, transactions],
   );
 
-  const monthlySeries = useMemo(() => buildMonthlySeries(transactions), [transactions]);
   const categoryData = useMemo(
     () => groupByCategory(transactions, periodDate),
     [transactions, periodDate],
   );
   const insights = useMemo(() => calculateInsights(transactions, periodDate), [transactions, periodDate]);
+
+  const donutData = useMemo(
+    () => [
+      { name: "Receitas", value: monthIncome, color: "#22c55e" },
+      { name: "Despesas", value: monthExpense, color: "#ef4444" },
+    ],
+    [monthIncome, monthExpense],
+  );
 
   const cardSummaries = useMemo(
     () =>
@@ -291,18 +293,46 @@ export default function DashboardPage() {
             <div className="rounded-xl2 bg-card border border-stroke shadow-soft p-4 xl:col-span-2">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-extrabold">Receitas x despesas</h2>
-                <span className="text-xs text-muted">Ultimos 12 meses</span>
+                <span className="text-xs text-muted">Periodo selecionado</span>
               </div>
-              <div className="mt-4 h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={monthlySeries}>
-                    <XAxis dataKey="month" stroke="#64748b" />
-                    <YAxis stroke="#64748b" />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="income" stroke="#22c55e" strokeWidth={2.5} />
-                    <Line type="monotone" dataKey="expense" stroke="#ef4444" strokeWidth={2.5} />
-                  </LineChart>
-                </ResponsiveContainer>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={donutData}
+                        dataKey="value"
+                        nameKey="name"
+                        innerRadius={65}
+                        outerRadius={100}
+                        paddingAngle={4}
+                      >
+                        {donutData.map((entry) => (
+                          <Cell key={entry.name} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex flex-col justify-center gap-3 text-sm">
+                  {donutData.map((entry) => (
+                    <div
+                      key={entry.name}
+                      className="flex items-center justify-between rounded-xl border border-stroke bg-appbg px-3 py-2"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="h-3 w-3 rounded-full" style={{ background: entry.color }} />
+                        <span className="font-semibold">{entry.name}</span>
+                      </div>
+                      <span className="font-extrabold">{brl(entry.value)}</span>
+                    </div>
+                  ))}
+                  <div className="rounded-xl border border-stroke bg-card px-3 py-2">
+                    <div className="text-xs text-muted">Resultado</div>
+                    <div className="text-lg font-extrabold">{brl(monthIncome - monthExpense)}</div>
+                  </div>
+                </div>
               </div>
             </div>
 
