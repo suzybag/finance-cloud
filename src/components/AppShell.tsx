@@ -1,6 +1,7 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRequireAuth } from "@/lib/useAuth";
@@ -41,7 +42,7 @@ export const AppShell = ({ title, subtitle, actions, children }: AppShellProps) 
       .join("");
   }, [displayName]);
 
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase
       .from("profiles")
@@ -51,11 +52,11 @@ export const AppShell = ({ title, subtitle, actions, children }: AppShellProps) 
 
     setProfileName(data?.display_name ?? null);
     setAvatarUrl(data?.avatar_url ?? null);
-  };
+  }, [user]);
 
   useEffect(() => {
     loadProfile();
-  }, [user?.id]);
+  }, [loadProfile]);
 
   useEffect(() => {
     const handler = (event: Event) => {
