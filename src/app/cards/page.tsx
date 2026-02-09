@@ -2,6 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { supabase } from "@/lib/supabaseClient";
 import { brl, toNumber } from "@/lib/money";
@@ -21,6 +22,7 @@ export default function CardsPage() {
   const [dueDay, setDueDay] = useState("17");
 
   const [editId, setEditId] = useState<string | null>(null);
+  const [tab, setTab] = useState<"active" | "archived">("active");
 
   const [paymentCard, setPaymentCard] = useState("");
   const [paymentAccount, setPaymentAccount] = useState("");
@@ -114,8 +116,11 @@ export default function CardsPage() {
   };
 
   const cardSummaries = useMemo(
-    () => cards.map((card) => ({ card, summary: computeCardSummary(card, transactions) })),
-    [cards, transactions],
+    () =>
+      cards
+        .filter((card) => (tab === "archived" ? card.archived : !card.archived))
+        .map((card) => ({ card, summary: computeCardSummary(card, transactions) })),
+    [cards, transactions, tab],
   );
 
   return (
@@ -187,54 +192,96 @@ export default function CardsPage() {
             </div>
           </section>
 
-          <section className="grid gap-4 lg:grid-cols-2">
+          <section className="rounded-xl2 bg-card border border-stroke shadow-soft p-5">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className={`rounded-full px-4 py-2 text-xs font-semibold ${
+                  tab === "active" ? "bg-appbg text-ink" : "text-muted hover:text-ink"
+                } border border-stroke`}
+                onClick={() => setTab("active")}
+              >
+                Meus cartoes
+              </button>
+              <button
+                type="button"
+                className={`rounded-full px-4 py-2 text-xs font-semibold ${
+                  tab === "archived" ? "bg-appbg text-ink" : "text-muted hover:text-ink"
+                } border border-stroke`}
+                onClick={() => setTab("archived")}
+              >
+                Arquivados
+              </button>
+            </div>
+
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
             {cardSummaries.map(({ card, summary }) => (
-              <div key={card.id} className="glass rounded-2xl p-5">
-                <div className="flex items-center justify-between">
+              <div key={card.id} className="rounded-xl2 bg-card border border-stroke shadow-soft p-5">
+                <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-lg font-semibold text-white">{card.name}</p>
-                    <p className="text-xs text-slate-400">{card.issuer ?? ""}</p>
+                    <p className="text-xs text-muted">{card.issuer || "Titular"}</p>
+                    <p className="text-2xl font-extrabold">{card.name}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-slate-400">Limite total</p>
-                    <p className="text-lg font-semibold text-white">{brl(card.limit_total)}</p>
+                    <p className="text-xs text-muted">Fatura atual</p>
+                    <p className="text-xl font-extrabold">{brl(summary.currentTotal)}</p>
                   </div>
                 </div>
-                <div className="mt-3 space-y-1 text-sm text-slate-300">
-                  <div className="flex justify-between">
-                    <span>Limite usado</span>
-                    <span>{brl(summary.limitUsed)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Limite disponivel</span>
-                    <span>{brl(summary.limitAvailable)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Fatura atual</span>
-                    <span>{brl(summary.currentTotal)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Fatura prevista</span>
-                    <span>{brl(summary.forecastTotal)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Fecha dia</span>
-                    <span>{card.closing_day}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Vence dia</span>
-                    <span>{card.due_day}</span>
+
+                <div className="mt-3">
+                  <p className="text-xs text-muted">Limite usado</p>
+                  <div className="mt-2 h-2 rounded-full bg-appbg border border-stroke overflow-hidden">
+                    <div
+                      className="h-full bg-sky-400"
+                      style={{
+                        width: `${card.limit_total ? Math.min((summary.limitUsed / card.limit_total) * 100, 100) : 0}%`,
+                      }}
+                    />
                   </div>
                 </div>
+
+                <div className="mt-3 grid gap-3 md:grid-cols-3 text-sm">
+                  <div>
+                    <p className="text-xs text-muted">Limite usado</p>
+                    <p className="font-extrabold text-rose-400">{brl(summary.limitUsed)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted">Limite disponivel</p>
+                    <p className="font-extrabold text-emerald-400">{brl(summary.limitAvailable)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted">Limite total</p>
+                    <p className="font-extrabold">{brl(card.limit_total)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted">Fechamento</p>
+                    <p className="font-semibold">Todo dia {card.closing_day}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted">Vencimento</p>
+                    <p className="font-semibold">Todo dia {card.due_day}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted">Fatura prevista</p>
+                    <p className="font-extrabold">{brl(summary.forecastTotal)}</p>
+                  </div>
+                </div>
+
                 <div className="mt-4 flex flex-wrap gap-2">
+                  <Link
+                    className="rounded-xl border border-stroke bg-card px-3 py-2 text-xs font-semibold hover:bg-appbg"
+                    href={`/cards/${card.id}/invoice`}
+                  >
+                    Ver detalhes da fatura
+                  </Link>
                   <button
-                    className="rounded-xl border border-slate-700 px-3 py-2 text-xs"
+                    className="rounded-xl border border-stroke bg-card px-3 py-2 text-xs font-semibold hover:bg-appbg"
                     onClick={() => handleEdit(card)}
                   >
                     Editar
                   </button>
                   <button
-                    className="rounded-xl border border-slate-700 px-3 py-2 text-xs"
+                    className="rounded-xl border border-stroke bg-card px-3 py-2 text-xs font-semibold hover:bg-appbg"
                     onClick={() => handleArchive(card)}
                   >
                     {card.archived ? "Desarquivar" : "Arquivar"}
@@ -242,9 +289,10 @@ export default function CardsPage() {
                 </div>
               </div>
             ))}
-            {!cards.length && (
-              <div className="text-sm text-slate-500">Nenhum cartao cadastrado.</div>
+            {!cardSummaries.length && (
+              <div className="text-sm text-muted">Nenhum cartao cadastrado.</div>
             )}
+            </div>
           </section>
 
           <section className="glass rounded-2xl p-6">

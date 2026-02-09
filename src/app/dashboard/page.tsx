@@ -384,12 +384,57 @@ export default function DashboardPage() {
               <div className="mt-3 grid gap-3 md:grid-cols-2">
                 {cardSummaries.map(({ card, summary }) => (
                   <div key={card.id} className="rounded-xl border border-stroke bg-appbg p-3">
-                    <p className="font-bold">{card.name}</p>
-                    <p className="text-xs text-muted">Fecha dia {card.closing_day} | Vence dia {card.due_day}</p>
-                    <div className="mt-2 text-sm space-y-1">
-                      <div className="flex justify-between"><span>Fatura atual</span><span>{brl(summary.currentTotal)}</span></div>
-                      <div className="flex justify-between"><span>Fatura prevista</span><span>{brl(summary.forecastTotal)}</span></div>
-                      <div className="flex justify-between"><span>Limite disponivel</span><span>{brl(summary.limitAvailable)}</span></div>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-xs text-muted">{card.issuer || "Titular"}</p>
+                        <p className="font-bold">{card.name}</p>
+                        <p className="text-xs text-muted mt-1">
+                          Fecha dia {card.closing_day} | Vence dia {card.due_day}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-muted">Fatura atual</p>
+                        <p className="text-lg font-extrabold">{brl(summary.currentTotal)}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-3">
+                      <p className="text-xs text-muted">Limite usado</p>
+                      <div className="mt-2 h-2 rounded-full bg-card border border-stroke overflow-hidden">
+                        <div
+                          className="h-full bg-sky-400"
+                          style={{
+                            width: `${card.limit_total ? Math.min((summary.limitUsed / card.limit_total) * 100, 100) : 0}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-3 grid gap-2 md:grid-cols-3 text-sm">
+                      <div>
+                        <p className="text-xs text-muted">Limite usado</p>
+                        <p className="font-extrabold text-rose-400">{brl(summary.limitUsed)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted">Limite disponivel</p>
+                        <p className="font-extrabold text-emerald-400">{brl(summary.limitAvailable)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted">Limite total</p>
+                        <p className="font-extrabold">{brl(card.limit_total)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted">Fechamento</p>
+                        <p className="font-semibold">Todo dia {card.closing_day}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted">Vencimento</p>
+                        <p className="font-semibold">Todo dia {card.due_day}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted">Fatura prevista</p>
+                        <p className="font-extrabold">{brl(summary.forecastTotal)}</p>
+                      </div>
                     </div>
                   </div>
                 ))}
