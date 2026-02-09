@@ -109,7 +109,7 @@ export default function ImportPage() {
             : "expense";
 
         const accountName = accountIndex >= 0 ? row[accountIndex]?.toLowerCase() : "";
-        const accountId = accountMap.get(accountName) ?? defaultAccount || null;
+        const accountId = accountMap.get(accountName) ?? (defaultAccount || null);
 
         return {
           user_id: userId,
