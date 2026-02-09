@@ -21,7 +21,7 @@ Sistema financeiro pessoal na nuvem, com login, dashboard dark moderno, contas, 
 ## 1) Criar projeto no Supabase
 1. Crie um projeto no Supabase.
 2. No **SQL Editor**, rode o arquivo `supabase.sql`.
-3. Em **Storage**, crie o bucket `avatars` como **publico**.
+3. Em **Storage**, crie o bucket `avatars` como **publico** (ou rode o `supabase.sql` atualizado que ja cria o bucket/policies).
 
 ## 2) Configurar variaveis de ambiente
 Crie `finance-cloud/.env.local`:
