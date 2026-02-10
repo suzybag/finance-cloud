@@ -16,6 +16,7 @@ const navItems = [
   { href: "/cards", label: "Cartoes" },
   { href: "/import", label: "Importacao" },
   { href: "/relatorio", label: "Relatorio" },
+  { href: "/profile", label: "Configuracoes" },
 ];
 
 type AppShellProps = {
