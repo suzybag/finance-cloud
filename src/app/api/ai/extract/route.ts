@@ -11,6 +11,8 @@ type ParseResult = {
   items: ParsedItem[];
   summary: { description: string; total: number; type: "expense" | "income" }[];
   totals: { expense: number; income: number; balance: number };
+  message?: string;
+  out_of_scope?: boolean;
 };
 
 const CATEGORY_RULES: Record<string, string> = {
@@ -108,6 +110,22 @@ const STOPWORDS_START = [
   "mais",
 ];
 
+const FINANCE_SCOPE_HINTS = [
+  ...INCOME_HINTS,
+  ...EXPENSE_HINTS,
+  ...Object.keys(CATEGORY_RULES),
+  "pix",
+  "deposito",
+  "deposito em",
+  "investimento",
+  "cartao",
+  "fatura",
+  "conta",
+  "transferencia",
+  "transferencia pix",
+  "consorcio",
+];
+
 const TRAILING_CONNECTORS = ["de", "da", "do", "na", "no", "em", "pra", "pro", "para", "com", "e"];
 const GENERIC_DESCRIPTIONS = ["mais", "valor", "lancamento", "lancamento rapido"];
 
@@ -177,6 +195,35 @@ const guessCategory = (description: string) => {
 
 const countHintMatches = (text: string, hints: string[]) =>
   hints.reduce((score, hint) => (text.includes(hint) ? score + 1 : score), 0);
+
+const hasFinanceIntent = (text: string) => {
+  const normalized = normalizeForMatch(text);
+  if (!normalized) return false;
+
+  const hasKeyword = FINANCE_SCOPE_HINTS.some((hint) =>
+    normalized.includes(normalizeForMatch(hint)),
+  );
+
+  if (hasKeyword) return true;
+
+  const hasAmount = /(?:r\$\s*)?\d{1,6}(?:[.,]\d{1,2})?/i.test(normalized);
+  const hasFinanceVerb =
+    /(gastei|paguei|recebi|ganhei|depositei|deposito|pix|investi|aporte|fatura|compra|salario|rendimento)/i.test(
+      normalized,
+    );
+
+  return hasAmount && hasFinanceVerb;
+};
+
+const emptyResult = (
+  opts: { message?: string; outOfScope?: boolean } = {},
+): ParseResult => ({
+  items: [],
+  summary: [],
+  totals: { expense: 0, income: 0, balance: 0 },
+  message: opts.message,
+  out_of_scope: opts.outOfScope,
+});
 
 const guessType = (description: string, fullText: string): "expense" | "income" => {
   const lower = normalizeForMatch(`${description} ${fullText}`);
@@ -352,6 +399,7 @@ Regras:
 - "description" curta (ex: "Uber", "Netflix", "CDB").
 - Entenda sinonimos: deposito/depósito/recebi/ganhei = income.
 - Entenda investimentos: CDB/CBD/poupanca/tesouro = categoria "Investimentos".
+- Se a frase nao for sobre lancamento financeiro, retorne { "items": [], "out_of_scope": true, "message": "Eu so respondo lancamentos financeiros." }.
 - Se nao conseguir extrair, retorne { "items": [] }.
 Frase: ${text}`;
 
@@ -377,6 +425,14 @@ Frase: ${text}`;
   if (!content) return null;
 
   const parsed = tryParseJson(content);
+  if (parsed?.out_of_scope) {
+    const message =
+      typeof parsed?.message === "string" && normalizeSpace(parsed.message)
+        ? normalizeSpace(parsed.message)
+        : "Eu foco apenas em lancamentos financeiros. Ex: gastei 25 uber e 12 netflix.";
+    return emptyResult({ message, outOfScope: true });
+  }
+
   const rawItems = Array.isArray(parsed?.items) ? parsed.items : [];
   const items = rawItems
     .map((item: unknown) => sanitizeItem(item, text))
@@ -391,6 +447,16 @@ export async function POST(req: NextRequest) {
   const text = normalizeSpace(String(body?.text ?? ""));
   if (!text) {
     return NextResponse.json({ message: "Informe um texto para analisar." }, { status: 400 });
+  }
+
+  if (!hasFinanceIntent(text)) {
+    return NextResponse.json(
+      emptyResult({
+        outOfScope: true,
+        message:
+          "Eu foco apenas em lancamentos financeiros. Ex: gastei 25 uber e 12 netflix, ganhei 500 deposito.",
+      }),
+    );
   }
 
   const apiKey = process.env.OPENAI_API_KEY;

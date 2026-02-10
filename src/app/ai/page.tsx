@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { MessageCircle } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import type { Account } from "@/lib/finance";
 import { brl, toNumber } from "@/lib/money";
@@ -19,6 +20,8 @@ type QuickParseResponse = {
   items: QuickParsedItem[];
   summary: { description: string; total: number; type: "expense" | "income" }[];
   totals: { expense: number; income: number; balance: number };
+  message?: string;
+  out_of_scope?: boolean;
 };
 
 type ChatMessage = {
@@ -47,6 +50,9 @@ const needsValueHint = (text: string) => {
   const hasNumber = /\d/.test(normalized);
   return hasIntent && !hasNumber;
 };
+
+const WHATSAPP_CONNECT_URL =
+  "https://api.whatsapp.com/send/?phone=19516668518&text=Send+this+message+to+connect+and+start+chatting%21%0A%0AActivation+code%3A+B44-7YRSMPFN&type=phone_number&app_absent=0";
 
 export default function AiPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -134,6 +140,16 @@ export default function AiPage() {
     }
 
     const result = data as QuickParseResponse;
+    if (result.out_of_scope) {
+      setQuickResult(null);
+      const outOfScopeMessage =
+        result.message || "Eu foco apenas em lancamentos financeiros.";
+      setMessage(outOfScopeMessage);
+      appendMessage("assistant", outOfScopeMessage);
+      setQuickParsing(false);
+      return;
+    }
+
     setQuickResult(result);
 
     if (result.items.length) {
@@ -149,8 +165,9 @@ export default function AiPage() {
         setMessage("Entendi CDB/deposito, mas faltou o valor.");
         appendMessage("assistant", "Entendi CDB/deposito. Envie com valor. Ex: deposito 500 em cdb.");
       } else {
-        setMessage("Nenhum valor encontrado na frase.");
-        appendMessage("assistant", "Nao encontrei valores nessa frase.");
+        const assistantMessage = result.message || "Nao encontrei valores nessa frase.";
+        setMessage(assistantMessage);
+        appendMessage("assistant", assistantMessage);
       }
     }
 
@@ -259,6 +276,18 @@ export default function AiPage() {
                     </p>
                   </button>
                 ))}
+              </div>
+
+              <div className="mt-4 border-t border-white/10 pt-4">
+                <a
+                  href={WHATSAPP_CONNECT_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-400"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  Conectar WhatsApp
+                </a>
               </div>
             </section>
 
