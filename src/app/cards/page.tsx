@@ -11,6 +11,37 @@ import { getBankIconPath } from "@/lib/bankIcons";
 import { brl, toNumber } from "@/lib/money";
 import { Account, Card, Transaction, computeCardSummary } from "@/lib/finance";
 
+const BANK_ISSUER_OPTIONS = [
+  "Nubank",
+  "Inter",
+  "Bradesco",
+  "Mercado Pago",
+  "XP",
+  "BTG",
+] as const;
+
+const normalizeText = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+
+const inferIssuer = (value?: string | null) => {
+  const text = normalizeText(value ?? "");
+  if (!text) return null;
+  if (text.includes("nubank") || text.includes("roxinho")) return "Nubank";
+  if (text.includes("inter") || text.includes("bancointer")) return "Inter";
+  if (text.includes("bradesco")) return "Bradesco";
+  if (text.includes("mercadopago") || text.includes("mercadopag")) return "Mercado Pago";
+  if (text.includes("btg") || text.includes("btgpactual")) return "BTG";
+  if (text.includes("xp") || text.includes("xpinvestimentos")) return "XP";
+  return null;
+};
+
+const resolveIssuerLabel = (issuer?: string | null, name?: string | null) =>
+  (issuer?.trim() || inferIssuer(name) || "").trim();
+
 export default function CardsPage() {
   const [cards, setCards] = useState<Card[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -55,10 +86,11 @@ export default function CardsPage() {
 
   const handleCreate = async () => {
     if (!userId || !name) return;
+    const issuerToSave = resolveIssuerLabel(issuer, name);
     await supabase.from("cards").insert({
       user_id: userId,
       name,
-      issuer,
+      issuer: issuerToSave || null,
       limit_total: toNumber(limitTotal),
       closing_day: Number(closingDay),
       due_day: Number(dueDay),
@@ -85,11 +117,12 @@ export default function CardsPage() {
 
   const handleSaveEdit = async () => {
     if (!editId) return;
+    const issuerToSave = resolveIssuerLabel(issuer, name);
     await supabase
       .from("cards")
       .update({
         name,
-        issuer,
+        issuer: issuerToSave || null,
         limit_total: toNumber(limitTotal),
         closing_day: Number(closingDay),
         due_day: Number(dueDay),
@@ -99,6 +132,21 @@ export default function CardsPage() {
     setName("");
     setIssuer("");
     setLimitTotal("");
+    loadData();
+  };
+
+  const handleSetBank = async (card: Card) => {
+    const current = resolveIssuerLabel(card.issuer, card.name) || "";
+    const next = window.prompt(
+      `Informe o banco (${BANK_ISSUER_OPTIONS.join(", ")}):`,
+      current,
+    );
+    if (!next) return;
+
+    const normalized = resolveIssuerLabel(next, card.name);
+    if (!normalized) return;
+
+    await supabase.from("cards").update({ issuer: normalized }).eq("id", card.id);
     loadData();
   };
 
@@ -149,6 +197,20 @@ export default function CardsPage() {
                 value={issuer}
                 onChange={(event) => setIssuer(event.target.value)}
               />
+              <select
+                className="rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
+                value=""
+                onChange={(event) => {
+                  if (event.target.value) setIssuer(event.target.value);
+                }}
+              >
+                <option value="">Selecionar banco rapido</option>
+                {BANK_ISSUER_OPTIONS.map((bank) => (
+                  <option key={bank} value={bank}>
+                    {bank}
+                  </option>
+                ))}
+              </select>
               <input
                 className="rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
                 placeholder="Limite total"
@@ -226,7 +288,8 @@ export default function CardsPage() {
                 const usedPct = card.limit_total
                   ? Math.min((summary.limitUsed / card.limit_total) * 100, 100)
                   : 0;
-                const bankName = card.issuer?.trim() || card.name?.trim() || "";
+                const issuerLabel = resolveIssuerLabel(card.issuer, card.name);
+                const bankName = issuerLabel || card.name?.trim() || "";
                 const hasBankLogo = !!getBankIconPath(bankName);
 
                 return (
@@ -246,7 +309,7 @@ export default function CardsPage() {
                         <div>
                           <div className="flex items-center gap-2">
                             <p className="text-xs text-slate-400">
-                              {card.issuer?.trim() || "Banco nao informado"}
+                              {issuerLabel || "Banco nao informado"}
                             </p>
                           </div>
                           <p className="text-2xl font-extrabold text-slate-100">{card.name}</p>
@@ -305,6 +368,14 @@ export default function CardsPage() {
                         Ver detalhes da fatura
                       </Link>
                       <div className="flex gap-2">
+                        {!hasBankLogo ? (
+                          <button
+                            className="rounded-xl border border-white/10 bg-slate-900/50 px-3 py-2 text-xs font-semibold hover:bg-slate-900/70"
+                            onClick={() => handleSetBank(card)}
+                          >
+                            Definir banco
+                          </button>
+                        ) : null}
                         <button
                           className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-slate-900/50 hover:bg-slate-900/70"
                           onClick={() => handleEdit(card)}
