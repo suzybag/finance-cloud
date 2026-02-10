@@ -11,6 +11,8 @@ const navItems = [
   { href: "/dashboard", label: "Painel" },
   { href: "/accounts", label: "Contas" },
   { href: "/transactions", label: "Transacoes" },
+  { href: "/gastos", label: "Gastos" },
+  { href: "/ai", label: "AI" },
   { href: "/cards", label: "Cartoes" },
   { href: "/import", label: "Importacao" },
   { href: "/relatorio", label: "Relatorio" },

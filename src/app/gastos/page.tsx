@@ -1,0 +1,195 @@
+"use client";
+/* eslint-disable react-hooks/set-state-in-effect */
+
+import { useEffect, useMemo, useState } from "react";
+import { AppShell } from "@/components/AppShell";
+import type { Transaction } from "@/lib/finance";
+import { brl, toNumber } from "@/lib/money";
+import { supabase } from "@/lib/supabaseClient";
+
+const currentMonth = () => new Date().toISOString().slice(0, 7);
+
+const formatDateLabel = (dateString: string) => {
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return dateString;
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "numeric",
+    month: "short",
+  }).format(date);
+};
+
+const isIncomeType = (type: Transaction["type"]) => type === "income" || type === "adjustment";
+
+const isExpenseType = (type: Transaction["type"]) => type === "expense" || type === "card_payment";
+
+export default function GastosPage() {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState<string | null>(null);
+  const [monthFilter, setMonthFilter] = useState(currentMonth());
+
+  const loadData = async () => {
+    setLoading(true);
+    setMessage(null);
+
+    const { data, error } = await supabase
+      .from("transactions")
+      .select("*")
+      .order("occurred_at", { ascending: false })
+      .limit(1000);
+
+    if (error) {
+      setMessage(error.message || "Falha ao carregar gastos.");
+      setLoading(false);
+      return;
+    }
+
+    setTransactions((data as Transaction[]) ?? []);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const filtered = useMemo(() => {
+    return transactions
+      .filter((tx) => tx.type !== "transfer")
+      .filter((tx) => (monthFilter ? tx.occurred_at.startsWith(monthFilter) : true));
+  }, [transactions, monthFilter]);
+
+  const totals = useMemo(() => {
+    return filtered.reduce(
+      (acc, tx) => {
+        const amount = Math.abs(toNumber(tx.amount));
+        if (isIncomeType(tx.type)) acc.income += amount;
+        if (isExpenseType(tx.type)) acc.expense += amount;
+        return acc;
+      },
+      { income: 0, expense: 0 },
+    );
+  }, [filtered]);
+
+  const actions = (
+    <div className="flex items-center gap-2">
+      <input
+        type="month"
+        className="rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2 text-sm text-slate-100"
+        value={monthFilter}
+        onChange={(event) => setMonthFilter(event.target.value)}
+      />
+      <button
+        type="button"
+        className="rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-900/55"
+        onClick={() => setMonthFilter("")}
+      >
+        Todos
+      </button>
+      <button
+        type="button"
+        className="rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-900/55"
+        onClick={loadData}
+      >
+        Atualizar
+      </button>
+    </div>
+  );
+
+  return (
+    <AppShell title="Gastos" subtitle="Lista de lancamentos salvos pela IA e manualmente" actions={actions}>
+      <div className="space-y-4">
+        {message ? (
+          <div className="rounded-xl border border-white/10 bg-slate-900/55 px-4 py-3 text-sm text-slate-200">
+            {message}
+          </div>
+        ) : null}
+
+        <section className="glass-panel p-5">
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-xl border border-white/10 bg-slate-950/35 p-3">
+              <p className="text-xs text-slate-400">Depositos</p>
+              <p className="text-xl font-extrabold text-emerald-300">+{brl(totals.income)}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-slate-950/35 p-3">
+              <p className="text-xs text-slate-400">Gastos</p>
+              <p className="text-xl font-extrabold text-rose-300">-{brl(totals.expense)}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-slate-950/35 p-3">
+              <p className="text-xs text-slate-400">Resultado</p>
+              <p
+                className={`text-xl font-extrabold ${
+                  totals.income - totals.expense >= 0 ? "text-emerald-300" : "text-rose-300"
+                }`}
+              >
+                {brl(totals.income - totals.expense)}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="glass-panel p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-extrabold tracking-tight text-slate-100">Ultimos lancamentos</h2>
+            <span className="text-xs text-slate-400">{filtered.length} itens</span>
+          </div>
+
+          {loading ? (
+            <div className="mt-3 text-sm text-slate-300">Carregando...</div>
+          ) : (
+            <div className="mt-3 space-y-2">
+              {filtered.map((tx) => {
+                const income = isIncomeType(tx.type);
+                const expense = isExpenseType(tx.type);
+                const amount = Math.abs(toNumber(tx.amount));
+
+                const toneClass = income
+                  ? "bg-emerald-500/15 text-emerald-300"
+                  : expense
+                    ? "bg-rose-500/15 text-rose-300"
+                    : "bg-slate-500/15 text-slate-300";
+
+                const amountClass = income
+                  ? "text-emerald-300"
+                  : expense
+                    ? "text-rose-300"
+                    : "text-slate-300";
+
+                return (
+                  <div
+                    key={tx.id}
+                    className="flex items-center justify-between rounded-xl border border-white/10 bg-slate-950/35 px-3 py-3"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span
+                        className={`inline-flex h-9 w-9 items-center justify-center rounded-lg text-sm font-extrabold ${toneClass}`}
+                      >
+                        {income ? "↑" : "↓"}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-slate-100">{tx.description}</p>
+                        <p className="text-xs text-slate-400">
+                          {formatDateLabel(tx.occurred_at)} | {tx.category || "Sem categoria"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <p className={`text-lg font-extrabold ${amountClass}`}>
+                      {income ? "+" : "-"}
+                      {brl(amount)}
+                    </p>
+                  </div>
+                );
+              })}
+
+              {!filtered.length ? (
+                <div className="rounded-xl border border-white/10 bg-slate-950/35 px-4 py-4 text-sm text-slate-300">
+                  Nenhum lancamento encontrado para o filtro atual.
+                </div>
+              ) : null}
+            </div>
+          )}
+        </section>
+      </div>
+    </AppShell>
+  );
+}
