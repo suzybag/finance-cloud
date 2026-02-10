@@ -13,6 +13,7 @@ const navItems = [
   { href: "/transactions", label: "Transacoes" },
   { href: "/cards", label: "Cartoes" },
   { href: "/import", label: "Importacao" },
+  { href: "/relatorio", label: "Relatorio" },
 ];
 
 type AppShellProps = {

@@ -13,13 +13,26 @@ type Profile = {
 const MAX_SIZE_BYTES = 2 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
+const normalizeDisplayName = (value: string) => value.replace(/\s+/g, " ").trim();
+const validateDisplayName = (value: string) => {
+  if (!value) return "Nome obrigatorio.";
+  if (value.length < 2 || value.length > 40) return "Nome precisa ter entre 2 e 40 caracteres.";
+  if (!/\p{L}/u.test(value)) return "Use pelo menos uma letra.";
+  if (/[^0-9\p{L}\s.'-]/u.test(value)) return "Use apenas letras, numeros, espacos, ponto, apostrofo ou hifen.";
+  return null;
+};
+
 export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [displayName, setDisplayName] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileMessage, setProfileMessage] = useState<string | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
 
   const loadProfile = async () => {
     const { data: userData } = await supabase.auth.getUser();
@@ -31,7 +44,9 @@ export default function ProfilePage() {
       .select("display_name, avatar_url")
       .eq("id", user.id)
       .maybeSingle();
-    setProfile((data as Profile) ?? null);
+    const nextProfile = (data as Profile) ?? null;
+    setProfile(nextProfile);
+    setDisplayName(nextProfile?.display_name ?? "");
   };
 
   useEffect(() => {
@@ -46,6 +61,58 @@ export default function ProfilePage() {
       .map((part) => part[0]?.toUpperCase() || "")
       .join("");
   }, [profile]);
+
+  const normalizedDisplayName = useMemo(() => normalizeDisplayName(displayName), [displayName]);
+  const baseDisplayName = useMemo(
+    () => normalizeDisplayName(profile?.display_name ?? ""),
+    [profile?.display_name],
+  );
+  const canSaveProfile = !!normalizedDisplayName && normalizedDisplayName !== baseDisplayName && !savingProfile;
+
+  const handleSaveProfile = async () => {
+    setProfileError(null);
+    setProfileMessage(null);
+
+    const normalized = normalizeDisplayName(displayName);
+    const validationError = validateDisplayName(normalized);
+    if (validationError) {
+      setProfileError(validationError);
+      return;
+    }
+
+    setSavingProfile(true);
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) {
+      setSavingProfile(false);
+      setProfileError("Sessao nao encontrada.");
+      return;
+    }
+
+    const response = await fetch("/api/profile", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ display_name: normalized }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      setProfileError(data.message || "Falha ao salvar perfil.");
+      setSavingProfile(false);
+      return;
+    }
+
+    const savedName = data.display_name ?? normalized;
+    setProfile((prev) => ({ display_name: savedName, avatar_url: prev?.avatar_url ?? null }));
+    setDisplayName(savedName);
+    setProfileMessage("Salvo com sucesso.");
+    window.dispatchEvent(new CustomEvent("profile_updated", { detail: { display_name: savedName } }));
+    setSavingProfile(false);
+  };
 
   const handleFileChange = (next: File | null) => {
     setError(null);
@@ -142,8 +209,55 @@ export default function ProfilePage() {
   };
 
   return (
-    <AppShell title="Perfil" subtitle="Configurar foto de perfil">
+    <AppShell title="Perfil" subtitle="Configurar nome e foto de perfil">
       <div className="max-w-2xl space-y-6">
+        <section className="rounded-xl2 bg-card border border-stroke shadow-soft p-6">
+          <h2 className="text-lg font-extrabold">Perfil</h2>
+          <p className="text-sm text-muted mt-1">Atualize seu nome de exibicao.</p>
+
+          <div className="mt-4 grid gap-4">
+            <label className="text-sm font-semibold">
+              Nome
+              <input
+                type="text"
+                value={displayName}
+                onChange={(event) => {
+                  setProfileError(null);
+                  setProfileMessage(null);
+                  setDisplayName(event.target.value);
+                }}
+                onBlur={() => setDisplayName((prev) => normalizeDisplayName(prev))}
+                className="mt-2 w-full rounded-xl border border-stroke bg-appbg px-3 py-2 text-sm outline-none"
+                placeholder="Digite seu nome"
+                maxLength={40}
+              />
+            </label>
+            <p className="text-xs text-muted">De 2 a 40 caracteres. Use letras, numeros e espacos.</p>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="rounded-xl bg-greenbar px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                onClick={handleSaveProfile}
+                disabled={!canSaveProfile}
+              >
+                {savingProfile ? "Salvando..." : "Salvar alteracoes"}
+              </button>
+            </div>
+          </div>
+
+          {profileError ? (
+            <div className="mt-4 rounded-xl border border-rose-500/40 bg-rose-950/40 px-4 py-3 text-sm text-rose-200">
+              {profileError}
+            </div>
+          ) : null}
+          {profileMessage ? (
+            <div className="mt-4 rounded-xl border border-emerald-500/40 bg-emerald-950/40 px-4 py-3 text-sm text-emerald-200">
+              {profileMessage}
+            </div>
+          ) : null}
+        </section>
+
         <section className="rounded-xl2 bg-card border border-stroke shadow-soft p-6">
           <h2 className="text-lg font-extrabold">Foto de perfil</h2>
           <p className="text-sm text-muted mt-1">

@@ -55,6 +55,7 @@ create table if not exists public.profiles (
 
 alter table public.profiles add column if not exists avatar_url text;
 alter table public.profiles add column if not exists avatar_path text;
+alter table public.profiles add column if not exists display_name text;
 
 create table if not exists public.accounts (
   id uuid primary key default gen_random_uuid(),
