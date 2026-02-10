@@ -15,6 +15,8 @@ import {
 } from "recharts";
 
 import { AppShell } from "@/components/AppShell";
+import { KpiCard3D } from "@/components/KpiCard3D";
+import { ReceitasDespesasDonut } from "@/components/ReceitasDespesasDonut";
 import { brl, formatPercent, toNumber } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -31,7 +33,13 @@ import {
   groupByCategory,
 } from "@/lib/finance";
 
-const COLORS = ["#22c55e", "#0ea5e9", "#f59e0b", "#8b5cf6", "#ef4444", "#14b8a6"];
+const CATEGORY_COLORS = ["#334155", "#3b82f6", "#22c55e", "#0ea5e9", "#64748b", "#94a3b8"];
+const CHART_TOOLTIP_STYLE = {
+  background: "rgba(10, 14, 29, 0.88)",
+  border: "1px solid rgba(148, 163, 184, 0.2)",
+  borderRadius: 12,
+  color: "#e2e8f0",
+};
 
 const monthInputValue = (date = new Date()) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
@@ -184,14 +192,6 @@ export default function DashboardPage() {
   );
   const insights = useMemo(() => calculateInsights(transactions, periodDate), [transactions, periodDate]);
 
-  const donutData = useMemo(
-    () => [
-      { name: "Receitas", value: monthIncome, color: "#22c55e" },
-      { name: "Despesas", value: monthExpense, color: "#ef4444" },
-    ],
-    [monthIncome, monthExpense],
-  );
-
   const cardSummaries = useMemo(
     () =>
       cards
@@ -236,21 +236,21 @@ export default function DashboardPage() {
     <div className="flex items-center gap-2">
       <button
         type="button"
-        className="rounded-xl border border-stroke bg-card px-3 py-2 text-sm font-semibold hover:bg-appbg transition"
+        className="rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2 text-sm font-semibold text-slate-100 hover:bg-slate-900/55 transition"
         onClick={() => setPeriod(monthInputValue())}
       >
         Limpar filtro
       </button>
       <button
         type="button"
-        className="rounded-xl border border-stroke bg-card px-3 py-2 text-sm font-semibold hover:bg-appbg transition"
+        className="rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2 text-sm font-semibold text-slate-100 hover:bg-slate-900/55 transition"
         onClick={loadData}
       >
         Atualizar
       </button>
       <input
         type="month"
-        className="rounded-xl border border-stroke bg-card px-3 py-2 text-sm"
+        className="rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2 text-sm text-slate-100"
         value={period}
         onChange={(event) => setPeriod(event.target.value)}
       />
@@ -259,264 +259,251 @@ export default function DashboardPage() {
 
   return (
     <AppShell title="Dashboard" subtitle="Resumo financeiro" actions={actions}>
-      {message ? (
-        <div className="mb-4 rounded-xl border border-amber-700/60 bg-amber-950/40 px-4 py-3 text-sm text-amber-100">
-          {message}
-        </div>
-      ) : null}
+      <div className="dashboard-cosmic">
+        {message ? (
+          <div className="mb-4 rounded-xl border border-amber-500/40 bg-amber-950/40 px-4 py-3 text-sm text-amber-100">
+            {message}
+          </div>
+        ) : null}
 
-      {loading ? (
-        <div className="rounded-xl2 bg-card border border-stroke shadow-soft p-6 text-muted">Carregando...</div>
-      ) : (
-        <div className="space-y-6">
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-xl2 bg-card border border-stroke shadow-soft p-4">
-              <p className="text-sm text-muted">Saldo disponivel</p>
-              <p className="mt-1 text-3xl font-extrabold">{brl(availableBalance)}</p>
-              <p className="mt-1 text-xs text-muted">Saldo bancario total</p>
-            </div>
-            <div className="rounded-xl2 bg-card border border-stroke shadow-soft p-4">
-              <p className="text-sm text-muted">Saldo previsto</p>
-              <p className="mt-1 text-3xl font-extrabold">{brl(forecastBalance)}</p>
-              <p className="mt-1 text-xs text-muted">Com base em movimentos futuros</p>
-            </div>
-            <div className="rounded-xl2 bg-card border border-stroke shadow-soft p-4">
-              <p className="text-sm text-muted">Receitas ({period})</p>
-              <p className="mt-1 text-3xl font-extrabold text-emerald-400">{brl(monthIncome)}</p>
-              <p className="mt-1 text-xs text-muted">Entradas do periodo</p>
-            </div>
-            <div className="rounded-xl2 bg-card border border-stroke shadow-soft p-4">
-              <p className="text-sm text-muted">Despesas ({period})</p>
-              <p className="mt-1 text-3xl font-extrabold text-rose-400">{brl(monthExpense)}</p>
-              <p className="mt-1 text-xs text-muted">Resultado: {brl(monthIncome - monthExpense)}</p>
-            </div>
-          </section>
+        {loading ? (
+          <div className="glass-panel p-6 text-slate-300">Carregando...</div>
+        ) : (
+          <div className="space-y-6">
+            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <KpiCard3D
+                title="Saldo disponivel"
+                value={brl(availableBalance)}
+                subtitle="Saldo bancario total"
+                iconSrc="/assets/3d/wallet.png"
+                tone="violet"
+              />
+              <KpiCard3D
+                title="Saldo previsto"
+                value={brl(forecastBalance)}
+                subtitle="Com base em movimentos futuros"
+                iconSrc="/assets/3d/forecast.png"
+                tone="neutral"
+              />
+              <KpiCard3D
+                title={`Receitas (${period})`}
+                value={brl(monthIncome)}
+                subtitle="Entradas do periodo"
+                iconSrc="/assets/3d/income.png"
+                tone="emerald"
+              />
+              <KpiCard3D
+                title={`Despesas (${period})`}
+                value={brl(monthExpense)}
+                subtitle={`Resultado: ${brl(monthIncome - monthExpense)}`}
+                iconSrc="/assets/3d/expense.png"
+                tone="blue"
+              />
+            </section>
 
-          <section className="grid gap-4 xl:grid-cols-3">
-            <div className="rounded-xl2 bg-card border border-stroke shadow-soft p-4 xl:col-span-2">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-extrabold">Receitas x despesas</h2>
-                <span className="text-xs text-muted">Periodo selecionado</span>
+            <section className="grid gap-4 xl:grid-cols-3">
+              <div className="glass-panel p-5 xl:col-span-2">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-extrabold tracking-tight">Receitas x Despesas</h2>
+                  <span className="text-xs text-slate-400">Periodo selecionado</span>
+                </div>
+                <div className="mt-4 grid gap-4 md:grid-cols-[minmax(280px,360px)_1fr] md:items-center">
+                  <ReceitasDespesasDonut receitas={monthIncome} despesas={monthExpense} />
+
+                  <div className="grid gap-3">
+                    <div className="rounded-2xl border border-white/10 bg-slate-950/35 px-4 py-3">
+                      <p className="text-xs uppercase tracking-[0.12em] text-slate-400">Total movimentado</p>
+                      <p className="mt-1 text-2xl font-extrabold text-slate-100">{brl(monthIncome + monthExpense)}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-slate-950/35 px-4 py-3">
+                      <p className="text-xs uppercase tracking-[0.12em] text-slate-400">Resultado liquido</p>
+                      <p className={`mt-1 text-2xl font-extrabold ${monthIncome - monthExpense >= 0 ? "text-emerald-300" : "text-blue-300"}`}>
+                        {brl(monthIncome - monthExpense)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="mt-4 grid gap-4 md:grid-cols-2">
-                <div className="h-64">
+
+              <div className="glass-panel p-5">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-extrabold tracking-tight">Categorias</h2>
+                  <span className="text-xs text-slate-400">{period}</span>
+                </div>
+                <div className="mt-4 h-56">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie
-                        data={donutData}
-                        dataKey="value"
-                        nameKey="name"
-                        innerRadius={65}
-                        outerRadius={100}
-                        paddingAngle={4}
-                      >
-                        {donutData.map((entry) => (
-                          <Cell key={entry.name} fill={entry.color} />
+                      <Pie data={categoryData} dataKey="value" nameKey="name" innerRadius={48} outerRadius={86} paddingAngle={1}>
+                        {categoryData.map((_, index) => (
+                          <Cell key={`cat-${index}`} fill={CATEGORY_COLORS[index % CATEGORY_COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip />
+                      <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
-                <div className="flex flex-col justify-center gap-3 text-sm">
-                  {donutData.map((entry) => (
-                    <div
-                      key={entry.name}
-                      className="flex items-center justify-between rounded-xl border border-stroke bg-appbg px-3 py-2"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="h-3 w-3 rounded-full" style={{ background: entry.color }} />
-                        <span className="font-semibold">{entry.name}</span>
-                      </div>
-                      <span className="font-extrabold">{brl(entry.value)}</span>
-                    </div>
-                  ))}
-                  <div className="rounded-xl border border-stroke bg-card px-3 py-2">
-                    <div className="text-xs text-muted">Resultado</div>
-                    <div className="text-lg font-extrabold">{brl(monthIncome - monthExpense)}</div>
-                  </div>
+              </div>
+            </section>
+
+            <section className="grid gap-4 xl:grid-cols-3">
+              <div className="glass-panel p-5">
+                <h2 className="text-xl font-extrabold tracking-tight">Insights</h2>
+                <div className="mt-3 space-y-2 text-sm text-slate-300">
+                  <p>
+                    Top categoria: <strong className="text-slate-100">{insights.topCategory?.name ?? "Sem dados"}</strong>
+                  </p>
+                  <p>
+                    Valor top: <strong className="text-slate-100">{insights.topCategory ? brl(insights.topCategory.value) : "-"}</strong>
+                  </p>
+                  <p>
+                    Variacao vs mes anterior: <strong className="text-slate-100">{formatPercent(insights.deltaPct)}</strong>
+                  </p>
+                  <p>
+                    Total de lancamentos no periodo: <strong className="text-slate-100">{periodTransactions.length}</strong>
+                  </p>
                 </div>
               </div>
-            </div>
 
-            <div className="rounded-xl2 bg-card border border-stroke shadow-soft p-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-extrabold">Categorias</h2>
-                <span className="text-xs text-muted">{period}</span>
+              <div className="glass-panel p-5 xl:col-span-2">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-extrabold tracking-tight">Cartoes</h2>
+                  <span className="text-xs text-slate-400">Faturas e limites</span>
+                </div>
+
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  {cardSummaries.map(({ card, summary }) => (
+                    <div key={card.id} className="rounded-2xl border border-white/10 bg-slate-950/35 p-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-xs text-slate-400">{card.issuer || "Titular"}</p>
+                          <p className="font-bold">{card.name}</p>
+                          <p className="text-xs text-slate-400 mt-1">
+                            Fecha dia {card.closing_day} | Vence dia {card.due_day}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-slate-400">Fatura atual</p>
+                          <p className="text-lg font-extrabold">{brl(summary.currentTotal)}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-3">
+                        <p className="text-xs text-slate-400">Limite usado</p>
+                        <div className="mt-2 h-2 rounded-full border border-white/10 bg-slate-900/45 overflow-hidden">
+                          <div
+                            className="h-full bg-blue-400"
+                            style={{
+                              width: `${card.limit_total ? Math.min((summary.limitUsed / card.limit_total) * 100, 100) : 0}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mt-3 grid gap-2 md:grid-cols-3 text-sm">
+                        <div>
+                          <p className="text-xs text-slate-400">Limite usado</p>
+                          <p className="font-extrabold text-blue-300">{brl(summary.limitUsed)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-slate-400">Limite disponivel</p>
+                          <p className="font-extrabold text-emerald-300">{brl(summary.limitAvailable)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-slate-400">Limite total</p>
+                          <p className="font-extrabold">{brl(card.limit_total)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-slate-400">Fechamento</p>
+                          <p className="font-semibold">Todo dia {card.closing_day}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-slate-400">Vencimento</p>
+                          <p className="font-semibold">Todo dia {card.due_day}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-slate-400">Fatura prevista</p>
+                          <p className="font-extrabold">{brl(summary.forecastTotal)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {!cardSummaries.length ? <div className="text-sm text-slate-300">Nenhum cartao cadastrado.</div> : null}
+                </div>
               </div>
-              <div className="mt-4 h-56">
+            </section>
+
+            <section className="grid gap-4 xl:grid-cols-2">
+              <div className="glass-panel p-5">
+                <h2 className="text-xl font-extrabold tracking-tight">Alertas</h2>
+                <div className="mt-3 space-y-2">
+                  {alerts.length ? (
+                    alerts.map((alert) => (
+                      <div key={alert.id} className="rounded-2xl border border-white/10 bg-slate-950/35 p-3">
+                        <div className="font-semibold">{alert.title}</div>
+                        <div className="text-sm text-slate-300 mt-1">{alert.body}</div>
+                        <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
+                          <span>{alert.due_at ?? "Sem data"}</span>
+                          {!alert.is_read ? (
+                            <button
+                              type="button"
+                              className="rounded-lg border border-white/10 bg-slate-900/45 px-2 py-1 text-xs font-semibold"
+                              onClick={() => markAlertRead(alert.id)}
+                            >
+                              Marcar como lido
+                            </button>
+                          ) : (
+                            <span>Lido</span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-sm text-slate-300">Sem alertas no momento.</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="glass-panel p-5">
+                <h2 className="text-xl font-extrabold tracking-tight">ChatGPT</h2>
+                <p className="text-sm text-slate-300 mt-1">
+                  Pergunte sobre seus dados: onde estou gastando mais? como reduzir custos?
+                </p>
+                <textarea
+                  className="mt-3 w-full h-28 rounded-2xl border border-white/10 bg-slate-950/35 px-3 py-2 text-sm text-slate-100 outline-none"
+                  placeholder="Digite sua pergunta"
+                  value={aiQuestion}
+                  onChange={(event) => setAiQuestion(event.target.value)}
+                />
+                <button
+                  type="button"
+                  className="mt-3 rounded-xl bg-emerald-600 text-white px-4 py-2 text-sm font-bold shadow-softer disabled:opacity-60"
+                  onClick={askAi}
+                  disabled={aiLoading}
+                >
+                  {aiLoading ? "Analisando..." : "Gerar insight"}
+                </button>
+                {aiAnswer ? (
+                  <div className="mt-3 rounded-2xl border border-white/10 bg-slate-950/35 p-3 text-sm text-slate-200">{aiAnswer}</div>
+                ) : null}
+              </div>
+            </section>
+
+            <section className="glass-panel p-5">
+              <h2 className="text-xl font-extrabold tracking-tight">Despesas por categoria</h2>
+              <div className="mt-3 h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={categoryData} dataKey="value" nameKey="name" innerRadius={45} outerRadius={85}>
-                      {categoryData.map((_, index) => (
-                        <Cell key={`cat-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
+                  <BarChart data={categoryData}>
+                    <XAxis dataKey="name" stroke="#94a3b8" />
+                    <YAxis stroke="#94a3b8" />
+                    <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
+                    <Bar dataKey="value" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+                  </BarChart>
                 </ResponsiveContainer>
               </div>
-            </div>
-          </section>
-
-          <section className="grid gap-4 xl:grid-cols-3">
-            <div className="rounded-xl2 bg-card border border-stroke shadow-soft p-4">
-              <h2 className="text-xl font-extrabold">Insights</h2>
-              <div className="mt-3 space-y-2 text-sm">
-                <p>
-                  Top categoria: <strong>{insights.topCategory?.name ?? "Sem dados"}</strong>
-                </p>
-                <p>
-                  Valor top: <strong>{insights.topCategory ? brl(insights.topCategory.value) : "-"}</strong>
-                </p>
-                <p>
-                  Variacao vs mes anterior: <strong>{formatPercent(insights.deltaPct)}</strong>
-                </p>
-                <p>
-                  Total de lancamentos no periodo: <strong>{periodTransactions.length}</strong>
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded-xl2 bg-card border border-stroke shadow-soft p-4 xl:col-span-2">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-extrabold">Cartoes</h2>
-                <span className="text-xs text-muted">Faturas e limites</span>
-              </div>
-
-              <div className="mt-3 grid gap-3 md:grid-cols-2">
-                {cardSummaries.map(({ card, summary }) => (
-                  <div key={card.id} className="rounded-xl border border-stroke bg-appbg p-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="text-xs text-muted">{card.issuer || "Titular"}</p>
-                        <p className="font-bold">{card.name}</p>
-                        <p className="text-xs text-muted mt-1">
-                          Fecha dia {card.closing_day} | Vence dia {card.due_day}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs text-muted">Fatura atual</p>
-                        <p className="text-lg font-extrabold">{brl(summary.currentTotal)}</p>
-                      </div>
-                    </div>
-
-                    <div className="mt-3">
-                      <p className="text-xs text-muted">Limite usado</p>
-                      <div className="mt-2 h-2 rounded-full bg-card border border-stroke overflow-hidden">
-                        <div
-                          className="h-full bg-sky-400"
-                          style={{
-                            width: `${card.limit_total ? Math.min((summary.limitUsed / card.limit_total) * 100, 100) : 0}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="mt-3 grid gap-2 md:grid-cols-3 text-sm">
-                      <div>
-                        <p className="text-xs text-muted">Limite usado</p>
-                        <p className="font-extrabold text-rose-400">{brl(summary.limitUsed)}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted">Limite disponivel</p>
-                        <p className="font-extrabold text-emerald-400">{brl(summary.limitAvailable)}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted">Limite total</p>
-                        <p className="font-extrabold">{brl(card.limit_total)}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted">Fechamento</p>
-                        <p className="font-semibold">Todo dia {card.closing_day}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted">Vencimento</p>
-                        <p className="font-semibold">Todo dia {card.due_day}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted">Fatura prevista</p>
-                        <p className="font-extrabold">{brl(summary.forecastTotal)}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                {!cardSummaries.length ? <div className="text-sm text-muted">Nenhum cartao cadastrado.</div> : null}
-              </div>
-            </div>
-          </section>
-
-          <section className="grid gap-4 xl:grid-cols-2">
-            <div className="rounded-xl2 bg-card border border-stroke shadow-soft p-4">
-              <h2 className="text-xl font-extrabold">Alertas</h2>
-              <div className="mt-3 space-y-2">
-                {alerts.length ? (
-                  alerts.map((alert) => (
-                    <div key={alert.id} className="rounded-xl border border-stroke bg-appbg p-3">
-                      <div className="font-semibold">{alert.title}</div>
-                      <div className="text-sm text-muted mt-1">{alert.body}</div>
-                      <div className="mt-2 flex items-center justify-between text-xs text-muted">
-                        <span>{alert.due_at ?? "Sem data"}</span>
-                        {!alert.is_read ? (
-                          <button
-                            type="button"
-                            className="rounded-lg border border-stroke bg-card px-2 py-1 text-xs font-semibold"
-                            onClick={() => markAlertRead(alert.id)}
-                          >
-                            Marcar como lido
-                          </button>
-                        ) : (
-                          <span>Lido</span>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-sm text-muted">Sem alertas no momento.</div>
-                )}
-              </div>
-            </div>
-
-            <div className="rounded-xl2 bg-card border border-stroke shadow-soft p-4">
-              <h2 className="text-xl font-extrabold">ChatGPT</h2>
-              <p className="text-sm text-muted mt-1">
-                Pergunte sobre seus dados: onde estou gastando mais? como reduzir custos?
-              </p>
-              <textarea
-                className="mt-3 w-full h-28 rounded-xl border border-stroke bg-appbg px-3 py-2 text-sm outline-none"
-                placeholder="Digite sua pergunta"
-                value={aiQuestion}
-                onChange={(event) => setAiQuestion(event.target.value)}
-              />
-              <button
-                type="button"
-                className="mt-3 rounded-xl bg-greenbar text-white px-4 py-2 text-sm font-bold shadow-softer disabled:opacity-60"
-                onClick={askAi}
-                disabled={aiLoading}
-              >
-                {aiLoading ? "Analisando..." : "Gerar insight"}
-              </button>
-              {aiAnswer ? (
-                <div className="mt-3 rounded-xl border border-stroke bg-appbg p-3 text-sm">{aiAnswer}</div>
-              ) : null}
-            </div>
-          </section>
-
-          <section className="rounded-xl2 bg-card border border-stroke shadow-soft p-4">
-            <h2 className="text-xl font-extrabold">Despesas por categoria</h2>
-            <div className="mt-3 h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={categoryData}>
-                  <XAxis dataKey="name" stroke="#64748b" />
-                  <YAxis stroke="#64748b" />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="#22c55e" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </section>
-        </div>
-      )}
+            </section>
+          </div>
+        )}
+      </div>
     </AppShell>
   );
 }

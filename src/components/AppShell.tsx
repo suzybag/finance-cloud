@@ -114,7 +114,7 @@ export const AppShell = ({ title, subtitle, actions, children }: AppShellProps) 
     <button
       type="button"
       onClick={() => setMenuOpen((prev) => !prev)}
-      className="h-10 w-10 rounded-full border border-slate-800 bg-slate-900/60 overflow-hidden flex items-center justify-center"
+      className="h-10 w-10 rounded-full border border-white/10 bg-slate-900/45 overflow-hidden flex items-center justify-center backdrop-blur-md"
       aria-label="Menu do perfil"
     >
       {avatarUrl ? (
@@ -128,22 +128,22 @@ export const AppShell = ({ title, subtitle, actions, children }: AppShellProps) 
 
   if (loading) {
     return (
-      <div className="min-h-screen grid place-items-center bg-slate-950 text-slate-100">
+      <div className="min-h-screen grid place-items-center text-slate-100">
         Carregando...
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
+    <div className="min-h-screen text-slate-100">
       <div className="flex min-h-screen">
-        <aside className="w-64 hidden lg:flex flex-col gap-6 border-r border-slate-800/80 bg-slate-950/80 p-6">
+        <aside className="w-64 hidden lg:flex flex-col gap-6 border-r border-white/10 bg-slate-950/30 p-6 backdrop-blur-2xl">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-sky-400 to-indigo-500 grid place-items-center font-bold">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-sky-400 to-indigo-500 grid place-items-center font-bold shadow-[0_10px_25px_rgba(30,41,59,0.35)]">
               FC
             </div>
             <div>
-              <div className="text-sm text-slate-400">Finance Cloud</div>
+              <div className="text-sm text-slate-300/80">Finance Cloud</div>
               <div className="font-semibold">Painel pessoal</div>
             </div>
           </div>
@@ -165,8 +165,8 @@ export const AppShell = ({ title, subtitle, actions, children }: AppShellProps) 
                   href={item.href}
                   className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
                     active
-                      ? "bg-slate-800 text-white"
-                      : "text-slate-300 hover:bg-slate-800/60"
+                      ? "bg-white/10 text-white border border-white/10"
+                      : "text-slate-300 hover:bg-white/5"
                   }`}
                 >
                   {item.label}
@@ -175,7 +175,7 @@ export const AppShell = ({ title, subtitle, actions, children }: AppShellProps) 
             })}
           </nav>
 
-          <div className="mt-auto rounded-2xl border border-slate-800/80 bg-slate-900/50 p-4 text-sm text-slate-300">
+          <div className="mt-auto rounded-2xl border border-white/10 bg-slate-900/35 p-4 text-sm text-slate-300 backdrop-blur-lg">
             <div className="font-semibold text-white">Alertas prontos</div>
             <p className="mt-1 text-xs text-slate-400">
               Jobs/cron podem ser ligados depois. Hoje os alertas sao gerados no
@@ -184,7 +184,7 @@ export const AppShell = ({ title, subtitle, actions, children }: AppShellProps) 
           </div>
 
           <button
-            className="mt-2 w-full rounded-xl border border-slate-800 px-3 py-2 text-sm text-slate-200 hover:border-slate-600"
+            className="mt-2 w-full rounded-xl border border-white/10 bg-slate-900/35 px-3 py-2 text-sm text-slate-200 hover:border-white/20"
             onClick={() => supabase.auth.signOut()}
           >
             Sair
@@ -200,7 +200,7 @@ export const AppShell = ({ title, subtitle, actions, children }: AppShellProps) 
                   key={`mobile-${item.href}`}
                   href={item.href}
                   className={`whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold ${
-                    active ? "bg-slate-800 text-white" : "bg-slate-900 text-slate-300"
+                    active ? "bg-white/12 text-white" : "bg-slate-900/45 text-slate-300"
                   }`}
                 >
                   {item.label}
@@ -213,8 +213,8 @@ export const AppShell = ({ title, subtitle, actions, children }: AppShellProps) 
               <div className="text-xs uppercase tracking-[0.2em] text-slate-500">
                 Finance Cloud
               </div>
-              <h1 className="text-2xl font-semibold text-white">{title}</h1>
-              {subtitle && <p className="text-sm text-slate-400">{subtitle}</p>}
+              <h1 className="text-3xl font-extrabold tracking-tight text-white">{title}</h1>
+              {subtitle && <p className="text-sm text-slate-300/85">{subtitle}</p>}
             </div>
 
             <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
@@ -222,23 +222,23 @@ export const AppShell = ({ title, subtitle, actions, children }: AppShellProps) 
               <div className="relative" ref={menuRef}>
                 {renderAvatarButton()}
                 {menuOpen && (
-                  <div className="absolute right-0 mt-2 w-44 rounded-xl border border-slate-800 bg-slate-950 shadow-lg p-2 text-sm">
+                  <div className="absolute right-0 mt-2 w-44 rounded-xl border border-white/10 bg-slate-950/95 backdrop-blur-xl shadow-lg p-2 text-sm">
                     <Link
                       href="/profile"
-                      className="block rounded-lg px-3 py-2 text-slate-200 hover:bg-slate-900"
+                      className="block rounded-lg px-3 py-2 text-slate-200 hover:bg-white/10"
                     >
                       Perfil
                     </Link>
                     <button
                       type="button"
-                      className="w-full text-left rounded-lg px-3 py-2 text-slate-200 hover:bg-slate-900"
+                      className="w-full text-left rounded-lg px-3 py-2 text-slate-200 hover:bg-white/10"
                       onClick={() => fileInputRef.current?.click()}
                     >
                       Trocar foto
                     </button>
                     <button
                       type="button"
-                      className="w-full text-left rounded-lg px-3 py-2 text-slate-200 hover:bg-slate-900"
+                      className="w-full text-left rounded-lg px-3 py-2 text-slate-200 hover:bg-white/10"
                       onClick={() => supabase.auth.signOut()}
                     >
                       Sair

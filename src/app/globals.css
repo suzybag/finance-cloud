@@ -2,24 +2,152 @@
 
 :root {
   color-scheme: dark;
+  --glass-bg: rgba(7, 10, 24, 0.62);
+  --glass-border: rgba(148, 163, 184, 0.24);
+  --glass-shadow: 0 22px 48px rgba(2, 6, 23, 0.45);
 }
 
 body {
-  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
-  background: radial-gradient(1200px 600px at 15% 5%, rgba(34, 211, 238, 0.12), transparent 55%),
-    radial-gradient(900px 500px at 80% 10%, rgba(129, 140, 248, 0.2), transparent 60%),
-    radial-gradient(900px 600px at 50% 90%, rgba(248, 113, 113, 0.14), transparent 60%),
-    #020409;
+  font-family:
+    var(--font-sans),
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-kerning: normal;
+  background:
+    radial-gradient(1200px 680px at 8% 0%, rgba(59, 130, 246, 0.38), transparent 56%),
+    radial-gradient(1000px 620px at 82% 8%, rgba(236, 72, 153, 0.32), transparent 58%),
+    radial-gradient(900px 640px at 46% 92%, rgba(99, 102, 241, 0.34), transparent 62%),
+    linear-gradient(130deg, #070a1a 0%, #120726 48%, #07122a 100%);
+  background-size: 170% 170%;
+  animation: cosmicShift 46s ease-in-out infinite alternate;
   min-height: 100vh;
+  position: relative;
+}
+
+html,
+body {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+}
+
+h1,
+h2 {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 700;
+  letter-spacing: -0.012em;
+}
+
+:where(.text-muted, .text-slate-400, .text-slate-500) {
+  opacity: 0.8;
 }
 
 .font-mono {
-  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
     "Courier New", monospace;
 }
 
-.glass {
-  background: rgba(15, 23, 42, 0.7);
-  border: 1px solid rgba(148, 163, 184, 0.2);
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: rgba(2, 6, 23, 0.52);
+  z-index: -2;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.1;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.55) 0.7px, transparent 0.7px);
+  background-size: 3px 3px;
+  mix-blend-mode: soft-light;
+  z-index: -1;
+}
+
+.glass-panel {
+  border-radius: 20px;
+  background: linear-gradient(160deg, rgba(15, 23, 42, 0.72), rgba(9, 12, 25, 0.72));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
   backdrop-filter: blur(18px);
+}
+
+.dashboard-cosmic {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 30px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(2, 6, 23, 0.48);
+  padding: 1.25rem;
+}
+
+.dashboard-cosmic::before {
+  content: "";
+  position: absolute;
+  inset: -35%;
+  z-index: -2;
+  background:
+    radial-gradient(circle at 16% 12%, rgba(59, 130, 246, 0.28), transparent 48%),
+    radial-gradient(circle at 84% 10%, rgba(236, 72, 153, 0.24), transparent 46%),
+    radial-gradient(circle at 52% 90%, rgba(14, 165, 233, 0.2), transparent 50%);
+  animation: cosmicFloat 30s ease-in-out infinite alternate;
+}
+
+.dashboard-cosmic::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(160deg, rgba(2, 6, 23, 0.45), rgba(2, 6, 23, 0.72));
+}
+
+.glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(18px);
+}
+
+@keyframes cosmicShift {
+  0% {
+    background-position: 0% 18%;
+  }
+  100% {
+    background-position: 100% 82%;
+  }
+}
+
+@keyframes cosmicFloat {
+  0% {
+    transform: translate3d(-2%, -1%, 0) scale(1);
+  }
+  100% {
+    transform: translate3d(2%, 1%, 0) scale(1.06);
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-cosmic {
+    border-radius: 22px;
+    padding: 1rem;
+  }
 }
