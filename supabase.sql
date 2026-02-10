@@ -1,4 +1,4 @@
-﻿create extension if not exists pgcrypto;
+create extension if not exists pgcrypto;
 
 -- enum types (safe to run multiple times)
 do $$
@@ -96,6 +96,58 @@ create table if not exists public.transactions (
   external_id text,
   created_at timestamptz not null default now()
 );
+
+alter table public.transactions add column if not exists transaction_type text;
+
+update public.transactions
+set transaction_type = case
+  when type = 'transfer' then 'pix'
+  when type in ('income', 'adjustment') then 'receita'
+  when type = 'expense' then 'despesa'
+  when type = 'card_payment' then 'cartao'
+  else 'despesa'
+end
+where transaction_type is null;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'transactions_transaction_type_check'
+      and conrelid = 'public.transactions'::regclass
+  ) then
+    alter table public.transactions
+    add constraint transactions_transaction_type_check
+    check (transaction_type in ('pix', 'receita', 'despesa', 'cartao'));
+  end if;
+end
+$$;
+
+create or replace function public.set_transaction_type_default()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.transaction_type is null or btrim(new.transaction_type) = '' then
+    new.transaction_type := case
+      when new.type = 'transfer' then 'pix'
+      when new.type in ('income', 'adjustment') then 'receita'
+      when new.type = 'expense' then 'despesa'
+      when new.type = 'card_payment' then 'cartao'
+      else 'despesa'
+    end;
+  end if;
+  return new;
+end
+$$;
+
+drop trigger if exists trg_transactions_set_transaction_type on public.transactions;
+create trigger trg_transactions_set_transaction_type
+before insert or update on public.transactions
+for each row execute function public.set_transaction_type_default();
+
+alter table public.transactions alter column transaction_type set not null;
 
 create table if not exists public.alerts (
   id uuid primary key default gen_random_uuid(),

@@ -21,6 +21,13 @@ const formatDateLabel = (dateString: string) => {
 const isIncomeType = (type: Transaction["type"]) => type === "income" || type === "adjustment";
 const isExpenseType = (type: Transaction["type"]) => type === "expense" || type === "card_payment";
 
+const isPixTransaction = (tx: Transaction) => {
+  if (tx.transaction_type) return tx.transaction_type === "pix";
+  const tags = tx.tags ?? [];
+  if (tags.some((tag) => tag.trim().toLowerCase() === "pix")) return true;
+  return /^pix\b/i.test(tx.description ?? "");
+};
+
 export default function GastosPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,6 +64,7 @@ export default function GastosPage() {
 
     return transactions
       .filter((tx) => tx.type !== "transfer")
+      .filter((tx) => !isPixTransaction(tx))
       .filter((tx) => (monthFilter ? tx.occurred_at.startsWith(monthFilter) : true))
       .filter((tx) => {
         if (!search) return true;

@@ -19,6 +19,12 @@ export type TransactionType =
   | "adjustment"
   | "card_payment";
 
+export type TransactionCategoryType =
+  | "pix"
+  | "receita"
+  | "despesa"
+  | "cartao";
+
 export type Account = {
   id: string;
   name: string;
@@ -44,6 +50,7 @@ export type Transaction = {
   id: string;
   occurred_at: string;
   type: TransactionType;
+  transaction_type?: TransactionCategoryType | null;
   description: string;
   category: string | null;
   amount: number;
