@@ -20,6 +20,19 @@ const emptyForm = {
   note: "",
 };
 
+type QuickParsedItem = {
+  description: string;
+  amount: number;
+  type: "expense" | "income";
+  category: string;
+};
+
+type QuickParseResponse = {
+  items: QuickParsedItem[];
+  summary: { description: string; total: number; type: "expense" | "income" }[];
+  totals: { expense: number; income: number; balance: number };
+};
+
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -34,6 +47,12 @@ export default function TransactionsPage() {
 
   const [monthFilter, setMonthFilter] = useState("");
   const [accountFilter, setAccountFilter] = useState("");
+  const [quickText, setQuickText] = useState("");
+  const [quickDate, setQuickDate] = useState(new Date().toISOString().slice(0, 10));
+  const [quickAccountId, setQuickAccountId] = useState("");
+  const [quickResult, setQuickResult] = useState<QuickParseResponse | null>(null);
+  const [quickParsing, setQuickParsing] = useState(false);
+  const [quickSaving, setQuickSaving] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -96,6 +115,84 @@ export default function TransactionsPage() {
   const resetForm = () => {
     setForm({ ...emptyForm });
     setEditingId(null);
+  };
+
+  const parseQuickText = async () => {
+    const text = quickText.trim();
+    if (!text) {
+      setMessage("Digite uma frase para analisar. Ex: 11 netflix 12 uber.");
+      return;
+    }
+
+    setQuickParsing(true);
+    setMessage(null);
+
+    const response = await fetch("/api/ai/extract", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      setMessage(data.message || "Falha ao analisar texto.");
+      setQuickParsing(false);
+      return;
+    }
+
+    setQuickResult(data as QuickParseResponse);
+    if ((data.items ?? []).length) {
+      setMessage(`${data.items.length} lancamentos identificados.`);
+    } else {
+      setMessage("Nao identifiquei valores na frase. Tente: 11 netflix 12 uber.");
+    }
+    setQuickParsing(false);
+  };
+
+  const saveQuickItems = async () => {
+    if (!userId) {
+      setMessage("Sessao nao carregada.");
+      return;
+    }
+
+    const items = quickResult?.items ?? [];
+    if (!items.length) {
+      setMessage("Nenhum item para salvar.");
+      return;
+    }
+
+    setQuickSaving(true);
+    setMessage(null);
+
+    const noteText = quickText.trim();
+    const note = noteText ? `Texto original: ${noteText.slice(0, 220)}` : null;
+
+    const rows = items.map((item) => ({
+      user_id: userId,
+      type: item.type,
+      occurred_at: quickDate,
+      description: item.description,
+      category: item.category || null,
+      amount: Math.abs(toNumber(item.amount)),
+      account_id: quickAccountId || null,
+      to_account_id: null,
+      card_id: null,
+      tags: ["ia_texto"],
+      note,
+    }));
+
+    const { error } = await supabase.from("transactions").insert(rows);
+    if (error) {
+      setMessage(error.message);
+      setQuickSaving(false);
+      return;
+    }
+
+    setQuickResult(null);
+    setQuickText("");
+    setMessage(`${rows.length} lancamentos criados com IA.`);
+    await loadData();
+    setQuickSaving(false);
   };
 
   const saveTransaction = async () => {
@@ -196,6 +293,103 @@ export default function TransactionsPage() {
         {message ? (
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</div>
         ) : null}
+
+        <section className="rounded-xl2 bg-card border border-stroke shadow-soft p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-extrabold">Lancamento rapido por texto (IA)</h2>
+              <p className="text-sm text-muted">
+                Exemplo: hoje gastei 11 na netflix 12 de uber 48 em mercado.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="rounded-xl border border-stroke bg-card px-3 py-2 text-sm font-semibold hover:bg-appbg transition disabled:opacity-60"
+                onClick={parseQuickText}
+                disabled={quickParsing}
+              >
+                {quickParsing ? "Analisando..." : "Analisar texto"}
+              </button>
+              <button
+                type="button"
+                className="rounded-xl bg-greenbar2 text-white px-3 py-2 text-sm font-bold shadow-softer disabled:opacity-60"
+                onClick={saveQuickItems}
+                disabled={quickSaving || !(quickResult?.items?.length)}
+              >
+                {quickSaving ? "Salvando..." : "Salvar todos"}
+              </button>
+            </div>
+          </div>
+
+          <textarea
+            className="mt-3 h-24 w-full rounded-xl border border-stroke bg-appbg px-3 py-2 text-sm outline-none"
+            placeholder="Digite sua frase com varios gastos"
+            value={quickText}
+            onChange={(event) => setQuickText(event.target.value)}
+          />
+
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <input
+              type="date"
+              className="rounded-xl border border-stroke bg-appbg px-3 py-2 text-sm"
+              value={quickDate}
+              onChange={(event) => setQuickDate(event.target.value)}
+            />
+
+            <select
+              className="rounded-xl border border-stroke bg-appbg px-3 py-2 text-sm"
+              value={quickAccountId}
+              onChange={(event) => setQuickAccountId(event.target.value)}
+            >
+              <option value="">Conta padrao (opcional)</option>
+              {accounts.map((account) => (
+                <option key={`quick-${account.id}`} value={account.id}>
+                  {account.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {quickResult ? (
+            <div className="mt-4 rounded-xl border border-stroke bg-appbg p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                <span className="font-semibold">{quickResult.items.length} itens identificados</span>
+                <span className="text-muted">
+                  Despesa: {brl(quickResult.totals.expense)} | Receita: {brl(quickResult.totals.income)}
+                </span>
+              </div>
+
+              <div className="mt-3 grid gap-2 md:grid-cols-2">
+                {quickResult.summary.map((item) => (
+                  <div
+                    key={`${item.type}-${item.description}`}
+                    className="rounded-xl border border-stroke bg-card px-3 py-2 text-sm"
+                  >
+                    <span className="font-semibold">{item.description}</span>
+                    <span className="ml-2 text-muted">({item.type === "income" ? "receita" : "despesa"})</span>
+                    <span className={`ml-2 font-extrabold ${item.type === "income" ? "text-emerald-700" : "text-rose-700"}`}>
+                      {item.type === "income" ? "+" : "-"} {brl(item.total)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-3 space-y-2">
+                {quickResult.items.map((item, index) => (
+                  <div key={`${item.description}-${index}`} className="rounded-xl border border-stroke bg-card px-3 py-2 text-sm">
+                    <span className="font-semibold">{item.description}</span>
+                    <span className="ml-2 text-muted">{item.category}</span>
+                    <span className={`ml-2 font-bold ${item.type === "income" ? "text-emerald-700" : "text-rose-700"}`}>
+                      {item.type === "income" ? "+" : "-"} {brl(item.amount)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </section>
 
         <section className="rounded-xl2 bg-card border border-stroke shadow-soft p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
