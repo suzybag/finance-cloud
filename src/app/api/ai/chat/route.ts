@@ -5,6 +5,15 @@ type ChatTurn = {
   text: string;
 };
 
+type GeminiSuccess = {
+  reply: string;
+  model: string;
+};
+
+type GeminiAttemptResult =
+  | { ok: true; data: GeminiSuccess }
+  | { ok: false; status: number; details: string };
+
 const normalizeSpace = (value: string) => value.replace(/\s+/g, " ").trim();
 
 const SYSTEM_PROMPT = `
@@ -31,8 +40,36 @@ const parseHistory = (rawHistory: unknown): ChatTurn[] => {
     .slice(-10);
 };
 
-const chatWithGemini = async (text: string, history: ChatTurn[], apiKey: string) => {
-  const model = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+const normalizeModelName = (value: string) => value.replace(/^models\//i, "").trim();
+
+const uniqueModels = (models: string[]) => {
+  const seen = new Set<string>();
+  const output: string[] = [];
+  for (const item of models) {
+    const model = normalizeModelName(item);
+    if (!model || seen.has(model)) continue;
+    seen.add(model);
+    output.push(model);
+  }
+  return output;
+};
+
+const buildGeminiCandidates = () =>
+  uniqueModels([
+    process.env.GEMINI_MODEL || "",
+    "gemini-1.5-flash-latest",
+    "gemini-1.5-flash",
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-lite",
+    "gemini-1.5-pro-latest",
+  ]);
+
+const callGeminiModel = async (
+  text: string,
+  history: ChatTurn[],
+  apiKey: string,
+  model: string,
+): Promise<GeminiAttemptResult> => {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   const contents = [
@@ -59,7 +96,11 @@ const chatWithGemini = async (text: string, history: ChatTurn[], apiKey: string)
 
   if (!response.ok) {
     const details = await response.text();
-    throw new Error(`Gemini falhou (${response.status}): ${details.slice(0, 300)}`);
+    return {
+      ok: false,
+      status: response.status,
+      details: details.slice(0, 300),
+    };
   }
 
   const data = await response.json();
@@ -75,8 +116,34 @@ const chatWithGemini = async (text: string, history: ChatTurn[], apiKey: string)
       : "",
   );
 
-  if (!reply) throw new Error("Gemini sem resposta.");
-  return reply;
+  if (!reply) {
+    return {
+      ok: false,
+      status: 502,
+      details: "Gemini sem resposta.",
+    };
+  }
+
+  return { ok: true, data: { reply, model } };
+};
+
+const chatWithGemini = async (text: string, history: ChatTurn[], apiKey: string) => {
+  const candidates = buildGeminiCandidates();
+  const errors: string[] = [];
+
+  for (const model of candidates) {
+    const result = await callGeminiModel(text, history, apiKey, model);
+    if (result.ok) return result.data;
+
+    errors.push(`${model} (${result.status})`);
+    if (![400, 404].includes(result.status)) {
+      throw new Error(`Gemini falhou: ${result.details}`);
+    }
+  }
+
+  throw new Error(
+    `Gemini nao encontrou modelo compativel. Testados: ${errors.join(", ")}`,
+  );
 };
 
 const chatWithOpenAI = async (text: string, history: ChatTurn[], apiKey: string) => {
@@ -143,8 +210,12 @@ export async function POST(req: NextRequest) {
   try {
     if (geminiApiKey) {
       try {
-        const reply = await chatWithGemini(text, history, geminiApiKey);
-        return NextResponse.json({ reply, provider: "gemini" });
+        const result = await chatWithGemini(text, history, geminiApiKey);
+        return NextResponse.json({
+          reply: result.reply,
+          provider: "gemini",
+          model: result.model,
+        });
       } catch (error) {
         errors.push(error instanceof Error ? error.message : "Erro no Gemini");
       }
