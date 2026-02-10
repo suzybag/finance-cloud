@@ -19,7 +19,6 @@ const formatDateLabel = (dateString: string) => {
 };
 
 const isIncomeType = (type: Transaction["type"]) => type === "income" || type === "adjustment";
-
 const isExpenseType = (type: Transaction["type"]) => type === "expense" || type === "card_payment";
 
 export default function GastosPage() {
@@ -27,6 +26,7 @@ export default function GastosPage() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [monthFilter, setMonthFilter] = useState(currentMonth());
+  const [searchFilter, setSearchFilter] = useState("");
 
   const loadData = async () => {
     setLoading(true);
@@ -53,10 +53,17 @@ export default function GastosPage() {
   }, []);
 
   const filtered = useMemo(() => {
+    const search = searchFilter.trim().toLowerCase();
+
     return transactions
       .filter((tx) => tx.type !== "transfer")
-      .filter((tx) => (monthFilter ? tx.occurred_at.startsWith(monthFilter) : true));
-  }, [transactions, monthFilter]);
+      .filter((tx) => (monthFilter ? tx.occurred_at.startsWith(monthFilter) : true))
+      .filter((tx) => {
+        if (!search) return true;
+        const haystack = `${tx.description} ${tx.category ?? ""} ${tx.note ?? ""}`.toLowerCase();
+        return haystack.includes(search);
+      });
+  }, [transactions, monthFilter, searchFilter]);
 
   const totals = useMemo(() => {
     return filtered.reduce(
@@ -128,9 +135,25 @@ export default function GastosPage() {
         </section>
 
         <section className="glass-panel p-5">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-xl font-extrabold tracking-tight text-slate-100">Ultimos lancamentos</h2>
             <span className="text-xs text-slate-400">{filtered.length} itens</span>
+          </div>
+
+          <div className="mt-3 flex items-center gap-2">
+            <input
+              className="w-full rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2 text-sm text-slate-100"
+              placeholder="Busca rapida por descricao, categoria ou observacao"
+              value={searchFilter}
+              onChange={(event) => setSearchFilter(event.target.value)}
+            />
+            <button
+              type="button"
+              className="rounded-xl border border-white/10 bg-slate-900/45 px-3 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-900/70"
+              onClick={() => setSearchFilter("")}
+            >
+              Limpar
+            </button>
           </div>
 
           {loading ? (
