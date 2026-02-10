@@ -226,7 +226,7 @@ export default function CardsPage() {
                 const usedPct = card.limit_total
                   ? Math.min((summary.limitUsed / card.limit_total) * 100, 100)
                   : 0;
-                const bankName = card.issuer || "";
+                const bankName = card.issuer?.trim() || card.name?.trim() || "";
                 const hasBankLogo = !!getBankIconPath(bankName);
 
                 return (
@@ -245,7 +245,9 @@ export default function CardsPage() {
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <p className="text-xs text-slate-400">{card.issuer || "Titular"}</p>
+                            <p className="text-xs text-slate-400">
+                              {card.issuer?.trim() || "Banco nao informado"}
+                            </p>
                           </div>
                           <p className="text-2xl font-extrabold text-slate-100">{card.name}</p>
                         </div>

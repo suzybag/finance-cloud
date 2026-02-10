@@ -210,6 +210,7 @@ export default function AccountsPage() {
               {visibleAccounts.map((account) => {
                 const balance = balances.get(account.id) ?? 0;
                 const isDefault = defaultAccountId === account.id;
+                const bankLabel = account.institution?.trim() || account.name;
 
                 return (
                   <div
@@ -220,9 +221,9 @@ export default function AccountsPage() {
                       <div>
                         <p className="text-xl font-bold text-white">{account.name}</p>
                         <div className="mt-1 flex items-center gap-2">
-                          <BankLogo bankName={account.institution} size={30} />
+                          <BankLogo bankName={bankLabel} size={30} />
                           <p className="text-xs text-slate-400">
-                            {account.institution ?? "Instituicao nao informada"}
+                            {bankLabel}
                           </p>
                         </div>
                       </div>
