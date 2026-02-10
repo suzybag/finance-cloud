@@ -276,6 +276,31 @@ create index if not exists idx_tx_user_date on public.transactions(user_id, occu
 create index if not exists idx_alerts_user_date on public.alerts(user_id, created_at desc);
 create index if not exists idx_whatsapp_user_date on public.whatsapp_messages(user_id, created_at desc);
 
+-- backfill optional institution/issuer labels so bank icons render on UI
+update public.accounts
+set institution = case
+  when lower(coalesce(name, '')) like '%inter%' then 'Inter'
+  when lower(coalesce(name, '')) like '%nubank%' then 'Nubank'
+  when lower(coalesce(name, '')) like '%bradesco%' then 'Bradesco'
+  when lower(coalesce(name, '')) like '%mercado pago%' or lower(coalesce(name, '')) like '%mercadopago%' then 'Mercado Pago'
+  when lower(coalesce(name, '')) like '%xp%' then 'XP'
+  when lower(coalesce(name, '')) like '%btg%' then 'BTG'
+  else institution
+end
+where coalesce(trim(institution), '') = '';
+
+update public.cards
+set issuer = case
+  when lower(coalesce(name, '')) like '%inter%' then 'Inter'
+  when lower(coalesce(name, '')) like '%nubank%' then 'Nubank'
+  when lower(coalesce(name, '')) like '%bradesco%' then 'Bradesco'
+  when lower(coalesce(name, '')) like '%mercado pago%' or lower(coalesce(name, '')) like '%mercadopago%' then 'Mercado Pago'
+  when lower(coalesce(name, '')) like '%xp%' then 'XP'
+  when lower(coalesce(name, '')) like '%btg%' then 'BTG'
+  else issuer
+end
+where coalesce(trim(issuer), '') = '';
+
 -- Storage bucket for avatars (public)
 insert into storage.buckets (id, name, public)
 values ('avatars', 'avatars', true)

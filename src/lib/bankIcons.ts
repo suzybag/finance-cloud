@@ -10,8 +10,8 @@ export const BANK_ICON_MAP = {
 type BankKey = keyof typeof BANK_ICON_MAP;
 
 const BANK_ALIASES: Record<BankKey, string[]> = {
-  inter: ["inter", "bancointer"],
-  nubank: ["nubank", "nu", "roxinho"],
+  inter: ["inter", "bancointer", "banco inter"],
+  nubank: ["nubank", "nu", "nu bank", "roxinho", "ultravioleta"],
   bradesco: ["bradesco"],
   mercadopago: ["mercadopago", "mercado pago", "mercado-pago", "mp"],
   xp: ["xp", "xpinvestimentos", "xpinvest"],
@@ -44,4 +44,12 @@ export const resolveBankKey = (value?: string | null): BankKey | null => {
 export const getBankIconPath = (value?: string | null) => {
   const key = resolveBankKey(value);
   return key ? BANK_ICON_MAP[key] : null;
+};
+
+export const getBankIconPathFromValues = (...values: Array<string | null | undefined>) => {
+  for (const value of values) {
+    const path = getBankIconPath(value);
+    if (path) return path;
+  }
+  return null;
 };
