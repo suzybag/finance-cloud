@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { BankLogo } from "@/components/BankLogo";
 import { supabase } from "@/lib/supabaseClient";
 import { brl, toNumber } from "@/lib/money";
 import { Account, Transaction, computeAccountBalances } from "@/lib/finance";
@@ -155,19 +156,19 @@ export default function AccountsPage() {
             <h2 className="text-lg font-semibold">Nova conta</h2>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
               <input
-                className="rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm"
+                className="rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
                 placeholder="Nome da conta"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
               />
               <input
-                className="rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm"
+                className="rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
                 placeholder="Banco / Instituicao"
                 value={institution}
                 onChange={(event) => setInstitution(event.target.value)}
               />
               <input
-                className="rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm"
+                className="rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
                 placeholder="Saldo inicial"
                 value={openingBalance}
                 onChange={(event) => setOpeningBalance(event.target.value)}
@@ -213,29 +214,32 @@ export default function AccountsPage() {
                 return (
                   <div
                     key={account.id}
-                    className="rounded-2xl border border-slate-700 bg-slate-900/70 p-5"
+                    className="rounded-2xl border border-white/10 bg-[#1c1c1e] p-5 shadow-[0_10px_25px_rgba(0,0,0,0.22)]"
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <p className="text-xl font-bold text-white">{account.name}</p>
-                        <p className="text-xs text-slate-400">
-                          {account.institution ?? "Instituicao nao informada"}
-                        </p>
+                        <div className="mt-1 flex items-center gap-2">
+                          <BankLogo bankName={account.institution} size={30} />
+                          <p className="text-xs text-slate-400">
+                            {account.institution ?? "Instituicao nao informada"}
+                          </p>
+                        </div>
                       </div>
                       <button
-                        className="rounded-xl border border-slate-700 px-3 py-2 text-xs text-slate-200"
+                        className="rounded-xl border border-white/10 px-3 py-2 text-xs text-slate-200"
                         onClick={() => loadData()}
                       >
                         Atualizar
                       </button>
                     </div>
 
-                    <div className="mt-4 rounded-xl border border-slate-700 bg-slate-950/70 p-4">
+                    <div className="mt-4 rounded-xl border border-white/10 bg-slate-950/65 p-4">
                       <p className="text-sm text-slate-400">Saldo atual</p>
                       <p className="mt-1 text-3xl font-extrabold text-emerald-300">{brl(balance)}</p>
                     </div>
 
-                    <div className="mt-3 rounded-xl border border-slate-700 bg-slate-800/80 p-3 text-sm text-slate-300">
+                    <div className="mt-3 rounded-xl border border-white/10 bg-slate-900/70 p-3 text-sm text-slate-300">
                       <div className="font-semibold text-white">
                         {isDefault ? "Conta padrao" : "Conta nomeada"}
                       </div>
@@ -248,19 +252,19 @@ export default function AccountsPage() {
 
                     <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-3">
                       <button
-                        className="rounded-xl border border-slate-700 px-3 py-2 text-xs text-slate-100"
+                        className="rounded-xl border border-white/10 px-3 py-2 text-xs text-slate-100"
                         onClick={() => openExtractStub(account)}
                       >
                         Extrato
                       </button>
                       <button
-                        className="rounded-xl border border-slate-700 px-3 py-2 text-xs text-slate-100"
+                        className="rounded-xl border border-white/10 px-3 py-2 text-xs text-slate-100"
                         onClick={() => handleAdjust(account)}
                       >
                         Ajustar saldo
                       </button>
                       <button
-                        className="rounded-xl border border-slate-700 px-3 py-2 text-xs text-slate-100"
+                        className="rounded-xl border border-white/10 px-3 py-2 text-xs text-slate-100"
                         onClick={() => {
                           setTransferFrom(account.id);
                           setTimeout(() => {
@@ -273,13 +277,13 @@ export default function AccountsPage() {
                         Transferir
                       </button>
                       <button
-                        className="rounded-xl border border-slate-700 px-3 py-2 text-xs text-slate-100"
+                        className="rounded-xl border border-white/10 px-3 py-2 text-xs text-slate-100"
                         onClick={() => handleRename(account)}
                       >
                         Editar
                       </button>
                       <button
-                        className="rounded-xl border border-slate-700 px-3 py-2 text-xs text-slate-100"
+                        className="rounded-xl border border-white/10 px-3 py-2 text-xs text-slate-100"
                         onClick={() => handleArchive(account)}
                       >
                         {account.archived ? "Desarquivar" : "Arquivar"}
@@ -299,7 +303,7 @@ export default function AccountsPage() {
             <h2 className="text-lg font-semibold">Transferir entre contas</h2>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
               <select
-                className="rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm"
+                className="rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
                 value={transferFrom}
                 onChange={(event) => setTransferFrom(event.target.value)}
               >
@@ -314,7 +318,7 @@ export default function AccountsPage() {
               </select>
 
               <select
-                className="rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm"
+                className="rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
                 value={transferTo}
                 onChange={(event) => setTransferTo(event.target.value)}
               >
@@ -329,7 +333,7 @@ export default function AccountsPage() {
               </select>
 
               <input
-                className="rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm"
+                className="rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
                 placeholder="Valor"
                 value={transferAmount}
                 onChange={(event) => setTransferAmount(event.target.value)}

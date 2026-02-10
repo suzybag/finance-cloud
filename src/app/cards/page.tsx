@@ -5,7 +5,9 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Archive, Calendar, CreditCard, Pencil } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { BankLogo } from "@/components/BankLogo";
 import { supabase } from "@/lib/supabaseClient";
+import { getBankIconPath } from "@/lib/bankIcons";
 import { brl, toNumber } from "@/lib/money";
 import { Account, Card, Transaction, computeCardSummary } from "@/lib/finance";
 
@@ -136,31 +138,31 @@ export default function CardsPage() {
             <h2 className="text-lg font-semibold">Novo cartao</h2>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
               <input
-                className="rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm"
+                className="rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
                 placeholder="Nome do cartao"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
               />
               <input
-                className="rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm"
+                className="rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
                 placeholder="Emissor"
                 value={issuer}
                 onChange={(event) => setIssuer(event.target.value)}
               />
               <input
-                className="rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm"
+                className="rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
                 placeholder="Limite total"
                 value={limitTotal}
                 onChange={(event) => setLimitTotal(event.target.value)}
               />
               <input
-                className="rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm"
+                className="rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
                 placeholder="Dia de fechamento"
                 value={closingDay}
                 onChange={(event) => setClosingDay(event.target.value)}
               />
               <input
-                className="rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm"
+                className="rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
                 placeholder="Dia de vencimento"
                 value={dueDay}
                 onChange={(event) => setDueDay(event.target.value)}
@@ -193,13 +195,15 @@ export default function CardsPage() {
             </div>
           </section>
 
-          <section className="rounded-xl2 bg-card border border-stroke shadow-soft p-5">
+          <section className="glass rounded-2xl p-5">
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 className={`rounded-full px-4 py-2 text-xs font-semibold ${
-                  tab === "active" ? "bg-appbg text-ink" : "text-muted hover:text-ink"
-                } border border-stroke`}
+                  tab === "active"
+                    ? "border-sky-400 bg-sky-500/20 text-sky-200"
+                    : "border-white/10 bg-slate-900/60 text-slate-300"
+                } border`}
                 onClick={() => setTab("active")}
               >
                 Meus cartoes
@@ -207,8 +211,10 @@ export default function CardsPage() {
               <button
                 type="button"
                 className={`rounded-full px-4 py-2 text-xs font-semibold ${
-                  tab === "archived" ? "bg-appbg text-ink" : "text-muted hover:text-ink"
-                } border border-stroke`}
+                  tab === "archived"
+                    ? "border-sky-400 bg-sky-500/20 text-sky-200"
+                    : "border-white/10 bg-slate-900/60 text-slate-300"
+                } border`}
                 onClick={() => setTab("archived")}
               >
                 Arquivados
@@ -220,59 +226,70 @@ export default function CardsPage() {
                 const usedPct = card.limit_total
                   ? Math.min((summary.limitUsed / card.limit_total) * 100, 100)
                   : 0;
+                const bankName = card.issuer || "";
+                const hasBankLogo = !!getBankIconPath(bankName);
 
                 return (
-                  <div key={card.id} className="rounded-xl2 bg-card border border-stroke shadow-soft p-5">
+                  <div
+                    key={card.id}
+                    className="rounded-2xl border border-white/10 bg-[#1c1c1e] p-5 shadow-[0_10px_25px_rgba(0,0,0,0.22)]"
+                  >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-start gap-3">
-                        <div className="h-10 w-10 rounded-xl border border-stroke bg-appbg flex items-center justify-center">
-                          <CreditCard className="h-5 w-5 text-sky-400" />
+                        <div className="flex h-10 w-10 items-center justify-center">
+                          {hasBankLogo ? (
+                            <BankLogo bankName={bankName} size={30} />
+                          ) : (
+                            <CreditCard className="h-5 w-5 text-slate-300" />
+                          )}
                         </div>
                         <div>
-                          <p className="text-xs text-muted">{card.issuer || "Titular"}</p>
-                          <p className="text-2xl font-extrabold">{card.name}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs text-slate-400">{card.issuer || "Titular"}</p>
+                          </div>
+                          <p className="text-2xl font-extrabold text-slate-100">{card.name}</p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-xs text-muted">Fatura atual</p>
-                        <p className="text-xl font-extrabold">{brl(summary.currentTotal)}</p>
+                        <p className="text-xs text-slate-400">Fatura atual</p>
+                        <p className="text-xl font-extrabold text-slate-100">{brl(summary.currentTotal)}</p>
                       </div>
                     </div>
 
                     <div className="mt-4">
-                      <p className="text-xs text-muted">Limite usado</p>
-                      <div className="mt-2 h-2 rounded-full bg-appbg border border-stroke overflow-hidden">
+                      <p className="text-xs text-slate-400">Limite usado</p>
+                      <div className="mt-2 h-2 overflow-hidden rounded-full border border-white/10 bg-slate-900/60">
                         <div className="h-full bg-sky-400" style={{ width: `${usedPct}%` }} />
                       </div>
                     </div>
 
                     <div className="mt-4 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 text-sm">
                       <div>
-                        <p className="text-xs text-muted">Limite usado</p>
+                        <p className="text-xs text-slate-400">Limite usado</p>
                         <p className="font-extrabold text-rose-400">{brl(summary.limitUsed)}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-muted">Limite disponivel</p>
+                        <p className="text-xs text-slate-400">Limite disponivel</p>
                         <p className="font-extrabold text-emerald-400">{brl(summary.limitAvailable)}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-muted">Limite total</p>
-                        <p className="font-extrabold">{brl(card.limit_total)}</p>
+                        <p className="text-xs text-slate-400">Limite total</p>
+                        <p className="font-extrabold text-slate-100">{brl(card.limit_total)}</p>
                       </div>
                     </div>
 
                     <div className="mt-4 grid gap-3 grid-cols-1 sm:grid-cols-2 text-sm">
                       <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-muted" />
+                        <Calendar className="h-4 w-4 text-slate-400" />
                         <div>
-                          <p className="text-xs text-muted">Fechamento</p>
+                          <p className="text-xs text-slate-400">Fechamento</p>
                           <p className="font-semibold">Todo dia {card.closing_day}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-muted" />
+                        <Calendar className="h-4 w-4 text-slate-400" />
                         <div>
-                          <p className="text-xs text-muted">Vencimento</p>
+                          <p className="text-xs text-slate-400">Vencimento</p>
                           <p className="font-semibold">Todo dia {card.due_day}</p>
                         </div>
                       </div>
@@ -280,21 +297,21 @@ export default function CardsPage() {
 
                     <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
                       <Link
-                        className="rounded-xl border border-stroke bg-card px-4 py-2 text-xs font-semibold hover:bg-appbg"
+                        className="rounded-xl border border-white/10 bg-slate-900/50 px-4 py-2 text-xs font-semibold hover:bg-slate-900/70"
                         href={`/cards/${card.id}/invoice`}
                       >
                         Ver detalhes da fatura
                       </Link>
                       <div className="flex gap-2">
                         <button
-                          className="h-9 w-9 rounded-xl border border-stroke bg-card flex items-center justify-center hover:bg-appbg"
+                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-slate-900/50 hover:bg-slate-900/70"
                           onClick={() => handleEdit(card)}
                           aria-label="Editar cartao"
                         >
                           <Pencil className="h-4 w-4" />
                         </button>
                         <button
-                          className="h-9 w-9 rounded-xl border border-stroke bg-card flex items-center justify-center hover:bg-appbg"
+                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-slate-900/50 hover:bg-slate-900/70"
                           onClick={() => handleArchive(card)}
                           aria-label="Arquivar cartao"
                         >
@@ -315,7 +332,7 @@ export default function CardsPage() {
             <h2 className="text-lg font-semibold">Registrar pagamento de fatura</h2>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
               <select
-                className="rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm"
+                className="rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
                 value={paymentCard}
                 onChange={(event) => setPaymentCard(event.target.value)}
               >
@@ -327,7 +344,7 @@ export default function CardsPage() {
                 ))}
               </select>
               <select
-                className="rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm"
+                className="rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
                 value={paymentAccount}
                 onChange={(event) => setPaymentAccount(event.target.value)}
               >
@@ -339,7 +356,7 @@ export default function CardsPage() {
                 ))}
               </select>
               <input
-                className="rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm"
+                className="rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
                 placeholder="Valor pago"
                 value={paymentAmount}
                 onChange={(event) => setPaymentAmount(event.target.value)}
