@@ -141,14 +141,14 @@ export const AppShell = ({
     <button
       type="button"
       onClick={() => setMenuOpen((prev) => !prev)}
-      className="h-10 w-10 rounded-full border border-white/10 bg-slate-900/45 overflow-hidden flex items-center justify-center backdrop-blur-md"
+      className="h-10 w-10 rounded-full border border-violet-300/20 bg-violet-950/45 overflow-hidden flex items-center justify-center backdrop-blur-md"
       aria-label="Menu do perfil"
     >
       {avatarUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
       ) : (
-        <span className="text-xs font-semibold text-slate-200">{initials}</span>
+        <span className="text-xs font-semibold text-violet-100">{initials}</span>
       )}
     </button>
   );
@@ -164,13 +164,13 @@ export const AppShell = ({
   return (
     <div className="min-h-screen text-slate-100">
       <div className="flex min-h-screen">
-        <aside className="w-64 hidden lg:flex flex-col gap-6 border-r border-white/10 bg-slate-950/30 p-6 backdrop-blur-2xl">
+        <aside className="w-64 hidden lg:flex flex-col gap-6 border-r border-violet-300/20 bg-[linear-gradient(180deg,rgba(20,12,42,0.94),rgba(11,9,29,0.94))] p-6 backdrop-blur-2xl">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-sky-400 to-indigo-500 grid place-items-center font-bold shadow-[0_10px_25px_rgba(30,41,59,0.35)]">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 grid place-items-center font-bold shadow-[0_12px_28px_rgba(109,40,217,0.4)]">
               FC
             </div>
             <div>
-              <div className="text-sm text-slate-300/80">Finance Cloud</div>
+              <div className="text-sm text-violet-100/80">Finance Cloud</div>
               <div className="font-semibold">Painel pessoal</div>
             </div>
           </div>
@@ -178,7 +178,7 @@ export const AppShell = ({
           <div className="flex items-center gap-3">
             {renderAvatarButton()}
             <div>
-              <div className="text-xs text-slate-400">Perfil</div>
+              <div className="text-xs text-violet-100/60">Perfil</div>
               <div className="text-sm font-semibold">{displayName}</div>
             </div>
           </div>
@@ -193,8 +193,8 @@ export const AppShell = ({
                   href={item.href}
                   className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
                     active
-                      ? "bg-white/10 text-white border border-white/10"
-                      : "text-slate-300 hover:bg-white/5"
+                      ? "border border-violet-300/40 bg-violet-500/25 text-violet-50"
+                      : "text-violet-100/85 hover:bg-violet-500/12"
                   }`}
                 >
                   <span className="inline-flex items-center gap-3">
@@ -206,23 +206,23 @@ export const AppShell = ({
             })}
           </nav>
 
-          <div className="mt-auto rounded-2xl border border-white/10 bg-slate-900/35 p-4 text-sm text-slate-300 backdrop-blur-lg">
+          <div className="mt-auto rounded-2xl border border-violet-300/20 bg-violet-950/35 p-4 text-sm text-violet-100/85 backdrop-blur-lg">
             <div className="font-semibold text-white">Alertas prontos</div>
-            <p className="mt-1 text-xs text-slate-400">
+            <p className="mt-1 text-xs text-violet-100/60">
               Jobs/cron podem ser ligados depois. Hoje os alertas sao gerados no
               login.
             </p>
           </div>
 
           <button
-            className="mt-2 w-full rounded-xl border border-white/10 bg-slate-900/35 px-3 py-2 text-sm text-slate-200 hover:border-white/20"
+            className="mt-2 w-full rounded-xl border border-violet-300/20 bg-violet-950/35 px-3 py-2 text-sm text-violet-100 hover:border-violet-200/35"
             onClick={() => supabase.auth.signOut()}
           >
             Sair
           </button>
         </aside>
 
-        <main className={`flex-1 p-4 pb-28 sm:p-6 sm:pb-28 lg:p-10 lg:pb-10 ${contentClassName ?? ""}`}>
+        <main className={`ultra-shell-bg flex-1 p-4 pb-28 sm:p-6 sm:pb-28 lg:p-10 lg:pb-10 ${contentClassName ?? ""}`}>
           <div className="mb-4 flex gap-2 overflow-x-auto lg:hidden">
             {mobileSecondaryItems.map((item) => {
               const active = pathname === item.href;
@@ -233,8 +233,8 @@ export const AppShell = ({
                   href={item.href}
                   className={`whitespace-nowrap rounded-full border px-3 py-2 text-[11px] font-semibold ${
                     active
-                      ? "border-white/20 bg-white/12 text-white"
-                      : "border-white/10 bg-slate-900/45 text-slate-300"
+                      ? "border-violet-300/50 bg-violet-500/25 text-violet-100"
+                      : "border-violet-300/20 bg-violet-950/35 text-violet-100/80"
                   }`}
                 >
                   <span className="inline-flex items-center gap-2">
@@ -248,11 +248,11 @@ export const AppShell = ({
           {!hideHeader ? (
             <header className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <div className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                <div className="text-xs uppercase tracking-[0.2em] text-violet-200/45">
                   Finance Cloud
                 </div>
                 <h1 className="text-3xl font-extrabold tracking-tight text-white">{title}</h1>
-                {subtitle && <p className="text-sm text-slate-300/85">{subtitle}</p>}
+                {subtitle && <p className="text-sm text-violet-100/75">{subtitle}</p>}
               </div>
 
               <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
@@ -260,23 +260,23 @@ export const AppShell = ({
                 <div className="relative" ref={menuRef}>
                   {renderAvatarButton()}
                   {menuOpen && (
-                    <div className="absolute right-0 mt-2 w-44 rounded-xl border border-white/10 bg-slate-950/95 backdrop-blur-xl shadow-lg p-2 text-sm">
+                    <div className="absolute right-0 mt-2 w-44 rounded-xl border border-violet-300/20 bg-violet-950/95 backdrop-blur-xl shadow-lg p-2 text-sm">
                       <Link
                         href="/profile"
-                        className="block rounded-lg px-3 py-2 text-slate-200 hover:bg-white/10"
+                        className="block rounded-lg px-3 py-2 text-violet-100 hover:bg-violet-500/15"
                       >
                         Perfil
                       </Link>
                       <button
                         type="button"
-                        className="w-full text-left rounded-lg px-3 py-2 text-slate-200 hover:bg-white/10"
+                        className="w-full text-left rounded-lg px-3 py-2 text-violet-100 hover:bg-violet-500/15"
                         onClick={() => fileInputRef.current?.click()}
                       >
                         Trocar foto
                       </button>
                       <button
                         type="button"
-                        className="w-full text-left rounded-lg px-3 py-2 text-slate-200 hover:bg-white/10"
+                        className="w-full text-left rounded-lg px-3 py-2 text-violet-100 hover:bg-violet-500/15"
                         onClick={() => supabase.auth.signOut()}
                       >
                         Sair
@@ -291,23 +291,23 @@ export const AppShell = ({
               <div className="relative" ref={menuRef}>
                 {renderAvatarButton()}
                 {menuOpen && (
-                  <div className="absolute right-0 mt-2 w-44 rounded-xl border border-white/10 bg-slate-950/95 backdrop-blur-xl shadow-lg p-2 text-sm">
+                  <div className="absolute right-0 mt-2 w-44 rounded-xl border border-violet-300/20 bg-violet-950/95 backdrop-blur-xl shadow-lg p-2 text-sm">
                     <Link
                       href="/profile"
-                      className="block rounded-lg px-3 py-2 text-slate-200 hover:bg-white/10"
+                      className="block rounded-lg px-3 py-2 text-violet-100 hover:bg-violet-500/15"
                     >
                       Perfil
                     </Link>
                     <button
                       type="button"
-                      className="w-full text-left rounded-lg px-3 py-2 text-slate-200 hover:bg-white/10"
+                      className="w-full text-left rounded-lg px-3 py-2 text-violet-100 hover:bg-violet-500/15"
                       onClick={() => fileInputRef.current?.click()}
                     >
                       Trocar foto
                     </button>
                     <button
                       type="button"
-                      className="w-full text-left rounded-lg px-3 py-2 text-slate-200 hover:bg-white/10"
+                      className="w-full text-left rounded-lg px-3 py-2 text-violet-100 hover:bg-violet-500/15"
                       onClick={() => supabase.auth.signOut()}
                     >
                       Sair
@@ -330,7 +330,7 @@ export const AppShell = ({
         </main>
       </div>
 
-      <nav className="fixed inset-x-3 bottom-3 z-40 rounded-2xl border border-white/10 bg-slate-950/85 p-1.5 backdrop-blur-xl lg:hidden">
+      <nav className="fixed inset-x-3 bottom-3 z-40 rounded-2xl border border-violet-300/20 bg-violet-950/90 p-1.5 backdrop-blur-xl lg:hidden">
         <div className="grid grid-cols-5 gap-1">
           {mobilePrimaryItems.map((item) => {
             const active = pathname === item.href;
@@ -342,7 +342,7 @@ export const AppShell = ({
                 className={`flex min-h-12 flex-col items-center justify-center rounded-xl px-1 py-1.5 text-[10px] font-semibold transition ${
                   active
                     ? "bg-violet-500/25 text-violet-100"
-                    : "text-slate-300 hover:bg-white/5"
+                    : "text-violet-100/78 hover:bg-violet-500/12"
                 }`}
               >
                 <Icon className="mb-1 h-4 w-4" />

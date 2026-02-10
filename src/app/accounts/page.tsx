@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import { useEffect, useMemo, useState } from "react";
@@ -9,6 +9,12 @@ import { brl, toNumber } from "@/lib/money";
 import { Account, Transaction, computeAccountBalances } from "@/lib/finance";
 
 type TabType = "ativas" | "arquivadas";
+
+const ULTRA_INPUT_CLASS =
+  "rounded-xl border border-violet-300/20 bg-[#181126] px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-violet-400/70 focus:ring-2 focus:ring-violet-500/20";
+
+const ULTRA_SOFT_BTN_CLASS =
+  "rounded-xl border border-violet-300/20 bg-violet-950/35 px-3 py-2 text-xs text-violet-100 hover:bg-violet-900/35 transition";
 
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -156,26 +162,26 @@ export default function AccountsPage() {
             <h2 className="text-lg font-semibold">Nova conta</h2>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
               <input
-                className="rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
+                className={ULTRA_INPUT_CLASS}
                 placeholder="Nome da conta"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
               />
               <input
-                className="rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
+                className={ULTRA_INPUT_CLASS}
                 placeholder="Banco / Instituicao"
                 value={institution}
                 onChange={(event) => setInstitution(event.target.value)}
               />
               <input
-                className="rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
+                className={ULTRA_INPUT_CLASS}
                 placeholder="Saldo inicial"
                 value={openingBalance}
                 onChange={(event) => setOpeningBalance(event.target.value)}
               />
             </div>
             <button
-              className="mt-4 rounded-xl bg-gradient-to-r from-sky-400 to-indigo-500 px-4 py-2 text-sm font-semibold text-slate-950"
+              className="mt-4 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2 text-sm font-semibold text-white shadow-[0_10px_30px_rgba(139,92,246,0.35)] hover:brightness-110 transition"
               onClick={handleCreate}
             >
               Criar conta
@@ -187,8 +193,8 @@ export default function AccountsPage() {
               <button
                 className={`rounded-full border px-4 py-2 text-sm font-semibold ${
                   tab === "ativas"
-                    ? "border-sky-400 bg-sky-500/20 text-sky-200"
-                    : "border-slate-700 bg-slate-900/60 text-slate-300"
+                    ? "border-violet-300/60 bg-violet-500/25 text-violet-100"
+                    : "border-violet-300/20 bg-violet-950/35 text-violet-100/75"
                 }`}
                 onClick={() => setTab("ativas")}
               >
@@ -197,8 +203,8 @@ export default function AccountsPage() {
               <button
                 className={`rounded-full border px-4 py-2 text-sm font-semibold ${
                   tab === "arquivadas"
-                    ? "border-sky-400 bg-sky-500/20 text-sky-200"
-                    : "border-slate-700 bg-slate-900/60 text-slate-300"
+                    ? "border-violet-300/60 bg-violet-500/25 text-violet-100"
+                    : "border-violet-300/20 bg-violet-950/35 text-violet-100/75"
                 }`}
                 onClick={() => setTab("arquivadas")}
               >
@@ -215,7 +221,7 @@ export default function AccountsPage() {
                 return (
                   <div
                     key={account.id}
-                    className="rounded-2xl border border-white/10 bg-[#1c1c1e] p-5 shadow-[0_10px_25px_rgba(0,0,0,0.22)]"
+                    className="rounded-2xl border border-violet-300/20 bg-[linear-gradient(160deg,rgba(34,18,61,0.88),rgba(12,9,31,0.9))] p-5 shadow-[0_12px_35px_rgba(30,12,58,0.45)]"
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div>
@@ -228,7 +234,7 @@ export default function AccountsPage() {
                         </div>
                       </div>
                       <button
-                        className="rounded-xl border border-white/10 px-3 py-2 text-xs text-slate-200"
+                        className={ULTRA_SOFT_BTN_CLASS}
                         onClick={() => loadData()}
                       >
                         Atualizar
@@ -253,19 +259,19 @@ export default function AccountsPage() {
 
                     <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-3">
                       <button
-                        className="rounded-xl border border-white/10 px-3 py-2 text-xs text-slate-100"
+                        className={ULTRA_SOFT_BTN_CLASS}
                         onClick={() => openExtractStub(account)}
                       >
                         Extrato
                       </button>
                       <button
-                        className="rounded-xl border border-white/10 px-3 py-2 text-xs text-slate-100"
+                        className={ULTRA_SOFT_BTN_CLASS}
                         onClick={() => handleAdjust(account)}
                       >
                         Ajustar saldo
                       </button>
                       <button
-                        className="rounded-xl border border-white/10 px-3 py-2 text-xs text-slate-100"
+                        className={ULTRA_SOFT_BTN_CLASS}
                         onClick={() => {
                           setTransferFrom(account.id);
                           setTimeout(() => {
@@ -278,13 +284,13 @@ export default function AccountsPage() {
                         Transferir
                       </button>
                       <button
-                        className="rounded-xl border border-white/10 px-3 py-2 text-xs text-slate-100"
+                        className={ULTRA_SOFT_BTN_CLASS}
                         onClick={() => handleRename(account)}
                       >
                         Editar
                       </button>
                       <button
-                        className="rounded-xl border border-white/10 px-3 py-2 text-xs text-slate-100"
+                        className={ULTRA_SOFT_BTN_CLASS}
                         onClick={() => handleArchive(account)}
                       >
                         {account.archived ? "Desarquivar" : "Arquivar"}
@@ -304,7 +310,7 @@ export default function AccountsPage() {
             <h2 className="text-lg font-semibold">Transferir entre contas</h2>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
               <select
-                className="rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
+                className={ULTRA_INPUT_CLASS}
                 value={transferFrom}
                 onChange={(event) => setTransferFrom(event.target.value)}
               >
@@ -319,7 +325,7 @@ export default function AccountsPage() {
               </select>
 
               <select
-                className="rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
+                className={ULTRA_INPUT_CLASS}
                 value={transferTo}
                 onChange={(event) => setTransferTo(event.target.value)}
               >
@@ -334,14 +340,14 @@ export default function AccountsPage() {
               </select>
 
               <input
-                className="rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
+                className={ULTRA_INPUT_CLASS}
                 placeholder="Valor"
                 value={transferAmount}
                 onChange={(event) => setTransferAmount(event.target.value)}
               />
             </div>
             <button
-              className="mt-4 rounded-xl bg-gradient-to-r from-sky-400 to-indigo-500 px-4 py-2 text-sm font-semibold text-slate-950"
+              className="mt-4 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2 text-sm font-semibold text-white shadow-[0_10px_30px_rgba(139,92,246,0.35)] hover:brightness-110 transition"
               onClick={handleTransfer}
             >
               Confirmar transferencia
@@ -352,3 +358,4 @@ export default function AccountsPage() {
     </AppShell>
   );
 }
+

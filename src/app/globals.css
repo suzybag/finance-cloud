@@ -2,9 +2,9 @@
 
 :root {
   color-scheme: dark;
-  --glass-bg: rgba(7, 10, 24, 0.62);
-  --glass-border: rgba(148, 163, 184, 0.24);
-  --glass-shadow: 0 22px 48px rgba(2, 6, 23, 0.45);
+  --glass-bg: rgba(26, 18, 46, 0.72);
+  --glass-border: rgba(196, 181, 253, 0.24);
+  --glass-shadow: 0 22px 52px rgba(39, 13, 91, 0.42);
 }
 
 body {
@@ -21,10 +21,10 @@ body {
   text-rendering: optimizeLegibility;
   font-kerning: normal;
   background:
-    radial-gradient(1200px 680px at 8% 0%, rgba(59, 130, 246, 0.38), transparent 56%),
-    radial-gradient(1000px 620px at 82% 8%, rgba(236, 72, 153, 0.32), transparent 58%),
-    radial-gradient(900px 640px at 46% 92%, rgba(99, 102, 241, 0.34), transparent 62%),
-    linear-gradient(130deg, #070a1a 0%, #120726 48%, #07122a 100%);
+    radial-gradient(1200px 680px at 8% 0%, rgba(139, 92, 246, 0.36), transparent 56%),
+    radial-gradient(1000px 620px at 82% 8%, rgba(217, 70, 239, 0.3), transparent 58%),
+    radial-gradient(900px 640px at 46% 92%, rgba(79, 70, 229, 0.34), transparent 62%),
+    linear-gradient(130deg, #090616 0%, #170a2e 48%, #0d0922 100%);
   background-size: 170% 170%;
   animation: cosmicShift 46s ease-in-out infinite alternate;
   min-height: 100vh;
@@ -85,7 +85,7 @@ body::after {
 
 .glass-panel {
   border-radius: 20px;
-  background: linear-gradient(160deg, rgba(15, 23, 42, 0.72), rgba(9, 12, 25, 0.72));
+  background: linear-gradient(160deg, rgba(36, 20, 66, 0.78), rgba(15, 10, 33, 0.86));
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
   backdrop-filter: blur(18px);
@@ -125,6 +125,24 @@ body::after {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   backdrop-filter: blur(18px);
+}
+
+.ultra-shell-bg {
+  position: relative;
+  border-radius: 26px;
+  overflow: hidden;
+}
+
+.ultra-shell-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    radial-gradient(760px 520px at 10% 4%, rgba(139, 92, 246, 0.22), transparent 62%),
+    radial-gradient(820px 540px at 92% 8%, rgba(217, 70, 239, 0.18), transparent 64%),
+    linear-gradient(145deg, rgba(18, 10, 37, 0.56), rgba(10, 8, 24, 0.62));
 }
 
 .cards-ultra-bg {

@@ -6,6 +6,9 @@ import { supabase } from "@/lib/supabaseClient";
 import { Account } from "@/lib/finance";
 import { toNumber } from "@/lib/money";
 
+const ULTRA_INPUT_CLASS =
+  "mt-1 w-full rounded-xl border border-violet-300/20 bg-[#181126] px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-violet-400/70 focus:ring-2 focus:ring-violet-500/20";
+
 const guessColumn = (name: string) => {
   const normalized = name.toLowerCase();
   if (normalized.includes("data")) return "occurred_at";
@@ -165,7 +168,7 @@ export default function ImportPage() {
           <input
             type="file"
             accept=".csv"
-            className="mt-4 w-full rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm"
+            className="mt-4 w-full rounded-xl border border-violet-300/20 bg-[#181126] px-3 py-2 text-sm text-slate-100"
             onChange={(event) => handleFile(event.target.files?.[0] ?? null)}
           />
           {fileName && (
@@ -184,7 +187,7 @@ export default function ImportPage() {
                 <div key={header}>
                   <p className="text-xs text-slate-400">{header}</p>
                   <select
-                    className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm"
+                    className={ULTRA_INPUT_CLASS}
                     value={mapping[header] || ""}
                     onChange={(event) =>
                       setMapping((prev) => ({ ...prev, [header]: event.target.value }))
@@ -205,7 +208,7 @@ export default function ImportPage() {
             <div className="mt-4">
               <label className="text-xs text-slate-400">Conta padrao</label>
               <select
-                className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm"
+                className="mt-2 w-full rounded-xl border border-violet-300/20 bg-[#181126] px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-violet-400/70 focus:ring-2 focus:ring-violet-500/20"
                 value={defaultAccount}
                 onChange={(event) => setDefaultAccount(event.target.value)}
               >
@@ -228,7 +231,7 @@ export default function ImportPage() {
             </div>
 
             <button
-              className="mt-6 rounded-xl bg-gradient-to-r from-sky-400 to-indigo-500 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
+              className="mt-6 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2 text-sm font-semibold text-white shadow-[0_10px_30px_rgba(139,92,246,0.35)] transition hover:brightness-110 disabled:opacity-60"
               onClick={handleImport}
               disabled={loading}
             >
@@ -236,7 +239,7 @@ export default function ImportPage() {
             </button>
 
             {message && (
-              <div className="mt-4 rounded-xl border border-slate-800/80 bg-slate-900/60 px-4 py-3 text-sm text-slate-200">
+              <div className="mt-4 rounded-xl border border-violet-300/20 bg-violet-950/35 px-4 py-3 text-sm text-violet-100">
                 {message}
               </div>
             )}
