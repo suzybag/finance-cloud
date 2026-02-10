@@ -16,27 +16,9 @@ Se nao souber um fato especifico, diga claramente que nao tem confirmacao.
 Evite respostas longas sem necessidade.
 `;
 
-export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => null);
-  const text = normalizeSpace(String(body?.text ?? ""));
-  const rawHistory = Array.isArray(body?.history) ? body.history : [];
-
-  if (!text) {
-    return NextResponse.json({ message: "Informe uma mensagem." }, { status: 400 });
-  }
-
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json(
-      {
-        message:
-          "ChatGPT ainda nao esta configurado. Defina OPENAI_API_KEY no ambiente.",
-      },
-      { status: 503 },
-    );
-  }
-
-  const history: ChatTurn[] = rawHistory
+const parseHistory = (rawHistory: unknown): ChatTurn[] => {
+  const list = Array.isArray(rawHistory) ? rawHistory : [];
+  return list
     .map((item: unknown) => {
       if (!item || typeof item !== "object") return null;
       const maybe = item as Record<string, unknown>;
@@ -47,49 +29,143 @@ export async function POST(req: NextRequest) {
     })
     .filter((item: ChatTurn | null): item is ChatTurn => !!item)
     .slice(-10);
+};
+
+const chatWithGemini = async (text: string, history: ChatTurn[], apiKey: string) => {
+  const model = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  const contents = [
+    ...history.map((turn) => ({
+      role: turn.role === "assistant" ? "model" : "user",
+      parts: [{ text: turn.text }],
+    })),
+    { role: "user", parts: [{ text }] },
+  ];
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      systemInstruction: {
+        parts: [{ text: SYSTEM_PROMPT.trim() }],
+      },
+      contents,
+      generationConfig: {
+        temperature: 0.4,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(`Gemini falhou (${response.status}): ${details.slice(0, 300)}`);
+  }
+
+  const data = await response.json();
+  const parts = data?.candidates?.[0]?.content?.parts;
+  const reply = normalizeSpace(
+    Array.isArray(parts)
+      ? parts
+          .map((part: unknown) => {
+            if (!part || typeof part !== "object") return "";
+            return String((part as Record<string, unknown>).text ?? "");
+          })
+          .join(" ")
+      : "",
+  );
+
+  if (!reply) throw new Error("Gemini sem resposta.");
+  return reply;
+};
+
+const chatWithOpenAI = async (text: string, history: ChatTurn[], apiKey: string) => {
+  const messages = [
+    { role: "system", content: SYSTEM_PROMPT.trim() },
+    ...history.map((item) => ({
+      role: item.role,
+      content: item.text,
+    })),
+    { role: "user", content: text },
+  ];
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+      messages,
+      temperature: 0.4,
+    }),
+  });
+
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(`OpenAI falhou (${response.status}): ${details.slice(0, 300)}`);
+  }
+
+  const data = await response.json();
+  const reply = normalizeSpace(String(data?.choices?.[0]?.message?.content ?? ""));
+  if (!reply) throw new Error("OpenAI sem resposta.");
+  return reply;
+};
+
+export async function POST(req: NextRequest) {
+  const body = await req.json().catch(() => null);
+  const text = normalizeSpace(String(body?.text ?? ""));
+  const history = parseHistory(body?.history);
+
+  if (!text) {
+    return NextResponse.json({ message: "Informe uma mensagem." }, { status: 400 });
+  }
+
+  const geminiApiKey =
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
+    process.env.GOOGLE_API_KEY;
+  const openAiApiKey = process.env.OPENAI_API_KEY;
+
+  if (!geminiApiKey && !openAiApiKey) {
+    return NextResponse.json(
+      {
+        message:
+          "Nenhuma IA configurada. Defina GEMINI_API_KEY (ou OPENAI_API_KEY) no ambiente.",
+      },
+      { status: 503 },
+    );
+  }
+
+  const errors: string[] = [];
 
   try {
-    const messages = [
-      { role: "system", content: SYSTEM_PROMPT.trim() },
-      ...history.map((item) => ({
-        role: item.role,
-        content: item.text,
-      })),
-      { role: "user", content: text },
-    ];
+    if (geminiApiKey) {
+      try {
+        const reply = await chatWithGemini(text, history, geminiApiKey);
+        return NextResponse.json({ reply, provider: "gemini" });
+      } catch (error) {
+        errors.push(error instanceof Error ? error.message : "Erro no Gemini");
+      }
+    }
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
+    if (openAiApiKey) {
+      try {
+        const reply = await chatWithOpenAI(text, history, openAiApiKey);
+        return NextResponse.json({ reply, provider: "openai" });
+      } catch (error) {
+        errors.push(error instanceof Error ? error.message : "Erro na OpenAI");
+      }
+    }
+
+    return NextResponse.json(
+      {
+        message: "Falha ao responder com os provedores de IA configurados.",
+        details: errors.slice(0, 2).join(" | "),
       },
-      body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-        messages,
-        temperature: 0.4,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      return NextResponse.json(
-        {
-          message: `Falha ao chamar ChatGPT (${response.status}).`,
-          details: errorText.slice(0, 400),
-        },
-        { status: 502 },
-      );
-    }
-
-    const data = await response.json();
-    const reply = normalizeSpace(String(data?.choices?.[0]?.message?.content ?? ""));
-
-    if (!reply) {
-      return NextResponse.json({ message: "Sem resposta do ChatGPT." }, { status: 502 });
-    }
-
-    return NextResponse.json({ reply });
+      { status: 502 },
+    );
   } catch (error) {
     return NextResponse.json(
       {
@@ -100,4 +176,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
