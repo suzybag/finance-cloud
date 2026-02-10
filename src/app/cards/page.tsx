@@ -2,6 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { Archive, Calendar, CreditCard, Pencil } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
@@ -132,7 +133,7 @@ export default function CardsPage() {
         </div>
       ) : (
         <div className="flex flex-col gap-8">
-          <section className="glass rounded-2xl p-6">
+          <section id="novo-cartao-form" className="glass rounded-2xl p-6">
             <h2 className="text-lg font-semibold">Novo cartao</h2>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
               <input
@@ -306,7 +307,23 @@ export default function CardsPage() {
                 );
               })}
               {!cardSummaries.length && (
-                <div className="text-sm text-muted">Nenhum cartao cadastrado.</div>
+                <div className="lg:col-span-2 rounded-[18px] border border-white/8 bg-[#1c1c1e] p-8 text-center shadow-[0_6px_18px_rgba(0,0,0,0.2)]">
+                  <Image
+                    src="/assets/empty-cards.jpg"
+                    alt="Sem cartoes"
+                    width={240}
+                    height={150}
+                    className="mx-auto h-auto w-[200px] rounded-xl object-cover opacity-95"
+                  />
+                  <p className="mt-5 text-2xl font-semibold text-slate-100">Ops!</p>
+                  <p className="mt-2 text-sm text-[#9ca3af]">Voce ainda nao criou nenhum cartao.</p>
+                  <Link
+                    href="#novo-cartao-form"
+                    className="mt-5 inline-flex items-center justify-center rounded-full bg-[#7c3aed] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#6d28d9]"
+                  >
+                    Adicionar cartao
+                  </Link>
+                </div>
               )}
             </div>
           </section>

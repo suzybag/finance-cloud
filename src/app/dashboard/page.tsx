@@ -2,6 +2,9 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { ArrowDown, ArrowUp, Wallet, WalletCards } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -33,7 +36,7 @@ import {
   groupByCategory,
 } from "@/lib/finance";
 
-const CATEGORY_COLORS = ["#334155", "#3b82f6", "#22c55e", "#0ea5e9", "#64748b", "#94a3b8"];
+const CATEGORY_COLORS = ["#27272a", "#7c3aed", "#22c55e", "#ef4444", "#52525b", "#3f3f46"];
 const CHART_TOOLTIP_STYLE = {
   background: "rgba(10, 14, 29, 0.88)",
   border: "1px solid rgba(148, 163, 184, 0.2)",
@@ -276,6 +279,9 @@ export default function DashboardPage() {
                 value={brl(availableBalance)}
                 subtitle="Saldo bancario total"
                 iconSrc="/assets/3d/wallet.png"
+                icon={Wallet}
+                iconBgClassName="bg-zinc-700/65"
+                iconColorClassName="text-slate-100"
                 tone="violet"
               />
               <KpiCard3D
@@ -283,6 +289,9 @@ export default function DashboardPage() {
                 value={brl(forecastBalance)}
                 subtitle="Com base em movimentos futuros"
                 iconSrc="/assets/3d/forecast.png"
+                icon={WalletCards}
+                iconBgClassName="bg-zinc-600/60"
+                iconColorClassName="text-slate-100"
                 tone="neutral"
               />
               <KpiCard3D
@@ -290,6 +299,9 @@ export default function DashboardPage() {
                 value={brl(monthIncome)}
                 subtitle="Entradas do periodo"
                 iconSrc="/assets/3d/income.png"
+                icon={ArrowUp}
+                iconBgClassName="bg-[#22c55e]/32"
+                iconColorClassName="text-emerald-100"
                 tone="emerald"
               />
               <KpiCard3D
@@ -297,6 +309,9 @@ export default function DashboardPage() {
                 value={brl(monthExpense)}
                 subtitle={`Resultado: ${brl(monthIncome - monthExpense)}`}
                 iconSrc="/assets/3d/expense.png"
+                icon={ArrowDown}
+                iconBgClassName="bg-[#ef4444]/30"
+                iconColorClassName="text-rose-100"
                 tone="blue"
               />
             </section>
@@ -317,7 +332,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="rounded-2xl border border-white/10 bg-slate-950/35 px-4 py-3">
                       <p className="text-xs uppercase tracking-[0.12em] text-slate-400">Resultado liquido</p>
-                      <p className={`mt-1 text-2xl font-extrabold ${monthIncome - monthExpense >= 0 ? "text-emerald-300" : "text-blue-300"}`}>
+                      <p className={`mt-1 text-2xl font-extrabold ${monthIncome - monthExpense >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
                         {brl(monthIncome - monthExpense)}
                       </p>
                     </div>
@@ -427,7 +442,25 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   ))}
-                  {!cardSummaries.length ? <div className="text-sm text-slate-300">Nenhum cartao cadastrado.</div> : null}
+                  {!cardSummaries.length ? (
+                    <div className="md:col-span-2 rounded-[18px] border border-white/8 bg-[#1c1c1e] p-8 text-center shadow-[0_6px_18px_rgba(0,0,0,0.2)]">
+                      <Image
+                        src="/assets/empty-cards.jpg"
+                        alt="Sem cartoes"
+                        width={240}
+                        height={150}
+                        className="mx-auto h-auto w-[200px] rounded-xl object-cover opacity-95"
+                      />
+                      <p className="mt-5 text-2xl font-semibold text-slate-100">Ops!</p>
+                      <p className="mt-2 text-sm text-[#9ca3af]">Voce ainda nao criou nenhum cartao.</p>
+                      <Link
+                        href="/cards"
+                        className="mt-5 inline-flex items-center justify-center rounded-full bg-[#7c3aed] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#6d28d9]"
+                      >
+                        Adicionar cartao
+                      </Link>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </section>
