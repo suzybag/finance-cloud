@@ -25,6 +25,49 @@ Se nao souber um fato especifico, diga claramente que nao tem confirmacao.
 Evite respostas longas sem necessidade.
 `;
 
+const buildLocalFallback = (text: string) => {
+  const normalized = normalizeSpace(
+    text
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase(),
+  );
+
+  const now = new Date();
+  const dateLabel = now.toLocaleDateString("pt-BR", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+
+  if (/\b(oi|ola|bom dia|boa tarde|boa noite)\b/.test(normalized)) {
+    return "Oi. Posso te ajudar com perguntas gerais e tambem com lancamentos financeiros.";
+  }
+
+  if (/\b(que dia|data de hoje|hoje)\b/.test(normalized)) {
+    return `Hoje e ${dateLabel}.`;
+  }
+
+  if (/\bcdb\b/.test(normalized) || /\bcbd\b/.test(normalized)) {
+    return "CDB e um investimento de renda fixa emitido por bancos. Voce empresta dinheiro ao banco e recebe rendimento em troca.";
+  }
+
+  if (/\bdeposito\b/.test(normalized) || /\bdepositar\b/.test(normalized)) {
+    return "Deposito e uma entrada de dinheiro na conta. No app, registro de deposito entra como receita.";
+  }
+
+  if (/\bpix\b/.test(normalized)) {
+    return "PIX e transferencia instantanea. Se quiser, posso te orientar no lancamento como entrada ou saida.";
+  }
+
+  if (/\b(uber|netflix|ifood|mercado|gastei|paguei|ganhei|recebi)\b/.test(normalized)) {
+    return "Posso registrar esse texto para voce. Envie no formato: gastei 25 uber e 12 netflix, ou ganhei 500 deposito.";
+  }
+
+  return "No momento a IA externa esta indisponivel. Tente novamente em alguns minutos ou envie um lancamento financeiro que eu te ajudo a registrar.";
+};
+
 const parseHistory = (rawHistory: unknown): ChatTurn[] => {
   const list = Array.isArray(rawHistory) ? rawHistory : [];
   return list
@@ -230,20 +273,17 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json(
-      {
-        message: "Falha ao responder com os provedores de IA configurados.",
-        details: errors.slice(0, 2).join(" | "),
-      },
-      { status: 502 },
-    );
+    const fallbackReply = buildLocalFallback(text);
+    return NextResponse.json({
+      reply: fallbackReply,
+      provider: "local-fallback",
+      details: errors.slice(0, 2).join(" | "),
+    });
   } catch (error) {
-    return NextResponse.json(
-      {
-        message: "Erro ao processar chat.",
-        details: error instanceof Error ? error.message : "Erro inesperado",
-      },
-      { status: 500 },
-    );
+    return NextResponse.json({
+      reply: buildLocalFallback(text),
+      provider: "local-fallback",
+      details: error instanceof Error ? error.message : "Erro inesperado",
+    });
   }
 }
