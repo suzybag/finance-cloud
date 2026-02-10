@@ -16,34 +16,38 @@ type Ripple = {
 const REMEMBER_LOGIN_KEY = "finance_remember_login";
 const REMEMBER_EMAIL_KEY = "finance_remember_email";
 
+const getInitialRememberLogin = () => {
+  if (typeof window === "undefined") return true;
+  const savedFlag = window.localStorage.getItem(REMEMBER_LOGIN_KEY);
+  return savedFlag !== null ? savedFlag !== "0" : getAuthStorageMode() === "local";
+};
+
+const getInitialRememberedEmail = () => {
+  if (typeof window === "undefined") return "";
+  return window.localStorage.getItem(REMEMBER_EMAIL_KEY) ?? "";
+};
+
 export default function LoginPage() {
   const router = useRouter();
   const panelRef = useRef<HTMLElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
 
   const [mode, setMode] = useState<AuthMode>("login");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(getInitialRememberedEmail);
   const [password, setPassword] = useState("");
-  const [rememberLogin, setRememberLogin] = useState(true);
+  const [rememberLogin, setRememberLogin] = useState(getInitialRememberLogin);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [ripple, setRipple] = useState<Ripple | null>(null);
 
   useEffect(() => {
-    const savedFlag = window.localStorage.getItem(REMEMBER_LOGIN_KEY);
-    const remembered =
-      savedFlag !== null ? savedFlag !== "0" : getAuthStorageMode() === "local";
-    setRememberLogin(remembered);
-    setAuthStorageMode(remembered);
-
-    const rememberedEmail = window.localStorage.getItem(REMEMBER_EMAIL_KEY);
-    if (rememberedEmail) setEmail(rememberedEmail);
+    setAuthStorageMode(rememberLogin);
 
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) router.replace("/dashboard");
     });
-  }, [router]);
+  }, [rememberLogin, router]);
 
   const handlePanelMove = (event: React.MouseEvent<HTMLElement>) => {
     const panel = panelRef.current;
@@ -232,6 +236,16 @@ export default function LoginPage() {
                       onChange={(event) => setPassword(event.target.value)}
                     />
                   </div>
+
+                  <label className="remember-row" htmlFor="remember-login">
+                    <input
+                      id="remember-login"
+                      type="checkbox"
+                      checked={rememberLogin}
+                      onChange={(event) => setRememberLogin(event.target.checked)}
+                    />
+                    <span>Salvar login neste dispositivo</span>
+                  </label>
 
                   {error ? <p className="feedback error">{error}</p> : null}
                   {message ? <p className="feedback success">{message}</p> : null}
@@ -481,6 +495,30 @@ export default function LoginPage() {
           display: grid;
           gap: 8px;
           margin: 10px 0;
+        }
+
+        .remember-row {
+          margin-top: 8px;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 12px;
+          font-weight: 700;
+          color: rgba(255, 255, 255, 0.78);
+          user-select: none;
+        }
+
+        .remember-row input {
+          width: 15px;
+          height: 15px;
+          padding: 0;
+          margin: 0;
+          accent-color: #a855f7;
+          border-radius: 4px;
+          border: 1px solid rgba(255, 255, 255, 0.25);
+          background: rgba(16, 16, 32, 0.38);
+          box-shadow: none;
+          transform: none;
         }
 
         label {

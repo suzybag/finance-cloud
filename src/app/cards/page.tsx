@@ -55,6 +55,18 @@ const inferIssuer = (value?: string | null) => {
 const resolveIssuerLabel = (issuer?: string | null, name?: string | null) =>
   (issuer?.trim() || inferIssuer(name) || "").trim();
 
+const CARD_INPUT_CLASS =
+  "w-full rounded-xl border border-violet-300/20 bg-[#181126] px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-violet-400/70 focus:ring-2 focus:ring-violet-500/20";
+
+const PRIMARY_BUTTON_CLASS =
+  "rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2 text-sm font-semibold text-white shadow-[0_10px_30px_rgba(139,92,246,0.35)] transition hover:brightness-110 disabled:opacity-60";
+
+const SOFT_BUTTON_CLASS =
+  "rounded-xl border border-violet-300/20 bg-violet-950/35 px-3 py-2 text-xs font-semibold text-slate-100 transition hover:bg-violet-900/35";
+
+const ULTRA_SECTION_CLASS =
+  "rounded-2xl border border-violet-300/20 bg-[linear-gradient(160deg,rgba(34,18,61,0.76),rgba(12,9,31,0.86))] shadow-[0_18px_46px_rgba(76,29,149,0.28)] backdrop-blur-xl";
+
 export default function CardsPage() {
   const [cards, setCards] = useState<Card[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -264,7 +276,11 @@ export default function CardsPage() {
   );
 
   return (
-    <AppShell title="Cartoes" subtitle="Controle limites e faturas">
+    <AppShell
+      title="Cartoes"
+      subtitle="Controle limites e faturas com visual ultravioleta"
+      contentClassName="cards-ultra-bg"
+    >
       {loading ? (
         <div className="rounded-2xl border border-slate-800/80 bg-slate-900/50 p-6 text-slate-300">
           Carregando...
@@ -272,20 +288,20 @@ export default function CardsPage() {
       ) : (
         <div className="flex flex-col gap-8">
           {feedback ? (
-            <div className="rounded-xl border border-white/10 bg-slate-900/60 px-4 py-3 text-sm text-slate-200">
+            <div className="rounded-xl border border-violet-300/25 bg-violet-950/35 px-4 py-3 text-sm text-violet-100">
               {feedback}
             </div>
           ) : null}
-          <section className="glass rounded-2xl p-6">
+          <section className={`${ULTRA_SECTION_CLASS} p-6`}>
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
-                <h2 className="text-lg font-semibold">Novo cartao</h2>
-                <p className="mt-1 text-sm text-slate-400">
+                <h2 className="text-xl font-extrabold tracking-tight text-violet-100">Novo cartao</h2>
+                <p className="mt-1 text-sm text-violet-200/75">
                   Abra o formulario completo para cadastrar ou editar seu cartao.
                 </p>
               </div>
               <button
-                className="rounded-xl bg-gradient-to-r from-sky-400 to-indigo-500 px-4 py-2 text-sm font-semibold text-slate-950"
+                className={PRIMARY_BUTTON_CLASS}
                 onClick={openCreateModal}
               >
                 Criar cartao
@@ -294,15 +310,15 @@ export default function CardsPage() {
           </section>
 
           {isFormOpen ? (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-              <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-[#10141f] p-5 shadow-2xl">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#06040dcc]/80 p-4 backdrop-blur-sm">
+              <div className="w-full max-w-xl rounded-2xl border border-violet-300/20 bg-[linear-gradient(170deg,rgba(31,17,56,0.96),rgba(14,10,31,0.97))] p-5 shadow-[0_20px_60px_rgba(76,29,149,0.45)]">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-semibold">
+                  <h3 className="text-xl font-extrabold tracking-tight text-violet-100">
                     {editId ? "Editar cartao" : "Novo cartao"}
                   </h3>
                   <button
                     type="button"
-                    className="rounded-lg border border-white/10 px-2 py-1 text-sm text-slate-300 hover:bg-white/5"
+                    className="rounded-lg border border-violet-300/20 px-2 py-1 text-sm text-violet-100 hover:bg-violet-500/15"
                     onClick={() => {
                       setIsFormOpen(false);
                       resetForm();
@@ -314,9 +330,9 @@ export default function CardsPage() {
 
                 <div className="mt-4 grid gap-3">
                   <div>
-                    <p className="mb-1 text-sm text-slate-300">Nome do cartao</p>
+                    <p className="mb-1 text-sm font-semibold text-violet-100">Nome do cartao</p>
                     <input
-                      className="w-full rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
+                      className={CARD_INPUT_CLASS}
                       placeholder="Ex: Nubank Platinum"
                       value={name}
                       onChange={(event) => setName(event.target.value)}
@@ -325,18 +341,18 @@ export default function CardsPage() {
 
                   <div className="grid gap-3 md:grid-cols-2">
                     <div>
-                      <p className="mb-1 text-sm text-slate-300">Banco</p>
+                      <p className="mb-1 text-sm font-semibold text-violet-100">Banco</p>
                       <input
-                        className="w-full rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
+                        className={CARD_INPUT_CLASS}
                         placeholder="Ex: Nubank, Itau"
                         value={issuer}
                         onChange={(event) => setIssuer(event.target.value)}
                       />
                     </div>
                     <div>
-                      <p className="mb-1 text-sm text-slate-300">Selecionar banco rapido</p>
+                      <p className="mb-1 text-sm font-semibold text-violet-100">Selecionar banco rapido</p>
                       <select
-                        className="w-full rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
+                        className={CARD_INPUT_CLASS}
                         value=""
                         onChange={(event) => {
                           if (event.target.value) setIssuer(event.target.value);
@@ -354,27 +370,27 @@ export default function CardsPage() {
 
                   <div className="grid gap-3 md:grid-cols-3">
                     <div>
-                      <p className="mb-1 text-sm text-slate-300">Limite total (R$)</p>
+                      <p className="mb-1 text-sm font-semibold text-violet-100">Limite total (R$)</p>
                       <input
-                        className="w-full rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
+                        className={CARD_INPUT_CLASS}
                         placeholder="0,00"
                         value={limitTotal}
                         onChange={(event) => setLimitTotal(event.target.value)}
                       />
                     </div>
                     <div>
-                      <p className="mb-1 text-sm text-slate-300">Fechamento</p>
+                      <p className="mb-1 text-sm font-semibold text-violet-100">Fechamento</p>
                       <input
-                        className="w-full rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
+                        className={CARD_INPUT_CLASS}
                         placeholder="10"
                         value={closingDay}
                         onChange={(event) => setClosingDay(event.target.value)}
                       />
                     </div>
                     <div>
-                      <p className="mb-1 text-sm text-slate-300">Vencimento</p>
+                      <p className="mb-1 text-sm font-semibold text-violet-100">Vencimento</p>
                       <input
-                        className="w-full rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
+                        className={CARD_INPUT_CLASS}
                         placeholder="17"
                         value={dueDay}
                         onChange={(event) => setDueDay(event.target.value)}
@@ -383,7 +399,7 @@ export default function CardsPage() {
                   </div>
 
                   <div>
-                    <p className="mb-2 text-sm text-slate-300">Cor</p>
+                    <p className="mb-2 text-sm font-semibold text-violet-100">Cor</p>
                     <div className="flex flex-wrap items-center gap-2">
                       {CARD_COLOR_OPTIONS.map((color) => (
                         <button
@@ -401,9 +417,9 @@ export default function CardsPage() {
                   </div>
 
                   <div>
-                    <p className="mb-1 text-sm text-slate-300">Observacoes</p>
+                    <p className="mb-1 text-sm font-semibold text-violet-100">Observacoes</p>
                     <textarea
-                      className="min-h-[92px] w-full rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
+                      className={`${CARD_INPUT_CLASS} min-h-[92px]`}
                       placeholder="Notas adicionais..."
                       value={cardNote}
                       onChange={(event) => setCardNote(event.target.value)}
@@ -414,7 +430,7 @@ export default function CardsPage() {
                 <div className="mt-5 flex items-center justify-end gap-2">
                   <button
                     type="button"
-                    className="rounded-xl border border-white/10 px-4 py-2 text-sm"
+                    className={`${SOFT_BUTTON_CLASS} px-4 py-2 text-sm`}
                     onClick={() => {
                       setIsFormOpen(false);
                       resetForm();
@@ -425,7 +441,7 @@ export default function CardsPage() {
                   </button>
                   <button
                     type="button"
-                    className="rounded-xl bg-gradient-to-r from-sky-400 to-indigo-500 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
+                    className={`${PRIMARY_BUTTON_CLASS} disabled:opacity-60`}
                     onClick={editId ? handleSaveEdit : handleCreate}
                     disabled={saving || !name.trim()}
                   >
@@ -436,14 +452,14 @@ export default function CardsPage() {
             </div>
           ) : null}
 
-          <section className="glass rounded-2xl p-5">
+          <section className={`${ULTRA_SECTION_CLASS} p-5`}>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 className={`rounded-full px-4 py-2 text-xs font-semibold ${
                   tab === "active"
-                    ? "border-sky-400 bg-sky-500/20 text-sky-200"
-                    : "border-white/10 bg-slate-900/60 text-slate-300"
+                    ? "border-violet-300/60 bg-violet-500/25 text-violet-100"
+                    : "border-violet-300/20 bg-violet-950/35 text-violet-100/70"
                 } border`}
                 onClick={() => setTab("active")}
               >
@@ -453,8 +469,8 @@ export default function CardsPage() {
                 type="button"
                 className={`rounded-full px-4 py-2 text-xs font-semibold ${
                   tab === "archived"
-                    ? "border-sky-400 bg-sky-500/20 text-sky-200"
-                    : "border-white/10 bg-slate-900/60 text-slate-300"
+                    ? "border-violet-300/60 bg-violet-500/25 text-violet-100"
+                    : "border-violet-300/20 bg-violet-950/35 text-violet-100/70"
                 } border`}
                 onClick={() => setTab("archived")}
               >
@@ -478,7 +494,7 @@ export default function CardsPage() {
                 return (
                   <div
                     key={card.id}
-                    className="rounded-2xl border border-white/10 bg-[#1c1c1e] p-5 shadow-[0_10px_25px_rgba(0,0,0,0.22)]"
+                    className="rounded-2xl border border-violet-300/20 bg-[linear-gradient(160deg,rgba(34,18,61,0.88),rgba(12,9,31,0.9))] p-5 shadow-[0_12px_35px_rgba(30,12,58,0.45)]"
                     style={{ borderColor: `${accentColor}55` }}
                   >
                     <div className="flex items-start justify-between gap-4">
@@ -601,11 +617,13 @@ export default function CardsPage() {
             </div>
           </section>
 
-          <section className="glass rounded-2xl p-6">
-            <h2 className="text-lg font-semibold">Registrar pagamento de fatura</h2>
+          <section className={`${ULTRA_SECTION_CLASS} p-6`}>
+            <h2 className="text-xl font-extrabold tracking-tight text-violet-100">
+              Registrar pagamento de fatura
+            </h2>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
               <select
-                className="rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
+                className={CARD_INPUT_CLASS}
                 value={paymentCard}
                 onChange={(event) => setPaymentCard(event.target.value)}
               >
@@ -617,7 +635,7 @@ export default function CardsPage() {
                 ))}
               </select>
               <select
-                className="rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
+                className={CARD_INPUT_CLASS}
                 value={paymentAccount}
                 onChange={(event) => setPaymentAccount(event.target.value)}
               >
@@ -629,14 +647,14 @@ export default function CardsPage() {
                 ))}
               </select>
               <input
-                className="rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
+                className={CARD_INPUT_CLASS}
                 placeholder="Valor pago"
                 value={paymentAmount}
                 onChange={(event) => setPaymentAmount(event.target.value)}
               />
             </div>
             <button
-              className="mt-4 rounded-xl bg-gradient-to-r from-sky-400 to-indigo-500 px-4 py-2 text-sm font-semibold text-slate-950"
+              className={`mt-4 ${PRIMARY_BUTTON_CLASS}`}
               onClick={handlePayment}
             >
               Registrar pagamento
