@@ -13,6 +13,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+
 import { AppShell } from "@/components/AppShell";
 import { brl, formatPercent, toNumber } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
