@@ -21,7 +21,19 @@ type QuickParseResponse = {
   totals: { expense: number; income: number; balance: number };
 };
 
+type ChatMessage = {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+  time: string;
+};
+
 const todayIso = () => new Date().toISOString().slice(0, 10);
+const nowLabel = () =>
+  new Date().toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
 export default function AiPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -35,6 +47,14 @@ export default function AiPage() {
   const [quickResult, setQuickResult] = useState<QuickParseResponse | null>(null);
   const [quickParsing, setQuickParsing] = useState(false);
   const [quickSaving, setQuickSaving] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: "welcome",
+      role: "assistant",
+      text: "Oi, eu sou a Grana AI. Envie uma frase com gastos e depositos.",
+      time: nowLabel(),
+    },
+  ]);
 
   const loadBaseData = async () => {
     setLoading(true);
@@ -61,13 +81,28 @@ export default function AiPage() {
 
   const parsedCount = useMemo(() => quickResult?.items.length ?? 0, [quickResult]);
 
-  const parseQuickText = async () => {
-    const text = quickText.trim();
+  const conversationList = useMemo(
+    () => [
+      { id: "current", title: "Nova conversa", count: messages.length, active: true },
+      { id: "blank", title: "Nova conversa", count: 0, active: false },
+    ],
+    [messages.length],
+  );
+
+  const appendMessage = (role: "user" | "assistant", text: string) => {
+    const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    setMessages((prev) => [...prev, { id, role, text, time: nowLabel() }]);
+  };
+
+  const parseQuickText = async (rawText?: string) => {
+    const text = (rawText ?? quickText).trim();
     if (!text) {
       setMessage("Digite sua frase. Ex: hoje gastei 23 em uber e 25 netflix.");
       return;
     }
 
+    appendMessage("user", text);
+    setQuickText("");
     setQuickParsing(true);
     setMessage(null);
 
@@ -80,17 +115,27 @@ export default function AiPage() {
     const data = await response.json();
     if (!response.ok) {
       setMessage(data.message || "Falha ao analisar texto.");
+      appendMessage("assistant", "Nao consegui analisar agora. Tente novamente.");
       setQuickParsing(false);
       return;
     }
 
     const result = data as QuickParseResponse;
     setQuickResult(result);
+
     if (result.items.length) {
       setMessage(`${result.items.length} lancamentos identificados.`);
+      appendMessage(
+        "assistant",
+        `Identifiquei ${result.items.length} lancamentos. Gastos: ${brl(
+          result.totals.expense,
+        )}. Depositos: ${brl(result.totals.income)}. Clique em \"Salvar em Gastos\".`,
+      );
     } else {
       setMessage("Nenhum valor encontrado na frase.");
+      appendMessage("assistant", "Nao encontrei valores nessa frase.");
     }
+
     setQuickParsing(false);
   };
 
@@ -109,7 +154,10 @@ export default function AiPage() {
     setQuickSaving(true);
     setMessage(null);
 
-    const noteText = quickText.trim();
+    const noteText = messages
+      .filter((item) => item.role === "user")
+      .slice(-1)[0]
+      ?.text?.trim();
     const note = noteText ? `Texto original: ${noteText.slice(0, 220)}` : null;
 
     const rows = items.map((item) => ({
@@ -134,8 +182,8 @@ export default function AiPage() {
     }
 
     setMessage(`${rows.length} lancamentos salvos em Gastos.`);
+    appendMessage("assistant", `Pronto. Salvei ${rows.length} lancamentos na lista de Gastos.`);
     setQuickResult(null);
-    setQuickText("");
     setQuickSaving(false);
   };
 
@@ -171,57 +219,91 @@ export default function AiPage() {
         ) : (
           <>
             <section className="glass-panel p-5">
-              <h2 className="text-xl font-extrabold tracking-tight text-slate-100">Comando rapido</h2>
-              <p className="mt-1 text-sm text-slate-300">
-                Exemplo: hoje gastei 23 em uber 25 netflix e recebi 500 salario.
-              </p>
-
-              <textarea
-                className="mt-3 h-28 w-full rounded-2xl border border-white/10 bg-slate-950/35 px-3 py-2 text-sm text-slate-100 outline-none"
-                placeholder="Digite sua frase"
-                value={quickText}
-                onChange={(event) => setQuickText(event.target.value)}
-              />
-
-              <div className="mt-3 grid gap-3 md:grid-cols-2">
-                <input
-                  type="date"
-                  className="rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2 text-sm text-slate-100"
-                  value={quickDate}
-                  onChange={(event) => setQuickDate(event.target.value)}
-                />
-
-                <select
-                  className="rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2 text-sm text-slate-100"
-                  value={quickAccountId}
-                  onChange={(event) => setQuickAccountId(event.target.value)}
-                >
-                  <option value="">Conta padrao (opcional)</option>
-                  {accounts.map((account) => (
-                    <option key={account.id} value={account.id}>
-                      {account.name}
-                    </option>
-                  ))}
-                </select>
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-extrabold tracking-tight text-slate-100">Conversas</h2>
+                <span className="text-xs text-slate-400">{messages.length} mensagens</span>
               </div>
 
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  className="rounded-xl border border-white/10 bg-slate-900/60 px-3 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-900/85 disabled:opacity-60"
-                  onClick={parseQuickText}
-                  disabled={quickParsing}
-                >
-                  {quickParsing ? "Analisando..." : "Analisar"}
-                </button>
-                <button
-                  type="button"
-                  className="rounded-xl bg-emerald-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-emerald-500 disabled:opacity-60"
-                  onClick={saveQuickItems}
-                  disabled={quickSaving || parsedCount === 0}
-                >
-                  {quickSaving ? "Salvando..." : "Salvar em Gastos"}
-                </button>
+              <div className="mt-3 space-y-2">
+                {conversationList.map((conversation) => (
+                  <button
+                    key={conversation.id}
+                    type="button"
+                    className={`w-full rounded-xl border px-3 py-3 text-left transition ${
+                      conversation.active
+                        ? "border-violet-300/30 bg-violet-400/15 text-violet-100"
+                        : "border-white/10 bg-slate-950/35 text-slate-200 hover:bg-slate-900/55"
+                    }`}
+                  >
+                    <p className="font-semibold">{conversation.title}</p>
+                    <p className="text-xs opacity-80">
+                      {conversation.count} {conversation.count === 1 ? "mensagem" : "mensagens"}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section className="glass-panel overflow-hidden p-0">
+              <div className="border-b border-white/10 px-5 py-4">
+                <div className="flex items-center gap-3">
+                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/20 text-sm font-bold text-violet-100">
+                    AI
+                  </span>
+                  <div>
+                    <p className="text-xl font-extrabold tracking-tight text-slate-100">Grana AI</p>
+                    <p className="text-sm text-slate-300">Seu assistente financeiro inteligente</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="max-h-80 min-h-[230px] space-y-3 overflow-y-auto px-5 py-4">
+                {messages.map((chat) => {
+                  const userBubble = chat.role === "user";
+                  return (
+                    <div key={chat.id} className={`flex ${userBubble ? "justify-end" : "justify-start"}`}>
+                      <div
+                        className={`max-w-[88%] rounded-2xl border px-3 py-2 ${
+                          userBubble
+                            ? "border-violet-300/20 bg-violet-500/20 text-violet-100"
+                            : "border-white/10 bg-slate-950/35 text-slate-100"
+                        }`}
+                      >
+                        <p className="whitespace-pre-wrap text-sm">{chat.text}</p>
+                        <p className="mt-1 text-right text-[11px] opacity-70">{chat.time}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="border-t border-white/10 px-5 py-4">
+                <div className="grid gap-2 md:grid-cols-[1fr_auto]">
+                  <input
+                    className="rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2 text-sm text-slate-100 outline-none"
+                    placeholder="Digite sua mensagem... Ex: uber 27,90 ou hoje gastei 22 no mercado"
+                    value={quickText}
+                    onChange={(event) => setQuickText(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.shiftKey) {
+                        event.preventDefault();
+                        parseQuickText(quickText);
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="rounded-xl bg-violet-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-violet-400 disabled:opacity-60"
+                    onClick={() => parseQuickText(quickText)}
+                    disabled={quickParsing}
+                  >
+                    {quickParsing ? "..." : "Enviar"}
+                  </button>
+                </div>
+
+                <p className="mt-2 text-center text-xs text-slate-400">
+                  Dica: envie 11 netflix 12 uber para criar varios lancamentos
+                </p>
               </div>
             </section>
 
@@ -248,7 +330,29 @@ export default function AiPage() {
                   </div>
                 </div>
 
-                <div className="mt-4 space-y-2">
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  <input
+                    type="date"
+                    className="rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2 text-sm text-slate-100"
+                    value={quickDate}
+                    onChange={(event) => setQuickDate(event.target.value)}
+                  />
+
+                  <select
+                    className="rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2 text-sm text-slate-100"
+                    value={quickAccountId}
+                    onChange={(event) => setQuickAccountId(event.target.value)}
+                  >
+                    <option value="">Conta padrao (opcional)</option>
+                    {accounts.map((account) => (
+                      <option key={account.id} value={account.id}>
+                        {account.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="mt-3 space-y-2">
                   {quickResult.items.map((item, index) => {
                     const isIncome = item.type === "income";
                     return (
@@ -264,7 +368,7 @@ export default function AiPage() {
                                 : "bg-rose-500/15 text-rose-300"
                             }`}
                           >
-                            {isIncome ? "↑" : "↓"}
+                            {isIncome ? "+" : "-"}
                           </span>
                           <div>
                             <p className="font-semibold text-slate-100">{item.description}</p>
@@ -279,6 +383,17 @@ export default function AiPage() {
                     );
                   })}
                 </div>
+
+                <div className="mt-3 flex justify-end">
+                  <button
+                    type="button"
+                    className="rounded-xl bg-emerald-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-emerald-500 disabled:opacity-60"
+                    onClick={saveQuickItems}
+                    disabled={quickSaving || parsedCount === 0}
+                  >
+                    {quickSaving ? "Salvando..." : "Salvar em Gastos"}
+                  </button>
+                </div>
               </section>
             ) : null}
           </>
@@ -287,4 +402,3 @@ export default function AiPage() {
     </AppShell>
   );
 }
-
