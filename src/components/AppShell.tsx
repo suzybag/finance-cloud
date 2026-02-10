@@ -6,27 +6,47 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRequireAuth } from "@/lib/useAuth";
 import { supabase } from "@/lib/supabaseClient";
+import {
+  ArrowLeftRight,
+  BarChart3,
+  Bot,
+  CreditCard,
+  Home,
+  Landmark,
+  Receipt,
+  Settings,
+  Upload,
+} from "lucide-react";
 
 const navItems = [
-  { href: "/dashboard", label: "Painel" },
-  { href: "/accounts", label: "Contas" },
-  { href: "/transactions", label: "Transacoes" },
-  { href: "/gastos", label: "Gastos" },
-  { href: "/ai", label: "AI" },
-  { href: "/cards", label: "Cartoes" },
-  { href: "/import", label: "Importacao" },
-  { href: "/relatorio", label: "Relatorio" },
-  { href: "/profile", label: "Configuracoes" },
+  { href: "/dashboard", label: "Dashboard", icon: Home },
+  { href: "/accounts", label: "Contas", icon: Landmark },
+  { href: "/cards", label: "Cartoes", icon: CreditCard },
+  { href: "/transactions", label: "Transacoes", icon: ArrowLeftRight },
+  { href: "/gastos", label: "Gastos", icon: Receipt },
+  { href: "/ai", label: "Assistente IA", icon: Bot },
+  { href: "/import", label: "Importacao", icon: Upload },
+  { href: "/relatorio", label: "Relatorio", icon: BarChart3 },
+  { href: "/profile", label: "Configuracoes", icon: Settings },
 ];
 
 type AppShellProps = {
   title: string;
   subtitle?: string;
   actions?: React.ReactNode;
+  hideHeader?: boolean;
+  contentClassName?: string;
   children: React.ReactNode;
 };
 
-export const AppShell = ({ title, subtitle, actions, children }: AppShellProps) => {
+export const AppShell = ({
+  title,
+  subtitle,
+  actions,
+  hideHeader = false,
+  contentClassName,
+  children,
+}: AppShellProps) => {
   const { user, loading } = useRequireAuth();
   const pathname = usePathname();
 
@@ -162,6 +182,7 @@ export const AppShell = ({ title, subtitle, actions, children }: AppShellProps) 
           <nav className="flex flex-col gap-2">
             {navItems.map((item) => {
               const active = pathname === item.href;
+              const Icon = item.icon;
               return (
                 <Link
                   key={item.href}
@@ -172,7 +193,10 @@ export const AppShell = ({ title, subtitle, actions, children }: AppShellProps) 
                       : "text-slate-300 hover:bg-white/5"
                   }`}
                 >
-                  {item.label}
+                  <span className="inline-flex items-center gap-3">
+                    <Icon className="h-4 w-4" />
+                    {item.label}
+                  </span>
                 </Link>
               );
             })}
@@ -194,10 +218,11 @@ export const AppShell = ({ title, subtitle, actions, children }: AppShellProps) 
           </button>
         </aside>
 
-        <main className="flex-1 p-6 lg:p-10">
+        <main className={`flex-1 p-4 sm:p-6 lg:p-10 ${contentClassName ?? ""}`}>
           <div className="mb-6 flex gap-2 overflow-x-auto lg:hidden">
             {navItems.map((item) => {
               const active = pathname === item.href;
+              const Icon = item.icon;
               return (
                 <Link
                   key={`mobile-${item.href}`}
@@ -206,22 +231,57 @@ export const AppShell = ({ title, subtitle, actions, children }: AppShellProps) 
                     active ? "bg-white/12 text-white" : "bg-slate-900/45 text-slate-300"
                   }`}
                 >
-                  {item.label}
+                  <span className="inline-flex items-center gap-2">
+                    <Icon className="h-3.5 w-3.5" />
+                    {item.label}
+                  </span>
                 </Link>
               );
             })}
           </div>
-          <header className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <div className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                Finance Cloud
+          {!hideHeader ? (
+            <header className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <div className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                  Finance Cloud
+                </div>
+                <h1 className="text-3xl font-extrabold tracking-tight text-white">{title}</h1>
+                {subtitle && <p className="text-sm text-slate-300/85">{subtitle}</p>}
               </div>
-              <h1 className="text-3xl font-extrabold tracking-tight text-white">{title}</h1>
-              {subtitle && <p className="text-sm text-slate-300/85">{subtitle}</p>}
-            </div>
 
-            <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
-              {actions}
+              <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+                {actions}
+                <div className="relative" ref={menuRef}>
+                  {renderAvatarButton()}
+                  {menuOpen && (
+                    <div className="absolute right-0 mt-2 w-44 rounded-xl border border-white/10 bg-slate-950/95 backdrop-blur-xl shadow-lg p-2 text-sm">
+                      <Link
+                        href="/profile"
+                        className="block rounded-lg px-3 py-2 text-slate-200 hover:bg-white/10"
+                      >
+                        Perfil
+                      </Link>
+                      <button
+                        type="button"
+                        className="w-full text-left rounded-lg px-3 py-2 text-slate-200 hover:bg-white/10"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        Trocar foto
+                      </button>
+                      <button
+                        type="button"
+                        className="w-full text-left rounded-lg px-3 py-2 text-slate-200 hover:bg-white/10"
+                        onClick={() => supabase.auth.signOut()}
+                      >
+                        Sair
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </header>
+          ) : (
+            <div className="flex items-center justify-end">
               <div className="relative" ref={menuRef}>
                 {renderAvatarButton()}
                 {menuOpen && (
@@ -250,7 +310,7 @@ export const AppShell = ({ title, subtitle, actions, children }: AppShellProps) 
                 )}
               </div>
             </div>
-          </header>
+          )}
 
           <input
             ref={fileInputRef}
@@ -260,7 +320,7 @@ export const AppShell = ({ title, subtitle, actions, children }: AppShellProps) 
             className="hidden"
           />
 
-          <div className="mt-8">{children}</div>
+          <div className={hideHeader ? "mt-4" : "mt-8"}>{children}</div>
         </main>
       </div>
     </div>

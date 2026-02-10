@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, Plus, Users } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import type { Account } from "@/lib/finance";
 import { brl, toNumber } from "@/lib/money";
@@ -29,6 +29,13 @@ type ChatMessage = {
   role: "user" | "assistant";
   text: string;
   time: string;
+};
+
+type ChatThread = {
+  id: string;
+  title: string;
+  mode: "solo" | "group";
+  messages: ChatMessage[];
 };
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
@@ -66,14 +73,35 @@ export default function AiPage() {
   const [quickResult, setQuickResult] = useState<QuickParseResponse | null>(null);
   const [quickParsing, setQuickParsing] = useState(false);
   const [quickSaving, setQuickSaving] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([
+  const [threads, setThreads] = useState<ChatThread[]>([
     {
-      id: "welcome",
-      role: "assistant",
-      text: "Oi, eu sou a Grana AI. Envie uma frase com gastos e depositos.",
-      time: nowLabel(),
+      id: "solo",
+      title: "Nova conversa",
+      mode: "solo",
+      messages: [
+        {
+          id: "welcome",
+          role: "assistant",
+          text: "Oi, eu sou a Grana AI. Envie uma frase com gastos e depositos.",
+          time: nowLabel(),
+        },
+      ],
+    },
+    {
+      id: "group",
+      title: "Grupo Financeiro",
+      mode: "group",
+      messages: [
+        {
+          id: "group-welcome",
+          role: "assistant",
+          text: "Este e um chat em grupo sem telefone. Digite mensagens e eu ajudo com os lancamentos.",
+          time: nowLabel(),
+        },
+      ],
     },
   ]);
+  const [currentThreadId, setCurrentThreadId] = useState("solo");
 
   const loadBaseData = async () => {
     setLoading(true);
@@ -100,17 +128,56 @@ export default function AiPage() {
 
   const parsedCount = useMemo(() => quickResult?.items.length ?? 0, [quickResult]);
 
+  const currentThread = useMemo(
+    () => threads.find((thread) => thread.id === currentThreadId) ?? threads[0],
+    [threads, currentThreadId],
+  );
+
+  const messages = currentThread?.messages ?? [];
+
   const conversationList = useMemo(
-    () => [
-      { id: "current", title: "Nova conversa", count: messages.length, active: true },
-      { id: "blank", title: "Nova conversa", count: 0, active: false },
-    ],
-    [messages.length],
+    () =>
+      threads.map((thread) => ({
+        id: thread.id,
+        title: thread.title,
+        count: thread.messages.length,
+        active: thread.id === currentThreadId,
+        mode: thread.mode,
+      })),
+    [threads, currentThreadId],
   );
 
   const appendMessage = (role: "user" | "assistant", text: string) => {
     const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    setMessages((prev) => [...prev, { id, role, text, time: nowLabel() }]);
+    setThreads((prev) =>
+      prev.map((thread) =>
+        thread.id === currentThreadId
+          ? {
+              ...thread,
+              messages: [...thread.messages, { id, role, text, time: nowLabel() }],
+            }
+          : thread,
+      ),
+    );
+  };
+
+  const createConversation = () => {
+    const id = `conv-${Date.now().toString(36)}`;
+    const newThread: ChatThread = {
+      id,
+      title: "Nova conversa",
+      mode: "solo",
+      messages: [
+        {
+          id: `${id}-welcome`,
+          role: "assistant",
+          text: "Oi, eu sou a Grana AI. Em que posso ajudar?",
+          time: nowLabel(),
+        },
+      ],
+    };
+    setThreads((prev) => [newThread, ...prev]);
+    setCurrentThreadId(id);
   };
 
   const parseQuickText = async (rawText?: string) => {
@@ -253,104 +320,129 @@ export default function AiPage() {
           <div className="glass-panel p-6 text-slate-300">Carregando...</div>
         ) : (
           <>
-            <section className="glass-panel p-5">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-extrabold tracking-tight text-slate-100">Conversas</h2>
-                <span className="text-xs text-slate-400">{messages.length} mensagens</span>
-              </div>
-
-              <div className="mt-3 space-y-2">
-                {conversationList.map((conversation) => (
+            <section className="grid gap-6 lg:grid-cols-[280px,1fr]">
+              <div className="glass-panel p-5">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-extrabold tracking-tight text-slate-100">Conversas</h2>
                   <button
-                    key={conversation.id}
                     type="button"
-                    className={`w-full rounded-xl border px-3 py-3 text-left transition ${
-                      conversation.active
-                        ? "border-violet-300/30 bg-violet-400/15 text-violet-100"
-                        : "border-white/10 bg-slate-950/35 text-slate-200 hover:bg-slate-900/55"
-                    }`}
+                    onClick={createConversation}
+                    className="inline-flex items-center justify-center rounded-lg border border-white/10 bg-slate-950/40 p-2 text-slate-200 transition hover:bg-slate-900/55"
+                    aria-label="Criar nova conversa"
                   >
-                    <p className="font-semibold">{conversation.title}</p>
-                    <p className="text-xs opacity-80">
-                      {conversation.count} {conversation.count === 1 ? "mensagem" : "mensagens"}
-                    </p>
+                    <Plus className="h-4 w-4" />
                   </button>
-                ))}
+                </div>
+
+                <div className="mt-3 space-y-2">
+                  {conversationList.map((conversation) => (
+                    <button
+                      key={conversation.id}
+                      type="button"
+                      onClick={() => setCurrentThreadId(conversation.id)}
+                      className={`w-full rounded-xl border px-3 py-3 text-left transition ${
+                        conversation.active
+                          ? "border-violet-300/30 bg-violet-400/15 text-violet-100"
+                          : "border-white/10 bg-slate-950/35 text-slate-200 hover:bg-slate-900/55"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <p className="font-semibold">{conversation.title}</p>
+                        {conversation.mode === "group" ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-slate-900/70 px-2 py-0.5 text-[10px] text-slate-300">
+                            <Users className="h-3 w-3" />
+                            Grupo
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="text-xs opacity-80">
+                        {conversation.count} {conversation.count === 1 ? "mensagem" : "mensagens"}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mt-4 border-t border-white/10 pt-4">
+                  <a
+                    href={WHATSAPP_CONNECT_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-400"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    Conectar WhatsApp
+                  </a>
+                  <p className="mt-2 text-center text-xs text-slate-400">
+                    Sem telefone? Use o chat em grupo aqui ao lado.
+                  </p>
+                </div>
               </div>
 
-              <div className="mt-4 border-t border-white/10 pt-4">
-                <a
-                  href={WHATSAPP_CONNECT_URL}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-400"
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  Conectar WhatsApp
-                </a>
-              </div>
-            </section>
-
-            <section className="glass-panel overflow-hidden p-0">
-              <div className="border-b border-white/10 px-5 py-4">
-                <div className="flex items-center gap-3">
-                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/20 text-sm font-bold text-violet-100">
-                    AI
-                  </span>
-                  <div>
-                    <p className="text-xl font-extrabold tracking-tight text-slate-100">Grana AI</p>
-                    <p className="text-sm text-slate-300">Seu assistente financeiro inteligente</p>
+              <div className="glass-panel flex flex-col overflow-hidden p-0">
+                <div className="border-b border-white/10 px-5 py-4">
+                  <div className="flex items-center gap-3">
+                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/20 text-sm font-bold text-violet-100">
+                      AI
+                    </span>
+                    <div>
+                      <p className="text-xl font-extrabold tracking-tight text-slate-100">Grana AI</p>
+                      <p className="text-sm text-slate-300">
+                        {currentThread?.mode === "group"
+                          ? "Chat em grupo sem telefone"
+                          : "Seu assistente financeiro inteligente"}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="max-h-80 min-h-[230px] space-y-3 overflow-y-auto px-5 py-4">
-                {messages.map((chat) => {
-                  const userBubble = chat.role === "user";
-                  return (
-                    <div key={chat.id} className={`flex ${userBubble ? "justify-end" : "justify-start"}`}>
-                      <div
-                        className={`max-w-[88%] rounded-2xl border px-3 py-2 ${
-                          userBubble
-                            ? "border-violet-300/20 bg-violet-500/20 text-violet-100"
-                            : "border-white/10 bg-slate-950/35 text-slate-100"
-                        }`}
-                      >
-                        <p className="whitespace-pre-wrap text-sm">{chat.text}</p>
-                        <p className="mt-1 text-right text-[11px] opacity-70">{chat.time}</p>
+                <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
+                  {messages.map((chat) => {
+                    const userBubble = chat.role === "user";
+                    return (
+                      <div key={chat.id} className={`flex ${userBubble ? "justify-end" : "justify-start"}`}>
+                        <div
+                          className={`max-w-[88%] rounded-2xl border px-3 py-2 ${
+                            userBubble
+                              ? "border-violet-300/20 bg-violet-500/20 text-violet-100"
+                              : "border-white/10 bg-slate-950/35 text-slate-100"
+                          }`}
+                        >
+                          <p className="whitespace-pre-wrap text-sm">{chat.text}</p>
+                          <p className="mt-1 text-right text-[11px] opacity-70">{chat.time}</p>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="border-t border-white/10 px-5 py-4">
-                <div className="grid gap-2 md:grid-cols-[1fr_auto]">
-                  <input
-                    className="rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2 text-sm text-slate-100 outline-none"
-                    placeholder="Digite sua mensagem... Ex: uber 27,90 ou hoje gastei 22 no mercado"
-                    value={quickText}
-                    onChange={(event) => setQuickText(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" && !event.shiftKey) {
-                        event.preventDefault();
-                        parseQuickText(quickText);
-                      }
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className="rounded-xl bg-violet-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-violet-400 disabled:opacity-60"
-                    onClick={() => parseQuickText(quickText)}
-                    disabled={quickParsing}
-                  >
-                    {quickParsing ? "..." : "Enviar"}
-                  </button>
+                    );
+                  })}
                 </div>
 
-                <p className="mt-2 text-center text-xs text-slate-400">
-                  Dica: envie 11 netflix 12 uber para criar varios lancamentos
-                </p>
+                <div className="border-t border-white/10 px-5 py-4">
+                  <div className="grid gap-2 md:grid-cols-[1fr_auto]">
+                    <input
+                      className="rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2 text-sm text-slate-100 outline-none"
+                      placeholder="Digite sua mensagem... Ex: uber 27,90 ou hoje gastei 22 no mercado"
+                      value={quickText}
+                      onChange={(event) => setQuickText(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" && !event.shiftKey) {
+                          event.preventDefault();
+                          parseQuickText(quickText);
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="rounded-xl bg-violet-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-violet-400 disabled:opacity-60"
+                      onClick={() => parseQuickText(quickText)}
+                      disabled={quickParsing}
+                    >
+                      {quickParsing ? "..." : "Enviar"}
+                    </button>
+                  </div>
+
+                  <p className="mt-2 text-center text-xs text-slate-400">
+                    Dica: envie 11 netflix 12 uber para criar varios lancamentos
+                  </p>
+                </div>
               </div>
             </section>
 

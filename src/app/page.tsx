@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+import DotGrid from "@/components/DotGrid";
+import { getAuthStorageMode, setAuthStorageMode, supabase } from "@/lib/supabaseClient";
 
 type AuthMode = "login" | "signup";
 
@@ -12,6 +13,9 @@ type Ripple = {
   y: number;
 };
 
+const REMEMBER_LOGIN_KEY = "finance_remember_login";
+const REMEMBER_EMAIL_KEY = "finance_remember_email";
+
 export default function LoginPage() {
   const router = useRouter();
   const panelRef = useRef<HTMLElement | null>(null);
@@ -20,12 +24,22 @@ export default function LoginPage() {
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberLogin, setRememberLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [ripple, setRipple] = useState<Ripple | null>(null);
 
   useEffect(() => {
+    const savedFlag = window.localStorage.getItem(REMEMBER_LOGIN_KEY);
+    const remembered =
+      savedFlag !== null ? savedFlag !== "0" : getAuthStorageMode() === "local";
+    setRememberLogin(remembered);
+    setAuthStorageMode(remembered);
+
+    const rememberedEmail = window.localStorage.getItem(REMEMBER_EMAIL_KEY);
+    if (rememberedEmail) setEmail(rememberedEmail);
+
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) router.replace("/dashboard");
     });
@@ -91,6 +105,14 @@ export default function LoginPage() {
     }
 
     if (mode === "login") {
+      setAuthStorageMode(rememberLogin);
+      window.localStorage.setItem(REMEMBER_LOGIN_KEY, rememberLogin ? "1" : "0");
+      if (rememberLogin) {
+        window.localStorage.setItem(REMEMBER_EMAIL_KEY, email);
+      } else {
+        window.localStorage.removeItem(REMEMBER_EMAIL_KEY);
+      }
+
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -119,6 +141,19 @@ export default function LoginPage() {
 
   return (
     <div className="login-root">
+      <div className="dot-grid-bg" aria-hidden="true">
+        <DotGrid
+          dotSize={5}
+          gap={15}
+          baseColor="#271E37"
+          activeColor="#5227FF"
+          proximity={120}
+          shockRadius={250}
+          shockStrength={5}
+          resistance={750}
+          returnDuration={1.5}
+        />
+      </div>
       <div className="stars" aria-hidden="true" />
 
       <div className="wrap">
