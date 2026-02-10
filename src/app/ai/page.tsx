@@ -24,6 +24,11 @@ type QuickParseResponse = {
   out_of_scope?: boolean;
 };
 
+type GeneralChatResponse = {
+  reply?: string;
+  message?: string;
+};
+
 type ChatMessage = {
   id: string;
   role: "user" | "assistant";
@@ -82,7 +87,7 @@ export default function AiPage() {
         {
           id: "welcome",
           role: "assistant",
-          text: "Oi, eu sou a Grana AI. Envie uma frase com gastos e depositos.",
+          text: "Oi, eu sou a Grana AI. Posso registrar lancamentos e tambem responder perguntas gerais.",
           time: nowLabel(),
         },
       ],
@@ -192,53 +197,78 @@ export default function AiPage() {
     setQuickParsing(true);
     setMessage(null);
 
-    const response = await fetch("/api/ai/extract", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
-    });
+    const askGeneralChat = async () => {
+      const history = messages.slice(-8).map((item) => ({
+        role: item.role,
+        text: item.text,
+      }));
 
-    const data = await response.json();
-    if (!response.ok) {
-      setMessage(data.message || "Falha ao analisar texto.");
-      appendMessage("assistant", "Nao consegui analisar agora. Tente novamente.");
-      setQuickParsing(false);
-      return;
-    }
+      const chatResponse = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, history }),
+      });
 
-    const result = data as QuickParseResponse;
-    if (result.out_of_scope) {
-      setQuickResult(null);
-      const outOfScopeMessage =
-        result.message || "Eu foco apenas em lancamentos financeiros.";
-      setMessage(outOfScopeMessage);
-      appendMessage("assistant", outOfScopeMessage);
-      setQuickParsing(false);
-      return;
-    }
+      const chatData = (await chatResponse.json()) as GeneralChatResponse;
+      const chatMessage =
+        chatData.reply ||
+        chatData.message ||
+        "Nao consegui responder agora. Tente novamente em alguns segundos.";
 
-    setQuickResult(result);
+      if (!chatResponse.ok) {
+        setMessage(chatMessage);
+      } else {
+        setMessage(null);
+      }
+      appendMessage("assistant", chatMessage);
+    };
 
-    if (result.items.length) {
-      setMessage(`${result.items.length} lancamentos identificados.`);
-      appendMessage(
-        "assistant",
-        `Identifiquei ${result.items.length} lancamentos. Gastos: ${brl(
-          result.totals.expense,
-        )}. Depositos: ${brl(result.totals.income)}. Clique em \"Salvar em Gastos\".`,
-      );
-    } else {
+    try {
+      const response = await fetch("/api/ai/extract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        await askGeneralChat();
+        return;
+      }
+
+      const result = data as QuickParseResponse;
+      if (result.out_of_scope) {
+        setQuickResult(null);
+        await askGeneralChat();
+        return;
+      }
+
+      setQuickResult(result);
+
+      if (result.items.length) {
+        setMessage(`${result.items.length} lancamentos identificados.`);
+        appendMessage(
+          "assistant",
+          `Identifiquei ${result.items.length} lancamentos. Gastos: ${brl(
+            result.totals.expense,
+          )}. Depositos: ${brl(result.totals.income)}. Clique em \"Salvar em Gastos\".`,
+        );
+        return;
+      }
+
       if (needsValueHint(text)) {
         setMessage("Entendi CDB/deposito, mas faltou o valor.");
         appendMessage("assistant", "Entendi CDB/deposito. Envie com valor. Ex: deposito 500 em cdb.");
-      } else {
-        const assistantMessage = result.message || "Nao encontrei valores nessa frase.";
-        setMessage(assistantMessage);
-        appendMessage("assistant", assistantMessage);
+        return;
       }
-    }
 
-    setQuickParsing(false);
+      setQuickResult(null);
+      await askGeneralChat();
+    } catch {
+      await askGeneralChat();
+    } finally {
+      setQuickParsing(false);
+    }
   };
 
   const saveQuickItems = async () => {
@@ -416,13 +446,13 @@ export default function AiPage() {
                 </div>
 
                 <div className="border-t border-white/10 px-5 py-4">
-                  <div className="grid gap-2 md:grid-cols-[1fr_auto]">
-                    <input
-                      className="rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2 text-sm text-slate-100 outline-none"
-                      placeholder="Digite sua mensagem... Ex: uber 27,90 ou hoje gastei 22 no mercado"
-                      value={quickText}
-                      onChange={(event) => setQuickText(event.target.value)}
-                      onKeyDown={(event) => {
+                <div className="grid gap-2 md:grid-cols-[1fr_auto]">
+                  <input
+                    className="rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2 text-sm text-slate-100 outline-none"
+                    placeholder="Digite sua mensagem... Ex: uber 27,90 ou 'me explique o que e CDB'"
+                    value={quickText}
+                    onChange={(event) => setQuickText(event.target.value)}
+                    onKeyDown={(event) => {
                         if (event.key === "Enter" && !event.shiftKey) {
                           event.preventDefault();
                           parseQuickText(quickText);
@@ -440,7 +470,7 @@ export default function AiPage() {
                   </div>
 
                   <p className="mt-2 text-center text-xs text-slate-400">
-                    Dica: envie 11 netflix 12 uber para criar varios lancamentos
+                    Dica: pode perguntar qualquer tema ou enviar gastos para salvar no app
                   </p>
                 </div>
               </div>
