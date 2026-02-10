@@ -42,6 +42,8 @@ export type Card = {
   limit_total: number;
   closing_day: number;
   due_day: number;
+  color?: string | null;
+  note?: string | null;
   archived: boolean;
   created_at: string;
 };

@@ -76,9 +76,14 @@ create table if not exists public.cards (
   limit_total numeric not null default 0,
   closing_day int not null default 1,
   due_day int not null default 10,
+  color text,
+  note text,
   archived boolean not null default false,
   created_at timestamptz not null default now()
 );
+
+alter table public.cards add column if not exists color text;
+alter table public.cards add column if not exists note text;
 
 create table if not exists public.transactions (
   id uuid primary key default gen_random_uuid(),

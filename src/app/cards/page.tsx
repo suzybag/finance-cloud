@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Archive, Calendar, CreditCard, Pencil } from "lucide-react";
+import { Archive, Calendar, CreditCard, Pencil, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { BankLogo } from "@/components/BankLogo";
 import { supabase } from "@/lib/supabaseClient";
@@ -18,6 +18,19 @@ const BANK_ISSUER_OPTIONS = [
   "Mercado Pago",
   "XP",
   "BTG",
+] as const;
+
+const CARD_COLOR_OPTIONS = [
+  "#14b8a6",
+  "#3b82f6",
+  "#8b5cf6",
+  "#f59e0b",
+  "#ec4899",
+  "#06b6d4",
+  "#f43f5e",
+  "#6366f1",
+  "#22c55e",
+  "#94a3b8",
 ] as const;
 
 const normalizeText = (value: string) =>
@@ -54,9 +67,15 @@ export default function CardsPage() {
   const [limitTotal, setLimitTotal] = useState("");
   const [closingDay, setClosingDay] = useState("10");
   const [dueDay, setDueDay] = useState("17");
+  const [cardColor, setCardColor] = useState<string>(CARD_COLOR_OPTIONS[0]);
+  const [cardNote, setCardNote] = useState("");
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const [editId, setEditId] = useState<string | null>(null);
   const [tab, setTab] = useState<"active" | "archived">("active");
+  const [busyCardId, setBusyCardId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
 
   const [paymentCard, setPaymentCard] = useState("");
   const [paymentAccount, setPaymentAccount] = useState("");
@@ -84,25 +103,81 @@ export default function CardsPage() {
     loadData();
   }, []);
 
+  const resetForm = () => {
+    setEditId(null);
+    setName("");
+    setIssuer("");
+    setLimitTotal("");
+    setClosingDay("10");
+    setDueDay("17");
+    setCardColor(CARD_COLOR_OPTIONS[0]);
+    setCardNote("");
+  };
+
+  const openCreateModal = () => {
+    resetForm();
+    setIsFormOpen(true);
+  };
+
   const handleCreate = async () => {
-    if (!userId || !name) return;
+    if (!userId || !name.trim()) return;
+    setSaving(true);
+    setFeedback(null);
     const issuerToSave = resolveIssuerLabel(issuer, name);
-    await supabase.from("cards").insert({
+    const { error } = await supabase.from("cards").insert({
       user_id: userId,
-      name,
+      name: name.trim(),
       issuer: issuerToSave || null,
       limit_total: toNumber(limitTotal),
       closing_day: Number(closingDay),
       due_day: Number(dueDay),
+      color: cardColor,
+      note: cardNote.trim() ? cardNote.trim() : null,
     });
-    setName("");
-    setIssuer("");
-    setLimitTotal("");
+
+    if (error) {
+      setSaving(false);
+      setFeedback(`Nao foi possivel criar: ${error.message}`);
+      return;
+    }
+
+    setSaving(false);
+    setIsFormOpen(false);
+    setFeedback("Cartao criado com sucesso.");
+    resetForm();
     loadData();
   };
 
   const handleArchive = async (card: Card) => {
+    setFeedback(null);
+    setBusyCardId(card.id);
     await supabase.from("cards").update({ archived: !card.archived }).eq("id", card.id);
+    setBusyCardId(null);
+    loadData();
+  };
+
+  const handleDelete = async (card: Card) => {
+    setFeedback(null);
+    const ok = window.confirm(
+      `Excluir o cartao "${card.name}"? Essa acao nao pode ser desfeita.`,
+    );
+    if (!ok) return;
+
+    setBusyCardId(card.id);
+    const { error } = await supabase.from("cards").delete().eq("id", card.id);
+    setBusyCardId(null);
+
+    if (error) {
+      setFeedback(`Nao foi possivel excluir: ${error.message}`);
+      return;
+    }
+
+    if (editId === card.id) {
+      resetForm();
+      setIsFormOpen(false);
+    }
+
+    setFeedback("Cartao excluido com sucesso.");
     loadData();
   };
 
@@ -113,25 +188,39 @@ export default function CardsPage() {
     setLimitTotal(String(card.limit_total));
     setClosingDay(String(card.closing_day));
     setDueDay(String(card.due_day));
+    setCardColor(card.color || CARD_COLOR_OPTIONS[0]);
+    setCardNote(card.note || "");
+    setIsFormOpen(true);
   };
 
   const handleSaveEdit = async () => {
-    if (!editId) return;
+    if (!editId || !name.trim()) return;
+    setSaving(true);
+    setFeedback(null);
     const issuerToSave = resolveIssuerLabel(issuer, name);
-    await supabase
+    const { error } = await supabase
       .from("cards")
       .update({
-        name,
+        name: name.trim(),
         issuer: issuerToSave || null,
         limit_total: toNumber(limitTotal),
         closing_day: Number(closingDay),
         due_day: Number(dueDay),
+        color: cardColor,
+        note: cardNote.trim() ? cardNote.trim() : null,
       })
       .eq("id", editId);
-    setEditId(null);
-    setName("");
-    setIssuer("");
-    setLimitTotal("");
+
+    if (error) {
+      setSaving(false);
+      setFeedback(`Nao foi possivel salvar: ${error.message}`);
+      return;
+    }
+
+    setSaving(false);
+    setIsFormOpen(false);
+    setFeedback("Cartao atualizado com sucesso.");
+    resetForm();
     loadData();
   };
 
@@ -182,80 +271,170 @@ export default function CardsPage() {
         </div>
       ) : (
         <div className="flex flex-col gap-8">
-          <section className="glass rounded-2xl p-6">
-            <h2 className="text-lg font-semibold">Novo cartao</h2>
-            <div className="mt-4 grid gap-3 md:grid-cols-3">
-              <input
-                className="rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
-                placeholder="Nome do cartao"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-              />
-              <input
-                className="rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
-                placeholder="Emissor"
-                value={issuer}
-                onChange={(event) => setIssuer(event.target.value)}
-              />
-              <select
-                className="rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
-                value=""
-                onChange={(event) => {
-                  if (event.target.value) setIssuer(event.target.value);
-                }}
-              >
-                <option value="">Selecionar banco rapido</option>
-                {BANK_ISSUER_OPTIONS.map((bank) => (
-                  <option key={bank} value={bank}>
-                    {bank}
-                  </option>
-                ))}
-              </select>
-              <input
-                className="rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
-                placeholder="Limite total"
-                value={limitTotal}
-                onChange={(event) => setLimitTotal(event.target.value)}
-              />
-              <input
-                className="rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
-                placeholder="Dia de fechamento"
-                value={closingDay}
-                onChange={(event) => setClosingDay(event.target.value)}
-              />
-              <input
-                className="rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
-                placeholder="Dia de vencimento"
-                value={dueDay}
-                onChange={(event) => setDueDay(event.target.value)}
-              />
+          {feedback ? (
+            <div className="rounded-xl border border-white/10 bg-slate-900/60 px-4 py-3 text-sm text-slate-200">
+              {feedback}
             </div>
-            <div className="mt-4 flex gap-2">
-              {editId ? (
-                <>
+          ) : null}
+          <section className="glass rounded-2xl p-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold">Novo cartao</h2>
+                <p className="mt-1 text-sm text-slate-400">
+                  Abra o formulario completo para cadastrar ou editar seu cartao.
+                </p>
+              </div>
+              <button
+                className="rounded-xl bg-gradient-to-r from-sky-400 to-indigo-500 px-4 py-2 text-sm font-semibold text-slate-950"
+                onClick={openCreateModal}
+              >
+                Criar cartao
+              </button>
+            </div>
+          </section>
+
+          {isFormOpen ? (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+              <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-[#10141f] p-5 shadow-2xl">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-semibold">
+                    {editId ? "Editar cartao" : "Novo cartao"}
+                  </h3>
                   <button
-                    className="rounded-xl bg-gradient-to-r from-sky-400 to-indigo-500 px-4 py-2 text-sm font-semibold text-slate-950"
-                    onClick={handleSaveEdit}
+                    type="button"
+                    className="rounded-lg border border-white/10 px-2 py-1 text-sm text-slate-300 hover:bg-white/5"
+                    onClick={() => {
+                      setIsFormOpen(false);
+                      resetForm();
+                    }}
                   >
-                    Salvar alteracoes
+                    X
                   </button>
+                </div>
+
+                <div className="mt-4 grid gap-3">
+                  <div>
+                    <p className="mb-1 text-sm text-slate-300">Nome do cartao</p>
+                    <input
+                      className="w-full rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
+                      placeholder="Ex: Nubank Platinum"
+                      value={name}
+                      onChange={(event) => setName(event.target.value)}
+                    />
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div>
+                      <p className="mb-1 text-sm text-slate-300">Banco</p>
+                      <input
+                        className="w-full rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
+                        placeholder="Ex: Nubank, Itau"
+                        value={issuer}
+                        onChange={(event) => setIssuer(event.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <p className="mb-1 text-sm text-slate-300">Selecionar banco rapido</p>
+                      <select
+                        className="w-full rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
+                        value=""
+                        onChange={(event) => {
+                          if (event.target.value) setIssuer(event.target.value);
+                        }}
+                      >
+                        <option value="">Escolha um banco</option>
+                        {BANK_ISSUER_OPTIONS.map((bank) => (
+                          <option key={bank} value={bank}>
+                            {bank}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <div>
+                      <p className="mb-1 text-sm text-slate-300">Limite total (R$)</p>
+                      <input
+                        className="w-full rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
+                        placeholder="0,00"
+                        value={limitTotal}
+                        onChange={(event) => setLimitTotal(event.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <p className="mb-1 text-sm text-slate-300">Fechamento</p>
+                      <input
+                        className="w-full rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
+                        placeholder="10"
+                        value={closingDay}
+                        onChange={(event) => setClosingDay(event.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <p className="mb-1 text-sm text-slate-300">Vencimento</p>
+                      <input
+                        className="w-full rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
+                        placeholder="17"
+                        value={dueDay}
+                        onChange={(event) => setDueDay(event.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="mb-2 text-sm text-slate-300">Cor</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {CARD_COLOR_OPTIONS.map((color) => (
+                        <button
+                          key={color}
+                          type="button"
+                          className={`h-8 w-8 rounded-full border-2 ${
+                            cardColor === color ? "border-white" : "border-transparent"
+                          }`}
+                          style={{ backgroundColor: color }}
+                          onClick={() => setCardColor(color)}
+                          aria-label={`Selecionar cor ${color}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="mb-1 text-sm text-slate-300">Observacoes</p>
+                    <textarea
+                      className="min-h-[92px] w-full rounded-xl border border-white/10 bg-[#1c1c1e] px-3 py-2 text-sm"
+                      placeholder="Notas adicionais..."
+                      value={cardNote}
+                      onChange={(event) => setCardNote(event.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-5 flex items-center justify-end gap-2">
                   <button
-                    className="rounded-xl border border-slate-700 px-3 py-2 text-sm"
-                    onClick={() => setEditId(null)}
+                    type="button"
+                    className="rounded-xl border border-white/10 px-4 py-2 text-sm"
+                    onClick={() => {
+                      setIsFormOpen(false);
+                      resetForm();
+                    }}
+                    disabled={saving}
                   >
                     Cancelar
                   </button>
-                </>
-              ) : (
-                <button
-                  className="rounded-xl bg-gradient-to-r from-sky-400 to-indigo-500 px-4 py-2 text-sm font-semibold text-slate-950"
-                  onClick={handleCreate}
-                >
-                  Criar cartao
-                </button>
-              )}
+                  <button
+                    type="button"
+                    className="rounded-xl bg-gradient-to-r from-sky-400 to-indigo-500 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
+                    onClick={editId ? handleSaveEdit : handleCreate}
+                    disabled={saving || !name.trim()}
+                  >
+                    {saving ? "Salvando..." : editId ? "Salvar alteracoes" : "Criar cartao"}
+                  </button>
+                </div>
+              </div>
             </div>
-          </section>
+          ) : null}
 
           <section className="glass rounded-2xl p-5">
             <div className="flex items-center gap-2">
@@ -291,11 +470,16 @@ export default function CardsPage() {
                 const issuerLabel = resolveIssuerLabel(card.issuer, card.name);
                 const bankName = issuerLabel || card.name?.trim() || "";
                 const hasBankLogo = !!getBankIconPath(bankName);
+                const accentColor =
+                  card.color && /^#([0-9a-fA-F]{6})$/.test(card.color)
+                    ? card.color
+                    : "#38bdf8";
 
                 return (
                   <div
                     key={card.id}
                     className="rounded-2xl border border-white/10 bg-[#1c1c1e] p-5 shadow-[0_10px_25px_rgba(0,0,0,0.22)]"
+                    style={{ borderColor: `${accentColor}55` }}
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-start gap-3">
@@ -313,6 +497,9 @@ export default function CardsPage() {
                             </p>
                           </div>
                           <p className="text-2xl font-extrabold text-slate-100">{card.name}</p>
+                          {card.note ? (
+                            <p className="mt-1 line-clamp-1 text-xs text-slate-400">{card.note}</p>
+                          ) : null}
                         </div>
                       </div>
                       <div className="text-right">
@@ -324,7 +511,10 @@ export default function CardsPage() {
                     <div className="mt-4">
                       <p className="text-xs text-slate-400">Limite usado</p>
                       <div className="mt-2 h-2 overflow-hidden rounded-full border border-white/10 bg-slate-900/60">
-                        <div className="h-full bg-sky-400" style={{ width: `${usedPct}%` }} />
+                        <div
+                          className="h-full"
+                          style={{ width: `${usedPct}%`, backgroundColor: accentColor }}
+                        />
                       </div>
                     </div>
 
@@ -379,6 +569,7 @@ export default function CardsPage() {
                         <button
                           className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-slate-900/50 hover:bg-slate-900/70"
                           onClick={() => handleEdit(card)}
+                          disabled={busyCardId === card.id}
                           aria-label="Editar cartao"
                         >
                           <Pencil className="h-4 w-4" />
@@ -386,9 +577,18 @@ export default function CardsPage() {
                         <button
                           className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-slate-900/50 hover:bg-slate-900/70"
                           onClick={() => handleArchive(card)}
+                          disabled={busyCardId === card.id}
                           aria-label="Arquivar cartao"
                         >
                           <Archive className="h-4 w-4" />
+                        </button>
+                        <button
+                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-rose-400/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 disabled:opacity-60"
+                          onClick={() => handleDelete(card)}
+                          disabled={busyCardId === card.id}
+                          aria-label="Excluir cartao"
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
                     </div>
