@@ -30,6 +30,10 @@ const navItems = [
   { href: "/profile", label: "Configuracoes", icon: Settings },
 ];
 
+const mobilePrimaryHrefs = new Set(["/dashboard", "/accounts", "/cards", "/transactions", "/ai"]);
+const mobilePrimaryItems = navItems.filter((item) => mobilePrimaryHrefs.has(item.href));
+const mobileSecondaryItems = navItems.filter((item) => !mobilePrimaryHrefs.has(item.href));
+
 type AppShellProps = {
   title: string;
   subtitle?: string;
@@ -218,17 +222,19 @@ export const AppShell = ({
           </button>
         </aside>
 
-        <main className={`flex-1 p-4 sm:p-6 lg:p-10 ${contentClassName ?? ""}`}>
-          <div className="mb-6 flex gap-2 overflow-x-auto lg:hidden">
-            {navItems.map((item) => {
+        <main className={`flex-1 p-4 pb-28 sm:p-6 sm:pb-28 lg:p-10 lg:pb-10 ${contentClassName ?? ""}`}>
+          <div className="mb-4 flex gap-2 overflow-x-auto lg:hidden">
+            {mobileSecondaryItems.map((item) => {
               const active = pathname === item.href;
               const Icon = item.icon;
               return (
                 <Link
                   key={`mobile-${item.href}`}
                   href={item.href}
-                  className={`whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold ${
-                    active ? "bg-white/12 text-white" : "bg-slate-900/45 text-slate-300"
+                  className={`whitespace-nowrap rounded-full border px-3 py-2 text-[11px] font-semibold ${
+                    active
+                      ? "border-white/20 bg-white/12 text-white"
+                      : "border-white/10 bg-slate-900/45 text-slate-300"
                   }`}
                 >
                   <span className="inline-flex items-center gap-2">
@@ -323,6 +329,29 @@ export const AppShell = ({
           <div className={hideHeader ? "mt-4" : "mt-8"}>{children}</div>
         </main>
       </div>
+
+      <nav className="fixed inset-x-3 bottom-3 z-40 rounded-2xl border border-white/10 bg-slate-950/85 p-1.5 backdrop-blur-xl lg:hidden">
+        <div className="grid grid-cols-5 gap-1">
+          {mobilePrimaryItems.map((item) => {
+            const active = pathname === item.href;
+            const Icon = item.icon;
+            return (
+              <Link
+                key={`bottom-${item.href}`}
+                href={item.href}
+                className={`flex min-h-12 flex-col items-center justify-center rounded-xl px-1 py-1.5 text-[10px] font-semibold transition ${
+                  active
+                    ? "bg-violet-500/25 text-violet-100"
+                    : "text-slate-300 hover:bg-white/5"
+                }`}
+              >
+                <Icon className="mb-1 h-4 w-4" />
+                <span className="truncate">{item.label.replace("Assistente ", "")}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 };
