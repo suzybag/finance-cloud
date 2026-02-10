@@ -2,7 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Account, Transaction } from "@/lib/finance";
+import type { Account, Card, Transaction } from "@/lib/finance";
 import {
   computeDashboardSummary,
   monthInputValue,
@@ -12,6 +12,7 @@ import { loadDashboardData } from "@/data/dashboard/loadDashboardData";
 
 export const useDashboardSummary = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [cards, setCards] = useState<Card[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
@@ -30,6 +31,7 @@ export const useDashboardSummary = () => {
     }
 
     setAccounts(result.data.accounts);
+    setCards(result.data.cards);
     setTransactions(result.data.transactions);
     setLoading(false);
   }, []);
@@ -47,6 +49,9 @@ export const useDashboardSummary = () => {
     loading,
     message,
     period,
+    accounts,
+    cards,
+    transactions,
     summary,
     setPeriod,
     refresh,

@@ -1,8 +1,8 @@
 import { supabase } from "@/lib/supabaseClient";
-import type { Account, Transaction } from "@/lib/finance";
+import type { Account, Card, Transaction } from "@/lib/finance";
 
 type DashboardDataResult = {
-  data: { accounts: Account[]; transactions: Transaction[] } | null;
+  data: { accounts: Account[]; cards: Card[]; transactions: Transaction[] } | null;
   error: string | null;
 };
 
@@ -22,8 +22,9 @@ const toFriendlyDbError = (raw?: string) => {
 };
 
 export const loadDashboardData = async (): Promise<DashboardDataResult> => {
-  const [accountsRes, transactionsRes] = await Promise.all([
+  const [accountsRes, cardsRes, transactionsRes] = await Promise.all([
     supabase.from("accounts").select("*").order("created_at"),
+    supabase.from("cards").select("*").order("created_at"),
     supabase
       .from("transactions")
       .select("*")
@@ -31,19 +32,21 @@ export const loadDashboardData = async (): Promise<DashboardDataResult> => {
       .limit(1000),
   ]);
 
-  if (accountsRes.error || transactionsRes.error) {
+  if (accountsRes.error || cardsRes.error || transactionsRes.error) {
     return {
       data: null,
-      error: toFriendlyDbError(accountsRes.error?.message || transactionsRes.error?.message),
+      error: toFriendlyDbError(
+        accountsRes.error?.message || cardsRes.error?.message || transactionsRes.error?.message,
+      ),
     };
   }
 
   return {
     data: {
       accounts: (accountsRes.data as Account[]) ?? [],
+      cards: (cardsRes.data as Card[]) ?? [],
       transactions: (transactionsRes.data as Transaction[]) ?? [],
     },
     error: null,
   };
 };
-
