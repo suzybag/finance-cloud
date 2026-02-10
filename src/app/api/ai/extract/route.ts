@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 
 type ParsedItem = {
   description: string;
@@ -36,6 +36,17 @@ const CATEGORY_RULES: Record<string, string> = {
   spotify: "Assinaturas",
   salario: "Salario",
   pagamento: "Salario",
+  deposito: "Depositos",
+  pix: "Depositos",
+  cdb: "Investimentos",
+  cbd: "Investimentos",
+  poupanca: "Investimentos",
+  tesouro: "Investimentos",
+  investimento: "Investimentos",
+  acoes: "Investimentos",
+  acao: "Investimentos",
+  fundo: "Investimentos",
+  fii: "Investimentos",
 };
 
 const INCOME_HINTS = [
@@ -45,6 +56,34 @@ const INCOME_HINTS = [
   "entrada",
   "deposito",
   "pix recebido",
+  "credito",
+  "rendimento",
+  "rendimentos",
+  "juros",
+  "dividendo",
+  "dividendos",
+  "resgate",
+  "cashback",
+  "cdb",
+  "cbd",
+];
+
+const EXPENSE_HINTS = [
+  "gastei",
+  "paguei",
+  "pago",
+  "comprei",
+  "compra",
+  "despesa",
+  "boleto",
+  "conta",
+  "debito",
+  "cartao",
+  "fatura",
+  "assinatura",
+  "ifood",
+  "uber",
+  "mercado",
 ];
 
 const STOPWORDS_START = [
@@ -66,9 +105,19 @@ const STOPWORDS_START = [
   "com",
   "r$",
   "reais",
+  "mais",
 ];
 
+const TRAILING_CONNECTORS = ["de", "da", "do", "na", "no", "em", "pra", "pro", "para", "com", "e"];
+const GENERIC_DESCRIPTIONS = ["mais", "valor", "lancamento", "lancamento rapido"];
+
 const normalizeSpace = (value: string) => value.replace(/\s+/g, " ").trim();
+
+const normalizeForMatch = (value: string) =>
+  normalizeSpace(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 
 const toAmount = (raw: string) => {
   const normalized = raw.replace(/\s/g, "").replace(/\./g, "").replace(",", ".");
@@ -86,40 +135,108 @@ const toTitle = (value: string) =>
 const cleanupDescription = (raw: string) => {
   let text = normalizeSpace(raw.replace(/[\n\r\t]+/g, " ").replace(/[.,;:!?]+/g, " "));
   while (text) {
-    const firstWord = text.split(" ")[0]?.toLowerCase();
+    const firstWord = normalizeForMatch(text.split(" ")[0] ?? "");
     if (!firstWord || !STOPWORDS_START.includes(firstWord)) break;
-    text = text.slice(firstWord.length).trim();
+    text = text.slice((text.split(" ")[0] ?? "").length).trim();
   }
   text = text.replace(/^(e\s+)/i, "").trim();
+  return normalizeSpace(text);
+};
+
+const trimTrailingConnectors = (value: string) => {
+  let text = normalizeSpace(value);
+  while (text) {
+    const words = text.split(" ");
+    const last = normalizeForMatch(words[words.length - 1] ?? "");
+    if (!last || !TRAILING_CONNECTORS.includes(last)) break;
+    words.pop();
+    text = words.join(" ").trim();
+  }
   return text;
 };
 
+const takeFirstWords = (value: string, maxWords = 6) =>
+  value
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, maxWords)
+    .join(" ");
+
+const takeLastWords = (value: string, maxWords = 6) => {
+  const parts = value.split(" ").filter(Boolean);
+  return parts.slice(Math.max(parts.length - maxWords, 0)).join(" ");
+};
+
 const guessCategory = (description: string) => {
-  const lower = description.toLowerCase();
+  const lower = normalizeForMatch(description);
   for (const key of Object.keys(CATEGORY_RULES)) {
     if (lower.includes(key)) return CATEGORY_RULES[key];
   }
   return "Outros";
 };
 
+const countHintMatches = (text: string, hints: string[]) =>
+  hints.reduce((score, hint) => (text.includes(hint) ? score + 1 : score), 0);
+
 const guessType = (description: string, fullText: string): "expense" | "income" => {
-  const lower = `${description} ${fullText}`.toLowerCase();
-  return INCOME_HINTS.some((hint) => lower.includes(hint)) ? "income" : "expense";
+  const lower = normalizeForMatch(`${description} ${fullText}`);
+  let incomeScore = countHintMatches(lower, INCOME_HINTS);
+  let expenseScore = countHintMatches(lower, EXPENSE_HINTS);
+
+  if (lower.includes("resgate") || lower.includes("rendimento") || lower.includes("dividendo")) {
+    incomeScore += 2;
+  }
+
+  if ((lower.includes("cdb") || lower.includes("cbd")) && lower.includes("deposito")) {
+    incomeScore += 2;
+  }
+
+  if (lower.includes("investi") || lower.includes("apliquei") || lower.includes("aporte")) {
+    expenseScore += 2;
+  }
+
+  if (incomeScore === expenseScore) {
+    return incomeScore > 0 ? "income" : "expense";
+  }
+
+  return incomeScore > expenseScore ? "income" : "expense";
 };
 
 const sanitizeItem = (item: unknown, fullText: string): ParsedItem | null => {
   if (!item || typeof item !== "object") return null;
   const maybe = item as Record<string, unknown>;
-  const description = cleanupDescription(String(maybe.description ?? ""));
-  const amount = toAmount(String(maybe.amount ?? ""));
-  if (!description || amount <= 0) return null;
 
-  const type = maybe.type === "income" ? "income" : guessType(description, fullText);
+  const descriptionRaw = cleanupDescription(String(maybe.description ?? ""));
+  const amount = toAmount(String(maybe.amount ?? ""));
+  if (amount <= 0) return null;
+
+  const forcedIncomeByText = /(\bcdb\b|\bcbd\b|deposito|dep[oó]sito)/i.test(
+    normalizeForMatch(fullText),
+  );
+
+  const explicitType = maybe.type === "income" || maybe.type === "expense" ? maybe.type : null;
+
+  const inferredType = descriptionRaw
+    ? guessType(descriptionRaw, fullText)
+    : forcedIncomeByText
+      ? "income"
+      : "expense";
+
+  const description = descriptionRaw
+    ? toTitle(descriptionRaw)
+    : forcedIncomeByText
+      ? "Deposito"
+      : inferredType === "income"
+        ? "Receita"
+        : "Lancamento";
+
+  const type = explicitType ?? inferredType;
+
   const categoryRaw = normalizeSpace(String(maybe.category ?? ""));
-  const category = categoryRaw || guessCategory(description);
+  const category = categoryRaw || guessCategory(`${description} ${fullText}`);
 
   return {
-    description: toTitle(description),
+    description,
     amount,
     type,
     category,
@@ -132,13 +249,14 @@ const buildSummary = (items: ParsedItem[]) => {
   let income = 0;
 
   for (const item of items) {
-    const key = `${item.type}:${item.description.toLowerCase()}`;
+    const key = `${item.type}:${normalizeForMatch(item.description)}`;
     const prev = map.get(key);
     if (prev) {
       prev.total += item.amount;
     } else {
       map.set(key, { description: item.description, total: item.amount, type: item.type });
     }
+
     if (item.type === "income") income += item.amount;
     else expense += item.amount;
   }
@@ -155,24 +273,61 @@ const buildSummary = (items: ParsedItem[]) => {
 };
 
 const parseWithRules = (text: string): ParseResult => {
-  const pairRegex =
-    /(?:r\$\s*)?(\d{1,6}(?:[.,]\d{1,2})?)\s*(?:reais?)?\s*(?:de|da|do|na|no|em|pra|pro|para|com)?\s*([a-zA-ZÀ-ÿ][a-zA-ZÀ-ÿ0-9\s.'-]{1,60}?)(?=(?:\s+(?:r\$\s*)?\d{1,6}(?:[.,]\d{1,2})?\b)|$)/gi;
+  const amountRegex = /(?:r\$\s*)?(\d{1,6}(?:[.,]\d{1,2})?)/gi;
+  const matches: { amountRaw: string; start: number; end: number }[] = [];
+
+  let match = amountRegex.exec(text);
+  while (match) {
+    matches.push({
+      amountRaw: match[1] ?? "",
+      start: match.index,
+      end: match.index + match[0].length,
+    });
+    match = amountRegex.exec(text);
+  }
 
   const items: ParsedItem[] = [];
-  let match: RegExpExecArray | null = pairRegex.exec(text);
-  while (match) {
-    const amount = toAmount(match[1] ?? "");
-    const rawDescription = cleanupDescription(match[2] ?? "");
-    if (amount > 0 && rawDescription) {
-      const description = toTitle(rawDescription);
-      items.push({
-        description,
-        amount,
-        type: guessType(description, text),
-        category: guessCategory(description),
-      });
+
+  for (let index = 0; index < matches.length; index += 1) {
+    const current = matches[index];
+    const nextStart = matches[index + 1]?.start ?? text.length;
+    const prevEnd = matches[index - 1]?.end ?? 0;
+
+    const afterFragment = cleanupDescription(text.slice(current.end, nextStart));
+    const beforeFragment = trimTrailingConnectors(cleanupDescription(text.slice(prevEnd, current.start)));
+
+    const afterDescription = takeFirstWords(afterFragment, 6);
+    const beforeDescription = takeLastWords(beforeFragment, 6);
+
+    const normalizedAfter = normalizeForMatch(afterDescription);
+    const normalizedBefore = normalizeForMatch(beforeDescription);
+
+    let description =
+      afterDescription && !GENERIC_DESCRIPTIONS.includes(normalizedAfter)
+        ? afterDescription
+        : beforeDescription;
+
+    if (!description || GENERIC_DESCRIPTIONS.includes(normalizedBefore)) {
+      const normText = normalizeForMatch(text);
+      if (normText.includes("cdb") || normText.includes("cbd")) {
+        description = "CDB";
+      }
     }
-    match = pairRegex.exec(text);
+
+    const amount = toAmount(current.amountRaw);
+    if (amount <= 0) continue;
+
+    const type = guessType(description, text);
+
+    const fallbackDescription = type === "income" ? "Deposito" : "Lancamento";
+    const safeDescription = description ? toTitle(description) : fallbackDescription;
+
+    items.push({
+      description: safeDescription,
+      amount,
+      type,
+      category: guessCategory(`${safeDescription} ${text}`),
+    });
   }
 
   const { summary, totals } = buildSummary(items);
@@ -194,7 +349,9 @@ Regras:
 - Retorne apenas JSON valido no formato: { "items": [{ "description": "...", "amount": 0, "type": "expense|income", "category": "..." }] }.
 - Nao invente itens.
 - "amount" deve ser numero positivo.
-- "description" curta (ex: "Uber", "Netflix").
+- "description" curta (ex: "Uber", "Netflix", "CDB").
+- Entenda sinonimos: deposito/depósito/recebi/ganhei = income.
+- Entenda investimentos: CDB/CBD/poupanca/tesouro = categoria "Investimentos".
 - Se nao conseguir extrair, retorne { "items": [] }.
 Frase: ${text}`;
 

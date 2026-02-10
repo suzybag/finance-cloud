@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import Link from "next/link";
@@ -34,6 +34,19 @@ const nowLabel = () =>
     hour: "2-digit",
     minute: "2-digit",
   });
+
+const normalizeHintText = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+const needsValueHint = (text: string) => {
+  const normalized = normalizeHintText(text);
+  const hasIntent = /(cdb|cbd|deposito|pix|resgate|rendimento|dividendo)/.test(normalized);
+  const hasNumber = /\d/.test(normalized);
+  return hasIntent && !hasNumber;
+};
 
 export default function AiPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -132,8 +145,13 @@ export default function AiPage() {
         )}. Depositos: ${brl(result.totals.income)}. Clique em \"Salvar em Gastos\".`,
       );
     } else {
-      setMessage("Nenhum valor encontrado na frase.");
-      appendMessage("assistant", "Nao encontrei valores nessa frase.");
+      if (needsValueHint(text)) {
+        setMessage("Entendi CDB/deposito, mas faltou o valor.");
+        appendMessage("assistant", "Entendi CDB/deposito. Envie com valor. Ex: deposito 500 em cdb.");
+      } else {
+        setMessage("Nenhum valor encontrado na frase.");
+        appendMessage("assistant", "Nao encontrei valores nessa frase.");
+      }
     }
 
     setQuickParsing(false);
@@ -402,3 +420,4 @@ export default function AiPage() {
     </AppShell>
   );
 }
+
