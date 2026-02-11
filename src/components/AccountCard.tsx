@@ -1,4 +1,5 @@
 import { BankLogo } from "@/components/BankLogo";
+import { Bank3DCardVisual, StyledBankKey } from "@/components/Bank3DCardVisual";
 import { PicPayCardVisual } from "@/components/PicPayCardVisual";
 import { Account } from "@/lib/finance";
 import { brl } from "@/lib/money";
@@ -33,9 +34,13 @@ export function AccountCard({
   onToggleArchive,
   onDelete,
 }: AccountCardProps) {
-  const isPicPay = [account.institution, account.name, bankLabel].some(
-    (value) => resolveBankKey(value) === "picpay",
-  );
+  const detectedBankKey =
+    resolveBankKey(account.institution)
+    || resolveBankKey(bankLabel)
+    || resolveBankKey(account.name);
+  const isPicPay = detectedBankKey === "picpay";
+  const styledBankKeys: StyledBankKey[] = ["nubank", "bradesco", "inter", "xp", "btg"];
+  const isStyledBank = !!detectedBankKey && styledBankKeys.includes(detectedBankKey as StyledBankKey);
 
   return (
     <div className="rounded-2xl border border-violet-300/20 bg-[linear-gradient(160deg,rgba(34,18,61,0.88),rgba(12,9,31,0.9))] p-5 shadow-[0_12px_35px_rgba(30,12,58,0.45)]">
@@ -59,6 +64,8 @@ export function AccountCard({
       <div className="mt-4">
         {isPicPay ? (
           <PicPayCardVisual />
+        ) : isStyledBank ? (
+          <Bank3DCardVisual bankKey={detectedBankKey as StyledBankKey} balance={balance} />
         ) : (
           <div className="rounded-xl border border-white/10 bg-slate-950/65 p-4">
             <p className="text-sm text-slate-400">Saldo atual</p>
