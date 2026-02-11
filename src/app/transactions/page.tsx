@@ -428,12 +428,12 @@ export default function TransactionsPage() {
 
           <div className="mt-4 grid gap-3 md:grid-cols-3">
             <select
-              className="rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2 text-sm text-slate-100"
+              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-black outline-none focus:border-slate-500"
               value={form.direction}
               onChange={(event) => setForm((prev) => ({ ...prev, direction: event.target.value as PixDirection }))}
             >
-              <option value="out">PIX enviado</option>
-              <option value="in">PIX recebido</option>
+              <option className="bg-white text-black" value="out">PIX enviado</option>
+              <option className="bg-white text-black" value="in">PIX recebido</option>
             </select>
 
             <input
@@ -552,7 +552,7 @@ export default function TransactionsPage() {
                     </div>
 
                     <div>
-                      <p className="text-sm text-slate-200">
+                      <p className="inline-flex rounded-full bg-white px-2 py-1 text-xs font-semibold text-black">
                         {direction === "in" ? "PIX recebido" : "PIX enviado"}
                       </p>
                       <p className="text-xs text-slate-400">

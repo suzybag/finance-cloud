@@ -67,6 +67,9 @@ const SOFT_BUTTON_CLASS =
 const ULTRA_SECTION_CLASS =
   "rounded-2xl border border-violet-300/20 bg-[linear-gradient(160deg,rgba(34,18,61,0.76),rgba(12,9,31,0.86))] shadow-[0_18px_46px_rgba(76,29,149,0.28)] backdrop-blur-xl";
 
+const isValidCycleDay = (value: number) =>
+  Number.isInteger(value) && value >= 1 && value <= 31;
+
 export default function CardsPage() {
   const [cards, setCards] = useState<Card[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -104,6 +107,13 @@ export default function CardsPage() {
         .limit(500),
       supabase.from("accounts").select("*").order("created_at"),
     ]);
+
+    if (cardsRes.error || txRes.error || accountsRes.error) {
+      setFeedback(cardsRes.error?.message || txRes.error?.message || accountsRes.error?.message || "Falha ao carregar dados.");
+      setLoading(false);
+      return;
+    }
+
     setCards((cardsRes.data as Card[]) || []);
     setTransactions((txRes.data as Transaction[]) || []);
     setAccounts((accountsRes.data as Account[]) || []);
@@ -131,18 +141,52 @@ export default function CardsPage() {
     setIsFormOpen(true);
   };
 
+  const ensureUserId = async () => {
+    if (userId) return userId;
+
+    const { data, error } = await supabase.auth.getUser();
+    if (error) {
+      setFeedback(`Nao foi possivel validar sessao: ${error.message}`);
+      return null;
+    }
+
+    const resolvedUserId = data.user?.id ?? null;
+    setUserId(resolvedUserId);
+
+    if (!resolvedUserId) {
+      setFeedback("Sessao nao carregada. Entre novamente e tente criar o cartao.");
+      return null;
+    }
+
+    return resolvedUserId;
+  };
+
   const handleCreate = async () => {
-    if (!userId || !name.trim()) return;
+    if (!name.trim()) return;
     setSaving(true);
     setFeedback(null);
+    const resolvedUserId = await ensureUserId();
+    if (!resolvedUserId) {
+      setSaving(false);
+      return;
+    }
+
+    const closingDayValue = Number(closingDay);
+    const dueDayValue = Number(dueDay);
+    if (!isValidCycleDay(closingDayValue) || !isValidCycleDay(dueDayValue)) {
+      setSaving(false);
+      setFeedback("Fechamento e vencimento devem estar entre 1 e 31.");
+      return;
+    }
+
     const issuerToSave = resolveIssuerLabel(issuer, name);
     const { error } = await supabase.from("cards").insert({
-      user_id: userId,
+      user_id: resolvedUserId,
       name: name.trim(),
       issuer: issuerToSave || null,
       limit_total: toNumber(limitTotal),
-      closing_day: Number(closingDay),
-      due_day: Number(dueDay),
+      closing_day: closingDayValue,
+      due_day: dueDayValue,
       color: cardColor,
       note: cardNote.trim() ? cardNote.trim() : null,
     });
@@ -163,8 +207,15 @@ export default function CardsPage() {
   const handleArchive = async (card: Card) => {
     setFeedback(null);
     setBusyCardId(card.id);
-    await supabase.from("cards").update({ archived: !card.archived }).eq("id", card.id);
+    const { error } = await supabase
+      .from("cards")
+      .update({ archived: !card.archived })
+      .eq("id", card.id);
     setBusyCardId(null);
+    if (error) {
+      setFeedback(`Nao foi possivel alterar arquivo: ${error.message}`);
+      return;
+    }
     loadData();
   };
 
@@ -209,6 +260,15 @@ export default function CardsPage() {
     if (!editId || !name.trim()) return;
     setSaving(true);
     setFeedback(null);
+
+    const closingDayValue = Number(closingDay);
+    const dueDayValue = Number(dueDay);
+    if (!isValidCycleDay(closingDayValue) || !isValidCycleDay(dueDayValue)) {
+      setSaving(false);
+      setFeedback("Fechamento e vencimento devem estar entre 1 e 31.");
+      return;
+    }
+
     const issuerToSave = resolveIssuerLabel(issuer, name);
     const { error } = await supabase
       .from("cards")
@@ -216,8 +276,8 @@ export default function CardsPage() {
         name: name.trim(),
         issuer: issuerToSave || null,
         limit_total: toNumber(limitTotal),
-        closing_day: Number(closingDay),
-        due_day: Number(dueDay),
+        closing_day: closingDayValue,
+        due_day: dueDayValue,
         color: cardColor,
         note: cardNote.trim() ? cardNote.trim() : null,
       })
@@ -247,14 +307,23 @@ export default function CardsPage() {
     const normalized = resolveIssuerLabel(next, card.name);
     if (!normalized) return;
 
-    await supabase.from("cards").update({ issuer: normalized }).eq("id", card.id);
+    const { error } = await supabase.from("cards").update({ issuer: normalized }).eq("id", card.id);
+    if (error) {
+      setFeedback(`Nao foi possivel definir banco: ${error.message}`);
+      return;
+    }
+
     loadData();
   };
 
   const handlePayment = async () => {
-    if (!userId || !paymentCard || !paymentAccount || !paymentAmount) return;
-    await supabase.from("transactions").insert({
-      user_id: userId,
+    if (!paymentCard || !paymentAccount || !paymentAmount) return;
+    setFeedback(null);
+    const resolvedUserId = await ensureUserId();
+    if (!resolvedUserId) return;
+
+    const { error } = await supabase.from("transactions").insert({
+      user_id: resolvedUserId,
       type: "card_payment",
       description: "Pagamento de fatura",
       category: "Cartao",
@@ -263,7 +332,13 @@ export default function CardsPage() {
       card_id: paymentCard,
       occurred_at: new Date().toISOString().slice(0, 10),
     });
+    if (error) {
+      setFeedback(`Nao foi possivel registrar pagamento: ${error.message}`);
+      return;
+    }
+
     setPaymentAmount("");
+    setFeedback("Pagamento registrado com sucesso.");
     loadData();
   };
 

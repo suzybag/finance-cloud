@@ -21,6 +21,7 @@ export default function AccountsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
 
   const [tab, setTab] = useState<TabType>("ativas");
   const [name, setName] = useState("");
@@ -33,7 +34,7 @@ export default function AccountsPage() {
 
   const loadData = async () => {
     setLoading(true);
-    const [{ data: accountsData }, { data: txData }] = await Promise.all([
+    const [accountsRes, txRes] = await Promise.all([
       supabase.from("accounts").select("*").order("created_at"),
       supabase
         .from("transactions")
@@ -41,8 +42,15 @@ export default function AccountsPage() {
         .order("occurred_at", { ascending: false })
         .limit(800),
     ]);
-    setAccounts((accountsData as Account[]) || []);
-    setTransactions((txData as Transaction[]) || []);
+
+    if (accountsRes.error || txRes.error) {
+      setFeedback(accountsRes.error?.message || txRes.error?.message || "Falha ao carregar dados.");
+      setLoading(false);
+      return;
+    }
+
+    setAccounts((accountsRes.data as Account[]) || []);
+    setTransactions((txRes.data as Transaction[]) || []);
     setLoading(false);
   };
 
@@ -68,16 +76,22 @@ export default function AccountsPage() {
 
   const handleCreate = async () => {
     if (!userId || !name) return;
-    await supabase.from("accounts").insert({
+    setFeedback(null);
+    const { error } = await supabase.from("accounts").insert({
       user_id: userId,
       name,
       institution,
       opening_balance: toNumber(openingBalance),
       currency: "BRL",
     });
+    if (error) {
+      setFeedback(`Nao foi possivel criar a conta: ${error.message}`);
+      return;
+    }
     setName("");
     setInstitution("");
     setOpeningBalance("");
+    setFeedback("Conta criada com sucesso.");
     loadData();
   };
 
@@ -89,18 +103,49 @@ export default function AccountsPage() {
       account.institution ?? "",
     );
 
-    await supabase
+    setFeedback(null);
+    const { error } = await supabase
       .from("accounts")
       .update({ name: newName, institution: newInstitution ?? null })
       .eq("id", account.id);
+    if (error) {
+      setFeedback(`Nao foi possivel editar a conta: ${error.message}`);
+      return;
+    }
+    setFeedback("Conta atualizada com sucesso.");
     loadData();
   };
 
   const handleArchive = async (account: Account) => {
-    await supabase
+    setFeedback(null);
+    const { error } = await supabase
       .from("accounts")
       .update({ archived: !account.archived })
       .eq("id", account.id);
+    if (error) {
+      setFeedback(`Nao foi possivel arquivar a conta: ${error.message}`);
+      return;
+    }
+    setFeedback(account.archived ? "Conta desarquivada." : "Conta arquivada.");
+    loadData();
+  };
+
+  const handleDelete = async (account: Account) => {
+    setFeedback(null);
+    const ok = window.confirm(
+      `Excluir a conta "${account.name}"? As transacoes vao ficar sem conta vinculada.`,
+    );
+    if (!ok) return;
+
+    const { error } = await supabase.from("accounts").delete().eq("id", account.id);
+    if (error) {
+      setFeedback(`Nao foi possivel excluir a conta: ${error.message}`);
+      return;
+    }
+
+    if (transferFrom === account.id) setTransferFrom("");
+    if (transferTo === account.id) setTransferTo("");
+    setFeedback("Conta excluida com sucesso.");
     loadData();
   };
 
@@ -117,7 +162,8 @@ export default function AccountsPage() {
     const delta = target - currentBalance;
     if (!Number.isFinite(delta) || Math.abs(delta) < 0.01) return;
 
-    await supabase.from("transactions").insert({
+    setFeedback(null);
+    const { error } = await supabase.from("transactions").insert({
       user_id: userId,
       type: "adjustment",
       description: `Ajuste de saldo - ${account.name}`,
@@ -126,13 +172,19 @@ export default function AccountsPage() {
       account_id: account.id,
       occurred_at: new Date().toISOString().slice(0, 10),
     });
+    if (error) {
+      setFeedback(`Nao foi possivel ajustar saldo: ${error.message}`);
+      return;
+    }
 
+    setFeedback("Saldo ajustado com sucesso.");
     loadData();
   };
 
   const handleTransfer = async () => {
     if (!userId || !transferFrom || !transferTo || transferFrom === transferTo) return;
-    await supabase.from("transactions").insert({
+    setFeedback(null);
+    const { error } = await supabase.from("transactions").insert({
       user_id: userId,
       type: "transfer",
       description: "Transferencia entre contas",
@@ -142,7 +194,12 @@ export default function AccountsPage() {
       to_account_id: transferTo,
       occurred_at: new Date().toISOString().slice(0, 10),
     });
+    if (error) {
+      setFeedback(`Nao foi possivel transferir: ${error.message}`);
+      return;
+    }
     setTransferAmount("");
+    setFeedback("Transferencia registrada.");
     loadData();
   };
 
@@ -158,6 +215,12 @@ export default function AccountsPage() {
         </div>
       ) : (
         <div className="flex flex-col gap-8">
+          {feedback ? (
+            <div className="rounded-xl border border-white/10 bg-slate-900/60 px-4 py-3 text-sm text-slate-100">
+              {feedback}
+            </div>
+          ) : null}
+
           <section className="glass rounded-2xl p-6">
             <h2 className="text-lg font-semibold">Nova conta</h2>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
@@ -294,6 +357,12 @@ export default function AccountsPage() {
                         onClick={() => handleArchive(account)}
                       >
                         {account.archived ? "Desarquivar" : "Arquivar"}
+                      </button>
+                      <button
+                        className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200 hover:bg-rose-500/20 transition"
+                        onClick={() => handleDelete(account)}
+                      >
+                        Excluir
                       </button>
                     </div>
                   </div>
