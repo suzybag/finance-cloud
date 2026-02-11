@@ -7,7 +7,6 @@ import { resolveBankKey } from "@/lib/bankIcons";
 type AccountCardProps = {
   account: Account;
   balance: number;
-  cardTotal: number;
   isDefault: boolean;
   bankLabel: string;
   softButtonClassName: string;
@@ -23,7 +22,6 @@ type AccountCardProps = {
 export function AccountCard({
   account,
   balance,
-  cardTotal,
   isDefault,
   bankLabel,
   softButtonClassName,
@@ -76,9 +74,8 @@ export function AccountCard({
         </div>
         <div className="mt-3 rounded-lg border border-emerald-400/20 bg-emerald-500/10 px-3 py-2">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-200/80">
-            Total do cartao
+            Saldo atual
           </p>
-          <p className="mt-1 text-base font-extrabold text-emerald-300">{brl(cardTotal)}</p>
         </div>
       </div>
 
