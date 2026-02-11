@@ -9,6 +9,7 @@ import { brl, toNumber } from "@/lib/money";
 import { Account, Transaction, computeAccountBalances } from "@/lib/finance";
 
 type TabType = "ativas" | "arquivadas";
+type AccountModalMode = "rename" | "adjust";
 
 const ULTRA_INPUT_CLASS =
   "rounded-xl border border-violet-300/20 bg-[#181126] px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-violet-400/70 focus:ring-2 focus:ring-violet-500/20";
@@ -31,6 +32,13 @@ export default function AccountsPage() {
   const [transferFrom, setTransferFrom] = useState("");
   const [transferTo, setTransferTo] = useState("");
   const [transferAmount, setTransferAmount] = useState("");
+
+  const [modalMode, setModalMode] = useState<AccountModalMode | null>(null);
+  const [modalAccount, setModalAccount] = useState<Account | null>(null);
+  const [modalName, setModalName] = useState("");
+  const [modalInstitution, setModalInstitution] = useState("");
+  const [modalTargetBalance, setModalTargetBalance] = useState("");
+  const [modalSaving, setModalSaving] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -95,23 +103,51 @@ export default function AccountsPage() {
     loadData();
   };
 
-  const handleRename = async (account: Account) => {
-    const newName = window.prompt("Novo nome da conta", account.name);
-    if (!newName) return;
-    const newInstitution = window.prompt(
-      "Banco/Instituicao",
-      account.institution ?? "",
-    );
+  const closeModal = () => {
+    setModalMode(null);
+    setModalAccount(null);
+    setModalName("");
+    setModalInstitution("");
+    setModalTargetBalance("");
+    setModalSaving(false);
+  };
 
+  const openRenameModal = (account: Account) => {
+    setModalMode("rename");
+    setModalAccount(account);
+    setModalName(account.name);
+    setModalInstitution(account.institution ?? "");
+    setModalTargetBalance("");
+    setModalSaving(false);
+  };
+
+  const openAdjustModal = (account: Account) => {
+    const currentBalance = balances.get(account.id) ?? 0;
+    setModalMode("adjust");
+    setModalAccount(account);
+    setModalName("");
+    setModalInstitution("");
+    setModalTargetBalance(String(currentBalance));
+    setModalSaving(false);
+  };
+
+  const handleSaveRename = async () => {
+    if (!modalAccount || !modalName.trim()) return;
+
+    setModalSaving(true);
     setFeedback(null);
     const { error } = await supabase
       .from("accounts")
-      .update({ name: newName, institution: newInstitution ?? null })
-      .eq("id", account.id);
+      .update({ name: modalName.trim(), institution: modalInstitution.trim() || null })
+      .eq("id", modalAccount.id);
+
     if (error) {
+      setModalSaving(false);
       setFeedback(`Nao foi possivel editar a conta: ${error.message}`);
       return;
     }
+
+    closeModal();
     setFeedback("Conta atualizada com sucesso.");
     loadData();
   };
@@ -149,34 +185,43 @@ export default function AccountsPage() {
     loadData();
   };
 
-  const handleAdjust = async (account: Account) => {
-    if (!userId) return;
-    const currentBalance = balances.get(account.id) ?? 0;
-    const targetInput = window.prompt(
-      `Saldo atual: ${brl(currentBalance)}. Informe o novo saldo:`,
-      String(currentBalance),
-    );
-    if (!targetInput) return;
+  const handleSaveAdjust = async () => {
+    if (!userId || !modalAccount) return;
 
-    const target = toNumber(targetInput);
+    const currentBalance = balances.get(modalAccount.id) ?? 0;
+    const target = toNumber(modalTargetBalance);
     const delta = target - currentBalance;
-    if (!Number.isFinite(delta) || Math.abs(delta) < 0.01) return;
 
+    if (!Number.isFinite(delta)) {
+      setFeedback("Informe um saldo valido.");
+      return;
+    }
+
+    if (Math.abs(delta) < 0.01) {
+      closeModal();
+      setFeedback("Saldo ja esta atualizado.");
+      return;
+    }
+
+    setModalSaving(true);
     setFeedback(null);
     const { error } = await supabase.from("transactions").insert({
       user_id: userId,
       type: "adjustment",
-      description: `Ajuste de saldo - ${account.name}`,
+      description: `Ajuste de saldo - ${modalAccount.name}`,
       category: "Ajuste",
       amount: delta,
-      account_id: account.id,
+      account_id: modalAccount.id,
       occurred_at: new Date().toISOString().slice(0, 10),
     });
+
     if (error) {
+      setModalSaving(false);
       setFeedback(`Nao foi possivel ajustar saldo: ${error.message}`);
       return;
     }
 
+    closeModal();
     setFeedback("Saldo ajustado com sucesso.");
     loadData();
   };
@@ -218,6 +263,87 @@ export default function AccountsPage() {
           {feedback ? (
             <div className="rounded-xl border border-white/10 bg-slate-900/60 px-4 py-3 text-sm text-slate-100">
               {feedback}
+            </div>
+          ) : null}
+
+          {modalMode && modalAccount ? (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#06040dcc]/80 p-4 backdrop-blur-sm">
+              <div className="w-full max-w-lg rounded-2xl border border-violet-300/20 bg-[linear-gradient(170deg,rgba(31,17,56,0.96),rgba(14,10,31,0.97))] p-5 shadow-[0_20px_60px_rgba(76,29,149,0.45)]">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-extrabold tracking-tight text-violet-100">
+                    {modalMode === "rename" ? "Editar conta" : "Ajustar saldo"}
+                  </h3>
+                  <button
+                    type="button"
+                    className="rounded-lg border border-violet-300/20 px-2 py-1 text-sm text-violet-100 hover:bg-violet-500/15"
+                    onClick={closeModal}
+                    disabled={modalSaving}
+                  >
+                    X
+                  </button>
+                </div>
+
+                {modalMode === "rename" ? (
+                  <div className="mt-4 grid gap-3">
+                    <div>
+                      <p className="mb-1 text-sm font-semibold text-violet-100">Nome da conta</p>
+                      <input
+                        className={`${ULTRA_INPUT_CLASS} w-full`}
+                        value={modalName}
+                        onChange={(event) => setModalName(event.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <p className="mb-1 text-sm font-semibold text-violet-100">Banco / Instituicao</p>
+                      <input
+                        className={`${ULTRA_INPUT_CLASS} w-full`}
+                        value={modalInstitution}
+                        onChange={(event) => setModalInstitution(event.target.value)}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-4 grid gap-3">
+                    <div className="rounded-xl border border-white/10 bg-slate-950/65 p-3 text-sm text-slate-300">
+                      <p>Conta: <span className="font-semibold text-slate-100">{modalAccount.name}</span></p>
+                      <p className="mt-1">
+                        Saldo atual:{" "}
+                        <span className="font-semibold text-emerald-300">
+                          {brl(balances.get(modalAccount.id) ?? 0)}
+                        </span>
+                      </p>
+                    </div>
+                    <div>
+                      <p className="mb-1 text-sm font-semibold text-violet-100">Novo saldo</p>
+                      <input
+                        className={`${ULTRA_INPUT_CLASS} w-full`}
+                        placeholder="Ex: 1500,00"
+                        value={modalTargetBalance}
+                        onChange={(event) => setModalTargetBalance(event.target.value)}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-5 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    className={`${ULTRA_SOFT_BTN_CLASS} px-4 py-2 text-sm`}
+                    onClick={closeModal}
+                    disabled={modalSaving}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2 text-sm font-semibold text-white shadow-[0_10px_30px_rgba(139,92,246,0.35)] transition hover:brightness-110 disabled:opacity-60"
+                    onClick={modalMode === "rename" ? handleSaveRename : handleSaveAdjust}
+                    disabled={modalSaving || (modalMode === "rename" && !modalName.trim())}
+                  >
+                    {modalSaving ? "Salvando..." : "Salvar"}
+                  </button>
+                </div>
+              </div>
             </div>
           ) : null}
 
@@ -329,7 +455,7 @@ export default function AccountsPage() {
                       </button>
                       <button
                         className={ULTRA_SOFT_BTN_CLASS}
-                        onClick={() => handleAdjust(account)}
+                        onClick={() => openAdjustModal(account)}
                       >
                         Ajustar saldo
                       </button>
@@ -348,7 +474,7 @@ export default function AccountsPage() {
                       </button>
                       <button
                         className={ULTRA_SOFT_BTN_CLASS}
-                        onClick={() => handleRename(account)}
+                        onClick={() => openRenameModal(account)}
                       >
                         Editar
                       </button>
