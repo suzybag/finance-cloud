@@ -64,6 +64,9 @@ const emptyForm = {
   note: "",
 };
 
+const LIGHT_SELECT_CLASS =
+  "rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-black outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-300/40";
+
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -428,7 +431,7 @@ export default function TransactionsPage() {
 
           <div className="mt-4 grid gap-3 md:grid-cols-3">
             <select
-              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-black outline-none focus:border-slate-500"
+              className={LIGHT_SELECT_CLASS}
               value={form.direction}
               onChange={(event) => setForm((prev) => ({ ...prev, direction: event.target.value as PixDirection }))}
             >
@@ -460,13 +463,13 @@ export default function TransactionsPage() {
             />
 
             <select
-              className="rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2 text-sm text-slate-100"
+              className={LIGHT_SELECT_CLASS}
               value={form.account_id}
               onChange={(event) => setForm((prev) => ({ ...prev, account_id: event.target.value }))}
             >
-              <option value="">Conta</option>
+              <option className="bg-white text-black" value="">Conta</option>
               {accounts.map((account) => (
-                <option key={account.id} value={account.id}>
+                <option className="bg-white text-black" key={account.id} value={account.id}>
                   {account.name}
                 </option>
               ))}
@@ -509,13 +512,13 @@ export default function TransactionsPage() {
             />
 
             <select
-              className="rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2 text-sm text-slate-100"
+              className={LIGHT_SELECT_CLASS}
               value={accountFilter}
               onChange={(event) => setAccountFilter(event.target.value)}
             >
-              <option value="">Todas as contas</option>
+              <option className="bg-white text-black" value="">Todas as contas</option>
               {accounts.map((account) => (
-                <option key={account.id} value={account.id}>
+                <option className="bg-white text-black" key={account.id} value={account.id}>
                   {account.name}
                 </option>
               ))}
