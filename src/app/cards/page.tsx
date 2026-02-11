@@ -12,7 +12,7 @@ import { brl, toNumber } from "@/lib/money";
 import { Account, Card, Transaction, computeCardSummary } from "@/lib/finance";
 
 const BANK_ISSUER_OPTIONS = [
-  "Nubank",
+  "Nubank Ultravioleta",
   "Nu Invest",
   "Inter",
   "Bradesco",
@@ -51,7 +51,7 @@ const normalizeText = (value: string) =>
 const inferIssuer = (value?: string | null) => {
   const text = normalizeText(value ?? "");
   if (!text) return null;
-  if (text.includes("nubank") || text.includes("roxinho")) return "Nubank";
+  if (text.includes("nubank") || text.includes("roxinho") || text.includes("ultravioleta")) return "Nubank Ultravioleta";
   if (text.includes("inter") || text.includes("bancointer")) return "Inter";
   if (text.includes("bradesco")) return "Bradesco";
   if (text.includes("nuinvest") || text.includes("nuinvestimentos") || text.includes("easynvest")) return "Nu Invest";
@@ -68,8 +68,13 @@ const inferIssuer = (value?: string | null) => {
   return null;
 };
 
-const resolveIssuerLabel = (issuer?: string | null, name?: string | null) =>
-  (issuer?.trim() || inferIssuer(name) || "").trim();
+const resolveIssuerLabel = (issuer?: string | null, name?: string | null) => {
+  const explicitIssuer = issuer?.trim();
+  if (explicitIssuer) {
+    return inferIssuer(explicitIssuer) || explicitIssuer;
+  }
+  return (inferIssuer(name) || "").trim();
+};
 
 const CARD_INPUT_CLASS =
   "w-full rounded-xl border border-violet-300/20 bg-[#181126] px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-violet-400/70 focus:ring-2 focus:ring-violet-500/20";
@@ -465,7 +470,7 @@ export default function CardsPage() {
                     <p className="mb-1 text-sm font-semibold text-violet-100">Nome do cartao</p>
                     <input
                       className={CARD_INPUT_CLASS}
-                      placeholder="Ex: Nubank Platinum"
+                      placeholder="Ex: Nubank Ultravioleta"
                       value={name}
                       onChange={(event) => setName(event.target.value)}
                     />
@@ -476,7 +481,7 @@ export default function CardsPage() {
                       <p className="mb-1 text-sm font-semibold text-violet-100">Banco</p>
                       <input
                         className={CARD_INPUT_CLASS}
-                        placeholder="Ex: Nubank, Itau"
+                        placeholder="Ex: Nubank Ultravioleta, Itau"
                         value={issuer}
                         onChange={(event) => setIssuer(event.target.value)}
                       />
