@@ -34,6 +34,8 @@ type PreferencesState = {
   monthStartDay: number;
 };
 
+type SecurityModalMode = "password" | "email";
+
 const MAX_SIZE_BYTES = 2 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const PREFERENCES_KEY = "finance_cloud_preferences";
@@ -105,6 +107,10 @@ export default function ProfilePage() {
 
   const [securityMessage, setSecurityMessage] = useState<string | null>(null);
   const [securityError, setSecurityError] = useState<string | null>(null);
+  const [securityModalMode, setSecurityModalMode] = useState<SecurityModalMode | null>(null);
+  const [securityModalValue, setSecurityModalValue] = useState("");
+  const [securityModalConfirm, setSecurityModalConfirm] = useState("");
+  const [securityModalSaving, setSecurityModalSaving] = useState(false);
 
   const [privacyMessage, setPrivacyMessage] = useState<string | null>(null);
   const [privacyError, setPrivacyError] = useState<string | null>(null);
@@ -317,40 +323,70 @@ export default function ProfilePage() {
     setLoadingAvatar(false);
   };
 
-  const handleChangePassword = async () => {
-    setSecurityError(null);
-    setSecurityMessage(null);
-
-    const nextPassword = window.prompt("Digite a nova senha (minimo 6 caracteres):", "");
-    if (!nextPassword) return;
-    if (nextPassword.length < 6) {
-      setSecurityError("A senha precisa ter pelo menos 6 caracteres.");
-      return;
-    }
-
-    const { error } = await supabase.auth.updateUser({ password: nextPassword });
-    if (error) {
-      setSecurityError(error.message);
-      return;
-    }
-
-    setSecurityMessage("Senha alterada com sucesso.");
+  const closeSecurityModal = () => {
+    setSecurityModalMode(null);
+    setSecurityModalValue("");
+    setSecurityModalConfirm("");
+    setSecurityModalSaving(false);
   };
 
-  const handleChangeEmail = async () => {
+  const openSecurityModal = (mode: SecurityModalMode) => {
     setSecurityError(null);
     setSecurityMessage(null);
+    setSecurityModalMode(mode);
+    setSecurityModalValue(mode === "email" ? userEmail : "");
+    setSecurityModalConfirm("");
+    setSecurityModalSaving(false);
+  };
 
-    const nextEmail = window.prompt("Digite o novo email:", userEmail);
-    if (!nextEmail) return;
+  const handleSaveSecurityModal = async () => {
+    if (!securityModalMode) return;
 
-    const { error } = await supabase.auth.updateUser({ email: nextEmail.trim() });
+    setSecurityError(null);
+    setSecurityMessage(null);
+    setSecurityModalSaving(true);
+
+    if (securityModalMode === "password") {
+      const nextPassword = securityModalValue;
+      if (!nextPassword || nextPassword.length < 6) {
+        setSecurityModalSaving(false);
+        setSecurityError("A senha precisa ter pelo menos 6 caracteres.");
+        return;
+      }
+      if (nextPassword !== securityModalConfirm) {
+        setSecurityModalSaving(false);
+        setSecurityError("As senhas nao conferem.");
+        return;
+      }
+
+      const { error } = await supabase.auth.updateUser({ password: nextPassword });
+      if (error) {
+        setSecurityModalSaving(false);
+        setSecurityError(error.message);
+        return;
+      }
+
+      closeSecurityModal();
+      setSecurityMessage("Senha alterada com sucesso.");
+      return;
+    }
+
+    const nextEmail = securityModalValue.trim();
+    if (!nextEmail) {
+      setSecurityModalSaving(false);
+      setSecurityError("Digite um email valido.");
+      return;
+    }
+
+    const { error } = await supabase.auth.updateUser({ email: nextEmail });
     if (error) {
+      setSecurityModalSaving(false);
       setSecurityError(error.message);
       return;
     }
 
-    setUserEmail(nextEmail.trim());
+    closeSecurityModal();
+    setUserEmail(nextEmail);
     setSecurityMessage("Pedido de alteracao enviado. Confirme no email.");
   };
 
@@ -418,6 +454,90 @@ export default function ProfilePage() {
   return (
     <AppShell title="Configuracoes" subtitle="Gerencie suas preferencias e dados">
       <div className="mx-auto max-w-4xl space-y-5">
+        {securityModalMode ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#06040dcc]/80 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-lg rounded-2xl border border-violet-300/20 bg-[linear-gradient(170deg,rgba(31,17,56,0.96),rgba(14,10,31,0.97))] p-5 shadow-[0_20px_60px_rgba(76,29,149,0.45)]">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-extrabold tracking-tight text-violet-100">
+                  {securityModalMode === "password" ? "Alterar senha" : "Alterar email"}
+                </h3>
+                <button
+                  type="button"
+                  className="rounded-lg border border-violet-300/20 px-2 py-1 text-sm text-violet-100 hover:bg-violet-500/15"
+                  onClick={closeSecurityModal}
+                  disabled={securityModalSaving}
+                >
+                  X
+                </button>
+              </div>
+
+              {securityModalMode === "password" ? (
+                <div className="mt-4 grid gap-3">
+                  <label className="text-sm font-semibold text-violet-100">
+                    Nova senha
+                    <input
+                      type="password"
+                      className={`${baseInputClass} mt-1`}
+                      placeholder="Minimo 6 caracteres"
+                      value={securityModalValue}
+                      onChange={(event) => setSecurityModalValue(event.target.value)}
+                    />
+                  </label>
+                  <label className="text-sm font-semibold text-violet-100">
+                    Confirmar senha
+                    <input
+                      type="password"
+                      className={`${baseInputClass} mt-1`}
+                      placeholder="Repita a nova senha"
+                      value={securityModalConfirm}
+                      onChange={(event) => setSecurityModalConfirm(event.target.value)}
+                    />
+                  </label>
+                </div>
+              ) : (
+                <div className="mt-4 grid gap-3">
+                  <label className="text-sm font-semibold text-violet-100">
+                    Novo email
+                    <input
+                      type="email"
+                      className={`${baseInputClass} mt-1`}
+                      placeholder="email@dominio.com"
+                      value={securityModalValue}
+                      onChange={(event) => setSecurityModalValue(event.target.value)}
+                    />
+                  </label>
+                  <p className="text-xs text-slate-300">
+                    Voce vai receber um email de confirmacao para concluir a troca.
+                  </p>
+                </div>
+              )}
+
+              <div className="mt-5 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  className="rounded-xl border border-violet-300/20 bg-violet-950/35 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-violet-900/35 disabled:opacity-60"
+                  onClick={closeSecurityModal}
+                  disabled={securityModalSaving}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2 text-sm font-semibold text-white shadow-[0_10px_30px_rgba(139,92,246,0.35)] transition hover:brightness-110 disabled:opacity-60"
+                  onClick={handleSaveSecurityModal}
+                  disabled={
+                    securityModalSaving ||
+                    !securityModalValue.trim() ||
+                    (securityModalMode === "password" && !securityModalConfirm.trim())
+                  }
+                >
+                  {securityModalSaving ? "Salvando..." : "Salvar"}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         <section className={sectionClass}>
           <div className="mb-4 flex items-center gap-2 text-slate-100">
             <User className="h-4 w-4 text-violet-300" />
@@ -553,7 +673,7 @@ export default function ProfilePage() {
             <button
               type="button"
               className="rounded-lg bg-slate-100/95 px-4 py-1.5 text-xs font-semibold text-slate-900"
-              onClick={handleChangePassword}
+              onClick={() => openSecurityModal("password")}
             >
               Alterar
             </button>
@@ -570,7 +690,7 @@ export default function ProfilePage() {
             <button
               type="button"
               className="rounded-lg bg-slate-100/95 px-4 py-1.5 text-xs font-semibold text-slate-900"
-              onClick={handleChangeEmail}
+              onClick={() => openSecurityModal("email")}
             >
               Alterar
             </button>
@@ -836,4 +956,3 @@ export default function ProfilePage() {
     </AppShell>
   );
 }
-
