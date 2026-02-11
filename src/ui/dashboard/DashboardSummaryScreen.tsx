@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { BankLogo } from "@/components/BankLogo";
 import { getBankIconPath } from "@/lib/bankIcons";
@@ -147,15 +147,29 @@ export const DashboardSummaryScreen = () => {
                   mes de <span className="font-medium text-white/90">{monthName}</span>
                 </p>
               </div>
-              <div className="relative h-[110px] w-[170px] shrink-0 self-end md:self-auto">
-                <Image
-                  src="/assets/3d/vault-safe.svg"
-                  alt="Icone 3D de cofre"
-                  fill
-                  className="object-contain drop-shadow-[0_20px_30px_rgba(0,0,0,0.55)]"
-                  sizes="170px"
-                />
-              </div>
+              <Link
+                href="/cards"
+                aria-label="Abrir aba Cartoes"
+                className="dash-flip-card shrink-0 self-end md:self-auto"
+              >
+                <div className="dash-flip-card-inner">
+                  <div className="dash-flip-card-front">
+                    <div className="dash-chip" />
+                    <div className="dash-contactless">))))</div>
+                    <p className="dash-number">**** **** **** 8264</p>
+                    <p className="dash-name">Finance Cloud</p>
+                    <p className="dash-cta">Abrir cartoes</p>
+                  </div>
+                  <div className="dash-flip-card-back">
+                    <div className="dash-strip" />
+                    <div className="dash-sign-row">
+                      <div className="dash-signature">Clique para abrir /cards</div>
+                      <div className="dash-code">CVC</div>
+                    </div>
+                    <p className="dash-back-title">Atalho rapido de cartoes</p>
+                  </div>
+                </div>
+              </Link>
             </div>
           </section>
 

@@ -164,6 +164,177 @@ body::after {
     linear-gradient(150deg, rgba(17, 10, 35, 0.82), rgba(9, 8, 24, 0.85));
 }
 
+.dash-flip-card {
+  background-color: transparent;
+  width: 240px;
+  height: 154px;
+  perspective: 1000px;
+  color: white;
+  display: inline-block;
+}
+
+.dash-flip-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  text-align: left;
+  transition: transform 0.8s;
+  transform-style: preserve-3d;
+}
+
+.dash-flip-card:hover .dash-flip-card-inner,
+.dash-flip-card:focus-visible .dash-flip-card-inner {
+  transform: rotateY(180deg);
+}
+
+.dash-flip-card-front,
+.dash-flip-card-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 1rem;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  box-shadow:
+    rgba(0, 0, 0, 0.45) 0px 2px 2px,
+    rgba(0, 0, 0, 0.35) 0px 7px 13px -3px,
+    rgba(0, 0, 0, 0.25) 0px -1px 0px inset;
+}
+
+.dash-flip-card-front {
+  background:
+    radial-gradient(60% 80% at 80% 10%, rgba(255, 255, 255, 0.14), transparent 70%),
+    linear-gradient(145deg, #262032 0%, #171226 60%, #0f0b1d 100%);
+}
+
+.dash-flip-card-back {
+  background:
+    radial-gradient(45% 60% at 20% 20%, rgba(255, 255, 255, 0.1), transparent 75%),
+    linear-gradient(145deg, #1f1a2b 0%, #131022 100%);
+  transform: rotateY(180deg);
+}
+
+.dash-chip {
+  position: absolute;
+  top: 18px;
+  left: 16px;
+  width: 34px;
+  height: 26px;
+  border-radius: 7px;
+  background:
+    linear-gradient(145deg, #f4d563 0%, #c08d09 58%, #8a5d00 100%);
+  box-shadow: inset 0 0 0 1px rgba(66, 46, 0, 0.55);
+}
+
+.dash-contactless {
+  position: absolute;
+  top: 19px;
+  right: 16px;
+  font-size: 12px;
+  letter-spacing: -0.07em;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.dash-number {
+  position: absolute;
+  top: 72px;
+  left: 16px;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.16em;
+}
+
+.dash-name {
+  position: absolute;
+  left: 16px;
+  bottom: 18px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.dash-cta {
+  position: absolute;
+  right: 14px;
+  bottom: 16px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #22d3ee;
+}
+
+.dash-strip {
+  position: absolute;
+  top: 16px;
+  left: 0;
+  width: 100%;
+  height: 30px;
+  background: repeating-linear-gradient(
+    45deg,
+    #2f2f2f,
+    #2f2f2f 10px,
+    #1d1d1d 10px,
+    #1d1d1d 20px
+  );
+}
+
+.dash-sign-row {
+  position: absolute;
+  top: 58px;
+  left: 14px;
+  right: 14px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.dash-signature {
+  border-radius: 4px;
+  background: #f8fafc;
+  color: #0f172a;
+  min-height: 20px;
+  font-size: 9px;
+  line-height: 20px;
+  padding: 0 7px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-code {
+  border-radius: 4px;
+  background: #f8fafc;
+  color: #111827;
+  min-width: 42px;
+  min-height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.dash-back-title {
+  position: absolute;
+  left: 14px;
+  bottom: 16px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.84);
+}
+
+.dash-flip-card:focus-visible {
+  outline: 2px solid rgba(34, 211, 238, 0.9);
+  outline-offset: 3px;
+  border-radius: 1rem;
+}
+
 @keyframes cosmicShift {
   0% {
     background-position: 0% 18%;
@@ -186,5 +357,10 @@ body::after {
   .dashboard-cosmic {
     border-radius: 22px;
     padding: 1rem;
+  }
+
+  .dash-flip-card {
+    width: 214px;
+    height: 138px;
   }
 }
