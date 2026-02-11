@@ -45,8 +45,8 @@ export function PicPayCardVisual({ balance }: PicPayCardVisualProps) {
 
     isPressedRef.current = false;
     card.style.transform = "perspective(1200px) rotateX(0deg) rotateY(0deg) scale(1)";
-    card.style.setProperty("--mx", "22%");
-    card.style.setProperty("--my", "14%");
+    card.style.setProperty("--mx", "28%");
+    card.style.setProperty("--my", "22%");
   };
 
   const handleMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -67,65 +67,70 @@ export function PicPayCardVisual({ balance }: PicPayCardVisualProps) {
         onMouseLeave={handleMouseLeave}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
-        className="relative h-[184px] w-full select-none overflow-hidden rounded-2xl border border-emerald-100/20 transition-transform duration-150 ease-out [transform-style:preserve-3d]"
+        className="relative h-[188px] w-full select-none overflow-hidden rounded-2xl border border-emerald-100/25 transition-transform duration-150 ease-out [transform-style:preserve-3d]"
         style={{
-          "--mx": "22%",
-          "--my": "14%",
+          "--mx": "28%",
+          "--my": "22%",
           transform: "perspective(1200px) rotateX(0deg) rotateY(0deg) scale(1)",
           boxShadow:
-            "0 28px 62px rgba(16, 185, 129, 0.3), 0 16px 34px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.25)",
+            "0 14px 28px rgba(0,0,0,0.33), 0 4px 10px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.14)",
           background:
-            "radial-gradient(130% 160% at var(--mx) var(--my), rgba(255,255,255,0.34), rgba(255,255,255,0) 43%), radial-gradient(100% 130% at 100% 110%, rgba(4,38,25,0.62), rgba(4,38,25,0) 55%), linear-gradient(138deg, #0e5c44 0%, #238662 46%, #20b77a 100%)",
+            "radial-gradient(110% 90% at var(--mx) var(--my), rgba(255,255,255,0.14), rgba(255,255,255,0) 48%), linear-gradient(132deg, #00d982 0%, #19c77c 44%, #24b976 100%)",
         } as React.CSSProperties}
       >
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-white/14 to-transparent" />
         <div
-          className="pointer-events-none absolute inset-0 opacity-45"
+          className="pointer-events-none absolute -left-20 top-[-150px] h-[300px] w-[110px] rotate-[18deg] bg-white/14 blur-3xl transition-transform duration-150"
           style={{
-            background:
-              "repeating-linear-gradient(115deg, rgba(255,255,255,0.09) 0px, rgba(255,255,255,0.09) 1px, transparent 1px, transparent 8px)",
-          }}
-        />
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-white/18 to-transparent" />
-        <div
-          className="pointer-events-none absolute -left-24 top-[-130px] h-[310px] w-[170px] rotate-[18deg] bg-white/18 blur-3xl transition-transform duration-150"
-          style={{
-            transform: "translateX(calc((var(--mx) - 22%) * 0.35)) rotate(18deg)",
+            transform: "translateX(calc((var(--mx) - 28%) * 0.25)) rotate(18deg)",
           }}
         />
 
-        <div className="absolute left-5 top-4 text-lg font-black tracking-tight text-emerald-50 [text-shadow:0_6px_14px_rgba(0,0,0,0.28)]">
-          PicPay
-        </div>
-
-        <div className="absolute right-5 top-4 opacity-95">
-          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-            <path d="M8 9c3 2.8 3 7.2 0 10" stroke="rgba(255,255,255,0.95)" strokeWidth="2.2" strokeLinecap="round" />
-            <path d="M12.5 7c4.1 4.1 4.1 9.9 0 14" stroke="rgba(255,255,255,0.75)" strokeWidth="2.2" strokeLinecap="round" />
-            <path d="M17 5c5.2 5.2 5.2 12.6 0 18" stroke="rgba(255,255,255,0.52)" strokeWidth="2.2" strokeLinecap="round" />
+        <div className="absolute left-4 top-4 opacity-90">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M6.5 8c2 1.8 2 4.2 0 6" stroke="#04150f" strokeWidth="1.8" strokeLinecap="round" />
+            <path d="M10 6.7c2.7 2.8 2.7 7 0 9.8" stroke="#04150f" strokeWidth="1.8" strokeLinecap="round" />
+            <path d="M13.5 5.4c3.5 3.7 3.5 8.9 0 12.6" stroke="#04150f" strokeWidth="1.8" strokeLinecap="round" />
           </svg>
         </div>
 
-        <div className="absolute right-5 top-[66px] rounded-xl border border-white/25 bg-white/18 p-2 backdrop-blur-sm">
-          <div className="relative h-[42px] w-[58px] rounded-lg border border-white/15 bg-white/10">
-            <div className="absolute left-1.5 top-1.5 h-2.5 w-2.5 rounded-sm bg-white/25" />
-            <div className="absolute left-0 top-1/2 h-[2px] w-full -translate-y-1/2 bg-white/30" />
-            <div className="absolute left-1/2 top-0 h-full w-[2px] -translate-x-1/2 bg-white/22" />
+        <div className="absolute left-7 top-[62px] rounded-md border border-[#7f8b84] bg-[#d4d5cf] p-[2px] shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_2px_4px_rgba(0,0,0,0.22)]">
+          <div className="relative h-[28px] w-[38px] rounded-[4px] border border-[#8a8f8a] bg-[#c6c8c2]">
+            <div className="absolute left-0 top-1/2 h-[1px] w-full -translate-y-1/2 bg-[#929891]" />
+            <div className="absolute left-1/3 top-0 h-full w-[1px] bg-[#929891]" />
+            <div className="absolute left-2/3 top-0 h-full w-[1px] bg-[#929891]" />
           </div>
         </div>
 
-        <div className="absolute inset-0 flex items-center justify-center">
+        <div className="absolute right-10 top-4">
+          <div className="relative h-[42px] w-[62px]">
+            <span className="absolute right-0 top-0 h-8 w-8 rounded-full bg-[#ffca28]/95" />
+            <span className="absolute bottom-0 right-0 h-8 w-8 rounded-full bg-[#ff4545]/95" />
+            <span className="absolute right-4 top-2 h-8 w-8 rounded-full bg-[#ff9f1c]/90 mix-blend-multiply" />
+          </div>
+        </div>
+
+        <div className="absolute right-4 top-1/2 -translate-y-1/2">
+          <p className="[writing-mode:vertical-rl] rotate-180 text-[40px] font-extrabold tracking-tight text-[#08150f] leading-[0.85]">
+            PicPay
+          </p>
+        </div>
+
+        <div className="absolute left-12 top-1/2 -translate-y-1/2">
           <div className="text-center">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-emerald-100/85">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#0e2a20]/75">
               Saldo atual
             </p>
-            <p className="mt-1 text-4xl font-black tracking-tight text-white [text-shadow:0_12px_24px_rgba(0,0,0,0.45)]">
+            <p className="mt-1 text-3xl font-black tracking-tight text-[#071811] [text-shadow:0_4px_8px_rgba(255,255,255,0.18)]">
               {amount}
             </p>
           </div>
         </div>
 
-        <div className="absolute bottom-4 left-5 text-xs font-medium text-emerald-50/80">
-          Conta digital PicPay
+        <div className="absolute bottom-4 left-5">
+          <p className="[writing-mode:vertical-rl] rotate-180 text-xs font-semibold uppercase tracking-[0.16em] text-[#0e2a20]/80">
+            platinum
+          </p>
         </div>
       </div>
     </div>
