@@ -65,7 +65,7 @@ export function AccountCard({
         {isPicPay ? (
           <PicPayCardVisual />
         ) : isStyledBank ? (
-          <Bank3DCardVisual bankKey={detectedBankKey as StyledBankKey} balance={balance} />
+          <Bank3DCardVisual bankKey={detectedBankKey as StyledBankKey} />
         ) : (
           <div className="rounded-xl border border-white/10 bg-slate-950/65 p-4">
             <p className="text-sm text-slate-400">Saldo atual</p>
@@ -86,6 +86,9 @@ export function AccountCard({
         <div className="mt-3 rounded-lg border border-emerald-400/20 bg-emerald-500/10 px-3 py-2">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-200/80">
             Saldo atual
+          </p>
+          <p className="mt-1 text-base font-extrabold text-emerald-300">
+            {brl(balance)}
           </p>
         </div>
       </div>

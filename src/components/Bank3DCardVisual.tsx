@@ -1,16 +1,12 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useRef } from "react";
 
 export type StyledBankKey = "nubank" | "bradesco" | "inter" | "xp" | "btg";
 
 type Bank3DCardVisualProps = {
   bankKey: StyledBankKey;
-  balance: number;
 };
-
-const formatBRL = (value: number) =>
-  value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 const CARD_THEME: Record<
   StyledBankKey,
@@ -121,11 +117,10 @@ function Network({ type, color }: { type: "visa" | "mastercard"; color: string }
   );
 }
 
-export function Bank3DCardVisual({ bankKey, balance }: Bank3DCardVisualProps) {
+export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
   const cardRef = useRef<HTMLDivElement | null>(null);
   const pressedRef = useRef(false);
   const theme = CARD_THEME[bankKey];
-  const amount = useMemo(() => formatBRL(balance), [balance]);
 
   const applyTilt = (xPercent: number, yPercent: number) => {
     const card = cardRef.current;
@@ -213,15 +208,6 @@ export function Bank3DCardVisual({ bankKey, balance }: Bank3DCardVisualProps) {
 
         <div className={`absolute top-[70px] ${theme.chipSide === "left" ? "left-5" : "right-7"}`}>
           <CardChip />
-        </div>
-
-        <div className="absolute inset-x-0 top-[92px] text-center">
-          <p className="text-[10px] font-bold uppercase tracking-[0.28em]" style={{ color: theme.textColor }}>
-            Saldo atual
-          </p>
-          <p className="mt-1 text-[52px] font-black leading-none tracking-tight" style={{ color: theme.textColor }}>
-            {amount}
-          </p>
         </div>
 
         <div className="absolute bottom-3 right-5">
