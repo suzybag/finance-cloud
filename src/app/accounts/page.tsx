@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { BankLogo } from "@/components/BankLogo";
+import { AccountCard } from "@/components/AccountCard";
 import { supabase } from "@/lib/supabaseClient";
 import { brl, toNumber } from "@/lib/money";
 import { Account, Transaction, computeAccountBalances } from "@/lib/finance";
@@ -408,90 +408,28 @@ export default function AccountsPage() {
                 const bankLabel = account.institution?.trim() || account.name;
 
                 return (
-                  <div
+                  <AccountCard
                     key={account.id}
-                    className="rounded-2xl border border-violet-300/20 bg-[linear-gradient(160deg,rgba(34,18,61,0.88),rgba(12,9,31,0.9))] p-5 shadow-[0_12px_35px_rgba(30,12,58,0.45)]"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-xl font-bold text-white">{account.name}</p>
-                        <div className="mt-1 flex items-center gap-2">
-                          <BankLogo bankName={bankLabel} size={30} />
-                          <p className="text-xs text-slate-400">
-                            {bankLabel}
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        className={ULTRA_SOFT_BTN_CLASS}
-                        onClick={() => loadData()}
-                      >
-                        Atualizar
-                      </button>
-                    </div>
-
-                    <div className="mt-4 rounded-xl border border-white/10 bg-slate-950/65 p-4">
-                      <p className="text-sm text-slate-400">Saldo atual</p>
-                      <p className="mt-1 text-3xl font-extrabold text-emerald-300">{brl(balance)}</p>
-                    </div>
-
-                    <div className="mt-3 rounded-xl border border-white/10 bg-slate-900/70 p-3 text-sm text-slate-300">
-                      <div className="font-semibold text-white">
-                        {isDefault ? "Conta padrao" : "Conta nomeada"}
-                      </div>
-                      <div className="mt-1 text-slate-400">
-                        {isDefault
-                          ? "Ao lancar via WhatsApp sem informar conta, sera usada essa conta."
-                          : "Ao lancar via WhatsApp informando essa conta, o registro cai nela."}
-                      </div>
-                    </div>
-
-                    <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-3">
-                      <button
-                        className={ULTRA_SOFT_BTN_CLASS}
-                        onClick={() => openExtractStub(account)}
-                      >
-                        Extrato
-                      </button>
-                      <button
-                        className={ULTRA_SOFT_BTN_CLASS}
-                        onClick={() => openAdjustModal(account)}
-                      >
-                        Ajustar saldo
-                      </button>
-                      <button
-                        className={ULTRA_SOFT_BTN_CLASS}
-                        onClick={() => {
-                          setTransferFrom(account.id);
-                          setTimeout(() => {
-                            document
-                              .getElementById("area-transferencia")
-                              ?.scrollIntoView({ behavior: "smooth" });
-                          }, 20);
-                        }}
-                      >
-                        Transferir
-                      </button>
-                      <button
-                        className={ULTRA_SOFT_BTN_CLASS}
-                        onClick={() => openRenameModal(account)}
-                      >
-                        Editar
-                      </button>
-                      <button
-                        className={ULTRA_SOFT_BTN_CLASS}
-                        onClick={() => handleArchive(account)}
-                      >
-                        {account.archived ? "Desarquivar" : "Arquivar"}
-                      </button>
-                      <button
-                        className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200 hover:bg-rose-500/20 transition"
-                        onClick={() => handleDelete(account)}
-                      >
-                        Excluir
-                      </button>
-                    </div>
-                  </div>
+                    account={account}
+                    balance={balance}
+                    isDefault={isDefault}
+                    bankLabel={bankLabel}
+                    softButtonClassName={ULTRA_SOFT_BTN_CLASS}
+                    onRefresh={loadData}
+                    onOpenExtract={openExtractStub}
+                    onOpenAdjust={openAdjustModal}
+                    onPrepareTransfer={(selectedAccount) => {
+                      setTransferFrom(selectedAccount.id);
+                      setTimeout(() => {
+                        document
+                          .getElementById("area-transferencia")
+                          ?.scrollIntoView({ behavior: "smooth" });
+                      }, 20);
+                    }}
+                    onOpenRename={openRenameModal}
+                    onToggleArchive={handleArchive}
+                    onDelete={handleDelete}
+                  />
                 );
               })}
             </div>
