@@ -1,19 +1,10 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useRef } from "react";
 
-type PicPayCardVisualProps = {
-  balance: number;
-};
-
-const formatBRL = (value: number) =>
-  value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
-export function PicPayCardVisual({ balance }: PicPayCardVisualProps) {
+export function PicPayCardVisual() {
   const cardRef = useRef<HTMLDivElement | null>(null);
   const isPressedRef = useRef(false);
-
-  const amount = useMemo(() => formatBRL(balance), [balance]);
 
   const applyTilt = (xPercent: number, yPercent: number) => {
     const card = cardRef.current;
@@ -108,29 +99,6 @@ export function PicPayCardVisual({ balance }: PicPayCardVisualProps) {
             <span className="absolute bottom-0 right-0 h-8 w-8 rounded-full bg-[#ff4545]/95" />
             <span className="absolute right-4 top-2 h-8 w-8 rounded-full bg-[#ff9f1c]/90 mix-blend-multiply" />
           </div>
-        </div>
-
-        <div className="absolute right-4 top-1/2 -translate-y-1/2">
-          <p className="[writing-mode:vertical-rl] rotate-180 text-[40px] font-extrabold tracking-tight text-[#08150f] leading-[0.85]">
-            PicPay
-          </p>
-        </div>
-
-        <div className="absolute left-12 top-1/2 -translate-y-1/2">
-          <div className="text-center">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#0e2a20]/75">
-              Saldo atual
-            </p>
-            <p className="mt-1 text-3xl font-black tracking-tight text-[#071811] [text-shadow:0_4px_8px_rgba(255,255,255,0.18)]">
-              {amount}
-            </p>
-          </div>
-        </div>
-
-        <div className="absolute bottom-4 left-5">
-          <p className="[writing-mode:vertical-rl] rotate-180 text-xs font-semibold uppercase tracking-[0.16em] text-[#0e2a20]/80">
-            platinum
-          </p>
         </div>
       </div>
     </div>

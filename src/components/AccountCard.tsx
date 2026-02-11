@@ -40,13 +40,17 @@ export function AccountCard({
   return (
     <div className="rounded-2xl border border-violet-300/20 bg-[linear-gradient(160deg,rgba(34,18,61,0.88),rgba(12,9,31,0.9))] p-5 shadow-[0_12px_35px_rgba(30,12,58,0.45)]">
       <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xl font-bold text-white">{account.name}</p>
-          <div className="mt-1 flex items-center gap-2">
-            <BankLogo bankName={bankLabel} size={30} />
-            <p className="text-xs text-slate-400">{bankLabel}</p>
+        {isPicPay ? (
+          <div />
+        ) : (
+          <div>
+            <p className="text-xl font-bold text-white">{account.name}</p>
+            <div className="mt-1 flex items-center gap-2">
+              <BankLogo bankName={bankLabel} size={30} />
+              <p className="text-xs text-slate-400">{bankLabel}</p>
+            </div>
           </div>
-        </div>
+        )}
         <button className={softButtonClassName} onClick={onRefresh}>
           Atualizar
         </button>
@@ -54,7 +58,7 @@ export function AccountCard({
 
       <div className="mt-4">
         {isPicPay ? (
-          <PicPayCardVisual balance={balance} />
+          <PicPayCardVisual />
         ) : (
           <div className="rounded-xl border border-white/10 bg-slate-950/65 p-4">
             <p className="text-sm text-slate-400">Saldo atual</p>
