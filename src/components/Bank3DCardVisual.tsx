@@ -2,7 +2,13 @@
 
 import { useRef } from "react";
 
-export type StyledBankKey = "nubank" | "bradesco" | "inter" | "xp" | "btg";
+export type StyledBankKey =
+  | "nubank"
+  | "bradesco"
+  | "inter"
+  | "mercadopago"
+  | "btg"
+  | "xp";
 
 type Bank3DCardVisualProps = {
   bankKey: StyledBankKey;
@@ -14,71 +20,56 @@ const CARD_THEME: Record<
     background: string;
     borderColor: string;
     shadow: string;
-    title: string;
-    subtitle?: string;
     textColor: string;
-    network: "visa" | "mastercard";
-    chipSide: "left" | "right";
   }
 > = {
   nubank: {
     background:
-      "radial-gradient(130% 120% at 0% 100%, rgba(216,132,255,0.45), rgba(216,132,255,0) 52%), linear-gradient(138deg, #8f31f2 0%, #5f1ccf 48%, #310a84 100%)",
-    borderColor: "rgba(213,180,255,0.58)",
-    shadow: "0 14px 30px rgba(44,10,104,0.6), 0 5px 14px rgba(0,0,0,0.42)",
-    title: "nu",
-    subtitle: "Ultravioleta",
-    textColor: "#f5f2ff",
-    network: "mastercard",
-    chipSide: "right",
+      "radial-gradient(120% 120% at 0% 100%, rgba(201,130,255,0.38), rgba(201,130,255,0) 50%), linear-gradient(136deg, #5b1fb8 0%, #2f0b7d 56%, #190447 100%)",
+    borderColor: "rgba(211,183,255,0.58)",
+    shadow: "0 12px 24px rgba(39,8,92,0.62), 0 4px 10px rgba(0,0,0,0.42)",
+    textColor: "#f7f4ff",
   },
   bradesco: {
     background:
-      "repeating-linear-gradient(95deg, rgba(255,255,255,0.07) 0px, rgba(255,255,255,0.07) 1px, transparent 1px, transparent 10px), linear-gradient(135deg, #1f2531 0%, #090d15 52%, #020306 100%)",
-    borderColor: "rgba(255,255,255,0.26)",
-    shadow: "0 14px 30px rgba(0,0,0,0.68), 0 5px 14px rgba(0,0,0,0.5)",
-    title: "bradesco",
-    textColor: "#ecf0f5",
-    network: "visa",
-    chipSide: "left",
+      "repeating-linear-gradient(95deg, rgba(255,255,255,0.07) 0px, rgba(255,255,255,0.07) 1px, transparent 1px, transparent 10px), linear-gradient(138deg, #13161d 0%, #05070d 58%, #020306 100%)",
+    borderColor: "rgba(255,255,255,0.28)",
+    shadow: "0 12px 24px rgba(0,0,0,0.72), 0 4px 10px rgba(0,0,0,0.52)",
+    textColor: "#d7dce5",
   },
   inter: {
     background:
-      "radial-gradient(120% 120% at 0% 0%, rgba(255,255,255,0.14), rgba(255,255,255,0) 43%), linear-gradient(135deg, #323844 0%, #141a25 55%, #080b11 100%)",
+      "radial-gradient(120% 120% at 100% 0%, rgba(255,255,255,0.1), rgba(255,255,255,0) 40%), linear-gradient(136deg, #242831 0%, #10141c 54%, #06080d 100%)",
     borderColor: "rgba(255,255,255,0.24)",
-    shadow: "0 14px 30px rgba(0,0,0,0.64), 0 5px 14px rgba(0,0,0,0.46)",
-    title: "inter",
-    subtitle: "black",
-    textColor: "#f3f4f7",
-    network: "mastercard",
-    chipSide: "left",
+    shadow: "0 12px 24px rgba(0,0,0,0.68), 0 4px 10px rgba(0,0,0,0.48)",
+    textColor: "#f0f2f6",
   },
-  xp: {
+  mercadopago: {
     background:
-      "repeating-linear-gradient(95deg, rgba(255,255,255,0.13) 0px, rgba(255,255,255,0.13) 1px, transparent 1px, transparent 7px), linear-gradient(135deg, #61656e 0%, #2a2f38 54%, #11141a 100%)",
-    borderColor: "rgba(255,255,255,0.24)",
-    shadow: "0 14px 30px rgba(0,0,0,0.66), 0 5px 14px rgba(0,0,0,0.48)",
-    title: "XP",
-    subtitle: "Infinite",
-    textColor: "#f5f5f6",
-    network: "visa",
-    chipSide: "left",
+      "linear-gradient(136deg, #263047 0%, #1f293e 55%, #1b2335 100%)",
+    borderColor: "rgba(177,194,231,0.38)",
+    shadow: "0 12px 24px rgba(9,16,34,0.64), 0 4px 10px rgba(0,0,0,0.42)",
+    textColor: "#f1f5ff",
   },
   btg: {
     background:
-      "radial-gradient(100% 130% at 100% 0%, rgba(255,255,255,0.2), rgba(255,255,255,0) 46%), linear-gradient(135deg, #0b59d4 0%, #053f9d 52%, #02245c 100%)",
-    borderColor: "rgba(176,218,255,0.58)",
-    shadow: "0 14px 30px rgba(1,31,78,0.62), 0 5px 14px rgba(0,0,0,0.42)",
-    title: "btg pactual",
-    textColor: "#eff6ff",
-    network: "mastercard",
-    chipSide: "left",
+      "radial-gradient(90% 130% at 100% 50%, rgba(64,156,255,0.24), rgba(64,156,255,0) 55%), linear-gradient(136deg, #022a4d 0%, #01386a 48%, #022146 100%)",
+    borderColor: "rgba(160,208,255,0.48)",
+    shadow: "0 12px 24px rgba(1,29,62,0.62), 0 4px 10px rgba(0,0,0,0.42)",
+    textColor: "#eaf3ff",
+  },
+  xp: {
+    background:
+      "repeating-linear-gradient(95deg, rgba(255,255,255,0.1) 0px, rgba(255,255,255,0.1) 1px, transparent 1px, transparent 8px), linear-gradient(136deg, #5a5f68 0%, #262b33 56%, #10141a 100%)",
+    borderColor: "rgba(255,255,255,0.24)",
+    shadow: "0 12px 24px rgba(0,0,0,0.7), 0 4px 10px rgba(0,0,0,0.48)",
+    textColor: "#f7f8fa",
   },
 };
 
-function Contactless({ color }: { color: string }) {
+function Contactless({ color, size = 20 }: { color: string; size?: number }) {
   return (
-    <svg width="22" height="22" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 26 26" fill="none" aria-hidden="true">
       <path d="M8 8c2.8 2.7 2.8 7.3 0 10" stroke={color} strokeWidth="2" strokeLinecap="round" />
       <path d="M12 6.5c3.9 3.8 3.9 9.2 0 13" stroke={color} strokeWidth="2" strokeLinecap="round" />
       <path d="M16 5c5 5 5 11 0 16" stroke={color} strokeWidth="2" strokeLinecap="round" />
@@ -88,7 +79,7 @@ function Contactless({ color }: { color: string }) {
 
 function CardChip() {
   return (
-    <div className="rounded-md border border-white/40 bg-white/85 p-[2px] shadow-[0_2px_4px_rgba(0,0,0,0.32)]">
+    <div className="rounded-md border border-white/45 bg-white/85 p-[2px] shadow-[0_2px_4px_rgba(0,0,0,0.34)]">
       <div className="relative h-[24px] w-[34px] rounded-[4px] border border-slate-500/55 bg-gradient-to-br from-slate-100 to-slate-300">
         <div className="absolute left-0 top-1/2 h-[1px] w-full -translate-y-1/2 bg-slate-500/70" />
         <div className="absolute left-1/3 top-0 h-full w-[1px] bg-slate-500/65" />
@@ -98,11 +89,7 @@ function CardChip() {
   );
 }
 
-function Network({ type, color }: { type: "visa" | "mastercard"; color: string }) {
-  if (type === "visa") {
-    return <p className="text-[34px] font-black italic leading-none tracking-tight" style={{ color }}>VISA</p>;
-  }
-
+function MastercardMark({ textColor }: { textColor: string }) {
   return (
     <div className="flex flex-col items-end gap-1">
       <div className="relative h-7 w-[46px]">
@@ -110,9 +97,34 @@ function Network({ type, color }: { type: "visa" | "mastercard"; color: string }
         <span className="absolute right-0 top-1 h-5 w-5 rounded-full bg-[#ffb700]" />
         <span className="absolute left-3 top-1 h-5 w-5 rounded-full bg-[#ff7b00]/85 mix-blend-multiply" />
       </div>
-      <p className="text-[10px] font-semibold leading-none tracking-tight" style={{ color }}>
+      <p className="text-[10px] font-semibold leading-none tracking-tight" style={{ color: textColor }}>
         mastercard
       </p>
+    </div>
+  );
+}
+
+function VisaMark({ textColor, vertical = false }: { textColor: string; vertical?: boolean }) {
+  if (!vertical) {
+    return <p className="text-[34px] font-black italic leading-none tracking-tight" style={{ color: textColor }}>VISA</p>;
+  }
+  return (
+    <p
+      className="[writing-mode:vertical-rl] rotate-180 text-[24px] font-black italic leading-none tracking-tight"
+      style={{ color: textColor }}
+    >
+      VISA
+    </p>
+  );
+}
+
+function MercadoPagoBadge({ textColor }: { textColor: string }) {
+  return (
+    <div className="flex items-center justify-center rounded-full border border-white/75 px-2 py-[2px]">
+      <svg width="26" height="14" viewBox="0 0 26 14" fill="none" aria-hidden="true">
+        <path d="M2 7c3-4 6-4 9 0M24 7c-3 4-6 4-9 0" stroke={textColor} strokeWidth="1.6" strokeLinecap="round" />
+        <path d="M9 7h8" stroke={textColor} strokeWidth="1.6" strokeLinecap="round" />
+      </svg>
     </div>
   );
 }
@@ -125,12 +137,11 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
   const applyTilt = (xPercent: number, yPercent: number) => {
     const card = cardRef.current;
     if (!card) return;
-
     const rx = ((50 - yPercent) / 50) * 7;
     const ry = ((xPercent - 50) / 50) * 9;
     const scale = pressedRef.current ? 0.988 : 1;
 
-    card.style.transform = `perspective(1300px) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) scale(${scale})`;
+    card.style.transform = `perspective(1200px) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) scale(${scale})`;
     card.style.setProperty("--mx", `${xPercent.toFixed(2)}%`);
     card.style.setProperty("--my", `${yPercent.toFixed(2)}%`);
   };
@@ -148,7 +159,7 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
     const card = cardRef.current;
     if (!card) return;
     pressedRef.current = false;
-    card.style.transform = "perspective(1300px) rotateX(0deg) rotateY(0deg) scale(1)";
+    card.style.transform = "perspective(1200px) rotateX(0deg) rotateY(0deg) scale(1)";
     card.style.setProperty("--mx", "26%");
     card.style.setProperty("--my", "20%");
   };
@@ -164,21 +175,21 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
   };
 
   return (
-    <div className="mx-auto w-full max-w-[470px] [perspective:1300px]">
+    <div className="mx-auto w-full max-w-[430px] [perspective:1200px]">
       <div
         ref={cardRef}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
-        className="relative h-[154px] w-full overflow-hidden rounded-xl border px-4 py-3 transition-transform duration-150 ease-out [transform-style:preserve-3d]"
+        className="relative h-[142px] w-full overflow-hidden rounded-xl border px-4 py-3 transition-transform duration-150 ease-out [transform-style:preserve-3d]"
         style={{
           "--mx": "26%",
           "--my": "20%",
           background: theme.background,
           borderColor: theme.borderColor,
           boxShadow: theme.shadow,
-          transform: "perspective(1300px) rotateX(0deg) rotateY(0deg) scale(1)",
+          transform: "perspective(1200px) rotateX(0deg) rotateY(0deg) scale(1)",
         } as React.CSSProperties}
       >
         <div
@@ -189,30 +200,122 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
           }}
         />
 
-        <div className="absolute left-4 top-3">
-          <div className="flex items-end gap-2">
-            <p className={`font-black leading-none ${bankKey === "nubank" ? "text-[40px]" : "text-[27px]"}`} style={{ color: theme.textColor }}>
-              {theme.title}
+        {bankKey === "nubank" ? (
+          <>
+            <div className="absolute left-4 top-3">
+              <p className="text-[40px] font-black leading-none" style={{ color: theme.textColor }}>nu</p>
+              <p className="text-sm font-medium leading-none" style={{ color: theme.textColor }}>Ultravioleta</p>
+            </div>
+            <div className="absolute right-4 top-3 opacity-90">
+              <Contactless color={theme.textColor} />
+            </div>
+            <div className="absolute right-6 top-[54px]">
+              <CardChip />
+            </div>
+            <div className="absolute bottom-2 right-4">
+              <MastercardMark textColor={theme.textColor} />
+            </div>
+          </>
+        ) : null}
+
+        {bankKey === "inter" ? (
+          <>
+            <div className="absolute right-4 top-3 text-right">
+              <p className="text-[38px] font-black leading-none" style={{ color: theme.textColor }}>inter</p>
+              <p className="text-sm font-light leading-none" style={{ color: theme.textColor }}>prime</p>
+            </div>
+            <div className="absolute left-4 top-[54px]">
+              <CardChip />
+            </div>
+            <div className="absolute left-4 bottom-2 opacity-75">
+              <Contactless color="#7f8593" />
+            </div>
+            <div className="absolute bottom-2 right-4">
+              <MastercardMark textColor="#aeb4bf" />
+            </div>
+          </>
+        ) : null}
+
+        {bankKey === "bradesco" ? (
+          <>
+            <div className="absolute left-4 top-3 flex items-center gap-2">
+              <span className="inline-block h-3 w-3 rounded-full border-2 border-slate-300/80 border-t-transparent rotate-45" />
+              <p className="text-[22px] font-bold leading-none" style={{ color: theme.textColor }}>bradesco</p>
+            </div>
+            <div className="absolute right-4 top-3 opacity-90">
+              <Contactless color={theme.textColor} />
+            </div>
+            <div className="absolute left-4 top-[54px]">
+              <CardChip />
+            </div>
+            <div className="absolute left-[164px] top-[54px] h-[34px] w-[34px] rounded-[3px] border border-slate-300/30 bg-[repeating-radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.24)_0_1px,transparent_1px_4px)] opacity-70" />
+            <p className="absolute left-[156px] top-[94px] text-[10px] tracking-[0.42em] text-slate-300/75">
+              AETERNUM
             </p>
-            {theme.subtitle ? (
-              <p className="mb-[4px] text-sm font-medium leading-none" style={{ color: theme.textColor }}>
-                {theme.subtitle}
+            <div className="absolute bottom-2 right-4">
+              <VisaMark textColor={theme.textColor} />
+            </div>
+          </>
+        ) : null}
+
+        {bankKey === "mercadopago" ? (
+          <>
+            <p className="absolute left-14 top-1/2 -translate-y-1/2 text-[38px] font-black leading-[0.8] text-slate-100/10">
+              MERCADO
+              <br />
+              PAGO
+            </p>
+            <div className="absolute left-4 top-3 opacity-90">
+              <Contactless color={theme.textColor} />
+            </div>
+            <div className="absolute left-4 top-[54px]">
+              <CardChip />
+            </div>
+            <div className="absolute right-4 top-3">
+              <VisaMark textColor={theme.textColor} vertical />
+            </div>
+            <div className="absolute bottom-2 right-4">
+              <MercadoPagoBadge textColor={theme.textColor} />
+            </div>
+          </>
+        ) : null}
+
+        {bankKey === "btg" ? (
+          <>
+            <div className="absolute right-3 top-1/2 h-[140px] w-[140px] -translate-y-1/2 rounded-full bg-sky-300/10" />
+            <div className="absolute right-5 top-1/2 -translate-y-1/2 text-right">
+              <p className="text-[32px] font-semibold leading-none" style={{ color: theme.textColor }}>
+                btg<span className="ml-1 font-normal">pactual</span>
               </p>
-            ) : null}
-          </div>
-        </div>
+            </div>
+            <div className="absolute left-4 top-[54px]">
+              <CardChip />
+            </div>
+            <div className="absolute left-[52px] top-[56px] opacity-70">
+              <Contactless color="#8da8cf" />
+            </div>
+            <div className="absolute bottom-2 right-4">
+              <MastercardMark textColor={theme.textColor} />
+            </div>
+          </>
+        ) : null}
 
-        <div className="absolute right-4 top-3 opacity-90">
-          <Contactless color={theme.textColor} />
-        </div>
-
-        <div className={`absolute top-[58px] ${theme.chipSide === "left" ? "left-4" : "right-5"}`}>
-          <CardChip />
-        </div>
-
-        <div className="absolute bottom-2 right-4">
-          <Network type={theme.network} color={theme.textColor} />
-        </div>
+        {bankKey === "xp" ? (
+          <>
+            <div className="absolute right-4 top-3 rounded-md bg-amber-300/90 px-2 py-1 text-sm font-black leading-none text-black">
+              XP
+            </div>
+            <div className="absolute left-4 top-[54px]">
+              <CardChip />
+            </div>
+            <div className="absolute left-[52px] top-[56px] opacity-70">
+              <Contactless color="#c9ced7" />
+            </div>
+            <div className="absolute bottom-2 right-4">
+              <VisaMark textColor={theme.textColor} />
+            </div>
+          </>
+        ) : null}
       </div>
     </div>
   );
