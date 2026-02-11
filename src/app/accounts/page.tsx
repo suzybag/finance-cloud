@@ -6,7 +6,14 @@ import { AppShell } from "@/components/AppShell";
 import { AccountCard } from "@/components/AccountCard";
 import { supabase } from "@/lib/supabaseClient";
 import { brl, toNumber } from "@/lib/money";
-import { Account, Transaction, computeAccountBalances } from "@/lib/finance";
+import { resolveBankKey } from "@/lib/bankIcons";
+import {
+  Account,
+  Card,
+  Transaction,
+  computeAccountBalances,
+  computeCardSummary,
+} from "@/lib/finance";
 
 type TabType = "ativas" | "arquivadas";
 type AccountModalMode = "rename" | "adjust";
@@ -19,6 +26,7 @@ const ULTRA_SOFT_BTN_CLASS =
 
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [cards, setCards] = useState<Card[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
@@ -42,8 +50,9 @@ export default function AccountsPage() {
 
   const loadData = async () => {
     setLoading(true);
-    const [accountsRes, txRes] = await Promise.all([
+    const [accountsRes, cardsRes, txRes] = await Promise.all([
       supabase.from("accounts").select("*").order("created_at"),
+      supabase.from("cards").select("*").order("created_at"),
       supabase
         .from("transactions")
         .select("*")
@@ -51,13 +60,19 @@ export default function AccountsPage() {
         .limit(800),
     ]);
 
-    if (accountsRes.error || txRes.error) {
-      setFeedback(accountsRes.error?.message || txRes.error?.message || "Falha ao carregar dados.");
+    if (accountsRes.error || cardsRes.error || txRes.error) {
+      setFeedback(
+        accountsRes.error?.message
+          || cardsRes.error?.message
+          || txRes.error?.message
+          || "Falha ao carregar dados.",
+      );
       setLoading(false);
       return;
     }
 
     setAccounts((accountsRes.data as Account[]) || []);
+    setCards((cardsRes.data as Card[]) || []);
     setTransactions((txRes.data as Transaction[]) || []);
     setLoading(false);
   };
@@ -76,6 +91,22 @@ export default function AccountsPage() {
     () => accounts.filter((acc) => (tab === "ativas" ? !acc.archived : acc.archived)),
     [accounts, tab],
   );
+
+  const cardTotalsByBankKey = useMemo(() => {
+    const totals = new Map<string, number>();
+
+    cards
+      .filter((card) => !card.archived)
+      .forEach((card) => {
+        const bankKey = resolveBankKey(card.issuer) || resolveBankKey(card.name);
+        if (!bankKey) return;
+
+        const currentInvoiceTotal = computeCardSummary(card, transactions).currentTotal;
+        totals.set(bankKey, (totals.get(bankKey) ?? 0) + currentInvoiceTotal);
+      });
+
+    return totals;
+  }, [cards, transactions]);
 
   const defaultAccountId = useMemo(
     () => accounts.find((acc) => !acc.archived)?.id ?? null,
@@ -406,12 +437,15 @@ export default function AccountsPage() {
                 const balance = balances.get(account.id) ?? 0;
                 const isDefault = defaultAccountId === account.id;
                 const bankLabel = account.institution?.trim() || account.name;
+                const bankKey = resolveBankKey(bankLabel) || resolveBankKey(account.name);
+                const cardTotal = bankKey ? (cardTotalsByBankKey.get(bankKey) ?? 0) : 0;
 
                 return (
                   <AccountCard
                     key={account.id}
                     account={account}
                     balance={balance}
+                    cardTotal={cardTotal}
                     isDefault={isDefault}
                     bankLabel={bankLabel}
                     softButtonClassName={ULTRA_SOFT_BTN_CLASS}
