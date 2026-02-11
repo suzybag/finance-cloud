@@ -13,10 +13,15 @@ import { Account, Card, Transaction, computeCardSummary } from "@/lib/finance";
 
 const BANK_ISSUER_OPTIONS = [
   "Nubank",
+  "Nu Invest",
   "Inter",
   "Bradesco",
   "Mercado Pago",
-  "XP",
+  "XP Investimentos",
+  "PicPay",
+  "Santander",
+  "Caixa",
+  "Banco do Brasil",
   "BTG",
 ] as const;
 
@@ -46,9 +51,14 @@ const inferIssuer = (value?: string | null) => {
   if (text.includes("nubank") || text.includes("roxinho")) return "Nubank";
   if (text.includes("inter") || text.includes("bancointer")) return "Inter";
   if (text.includes("bradesco")) return "Bradesco";
+  if (text.includes("nuinvest") || text.includes("nuinvestimentos") || text.includes("easynvest")) return "Nu Invest";
+  if (text.includes("picpay")) return "PicPay";
+  if (text.includes("santander")) return "Santander";
+  if (text.includes("caixa") || text.includes("caixaeconomicafederal")) return "Caixa";
+  if (text.includes("bancodobrasil") || text === "bb") return "Banco do Brasil";
   if (text.includes("mercadopago") || text.includes("mercadopag")) return "Mercado Pago";
   if (text.includes("btg") || text.includes("btgpactual")) return "BTG";
-  if (text.includes("xp") || text.includes("xpinvestimentos")) return "XP";
+  if (text.includes("xp") || text.includes("xpinvestimentos")) return "XP Investimentos";
   return null;
 };
 

@@ -1,11 +1,15 @@
 export const BANK_ICON_MAP = {
   inter: "/banks/inter.svg",
   nubank: "/banks/nubank.svg",
+  nuinvest: "/banks/nuinvest.svg",
   bradesco: "/banks/bradesco.svg",
   mercadopago: "/banks/mercadopago.svg",
   xp: "/banks/xp.svg",
   btg: "/banks/btg.svg",
   picpay: "/banks/picpay.svg",
+  santander: "/banks/santander.svg",
+  caixa: "/banks/caixa.svg",
+  bancodobrasil: "/banks/bancodobrasil.svg",
 } as const;
 
 type BankKey = keyof typeof BANK_ICON_MAP;
@@ -13,11 +17,15 @@ type BankKey = keyof typeof BANK_ICON_MAP;
 const BANK_ALIASES: Record<BankKey, string[]> = {
   inter: ["inter", "bancointer", "banco inter"],
   nubank: ["nubank", "nu", "nu bank", "roxinho", "ultravioleta"],
+  nuinvest: ["nuinvest", "nu invest", "nuinvestimentos", "nu investimentos", "easynvest"],
   bradesco: ["bradesco"],
   mercadopago: ["mercadopago", "mercado pago", "mercado-pago", "mp"],
-  xp: ["xp", "xpinvestimentos", "xpinvest"],
+  xp: ["xp", "xpinvestimentos", "xp investimentos", "xpinvest"],
   btg: ["btg", "btgpactual", "btg pactual"],
   picpay: ["picpay", "pic pay"],
+  santander: ["santander", "banco santander"],
+  caixa: ["caixa", "caixaeconomicafederal", "caixa economica", "caixa economica federal"],
+  bancodobrasil: ["bb", "bancodobrasil", "banco do brasil"],
 };
 
 const normalizeText = (value: string) =>
