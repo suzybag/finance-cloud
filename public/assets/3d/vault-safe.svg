@@ -1,0 +1,61 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bodySide" x1="32" y1="120" x2="190" y2="390" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3B4259"/>
+      <stop offset="1" stop-color="#1D2234"/>
+    </linearGradient>
+    <linearGradient id="bodyFront" x1="120" y1="110" x2="475" y2="470" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7F879E"/>
+      <stop offset="1" stop-color="#525A71"/>
+    </linearGradient>
+    <linearGradient id="doorGradient" x1="150" y1="140" x2="430" y2="430" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8D95AD"/>
+      <stop offset="1" stop-color="#676F86"/>
+    </linearGradient>
+    <linearGradient id="metalGold" x1="245" y1="200" x2="385" y2="330" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFE07A"/>
+      <stop offset="0.45" stop-color="#D6A015"/>
+      <stop offset="1" stop-color="#8A5A00"/>
+    </linearGradient>
+    <radialGradient id="goldCenter" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(314 266) rotate(90) scale(56)">
+      <stop offset="0" stop-color="#FFF7B8"/>
+      <stop offset="1" stop-color="#C07D00"/>
+    </radialGradient>
+    <filter id="softShadow" x="10" y="55" width="495" height="430" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="18"/>
+      <feGaussianBlur stdDeviation="11"/>
+      <feComposite in2="hardAlpha" operator="out"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.02 0 0 0 0 0.03 0 0 0 0 0.08 0 0 0 0.55 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_1_1"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_1_1" result="shape"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#softShadow)">
+    <rect x="34" y="103" width="315" height="318" rx="70" fill="url(#bodySide)"/>
+    <rect x="100" y="90" width="378" height="340" rx="66" fill="url(#bodyFront)"/>
+    <rect x="124" y="114" width="330" height="292" rx="48" fill="url(#doorGradient)" stroke="#434A5F" stroke-width="4"/>
+    <rect x="146" y="136" width="286" height="248" rx="34" fill="#8E96AD" fill-opacity="0.35"/>
+
+    <rect x="103" y="179" width="12" height="58" rx="6" fill="url(#metalGold)"/>
+    <rect x="103" y="258" width="12" height="58" rx="6" fill="url(#metalGold)"/>
+
+    <circle cx="314" cy="266" r="73" fill="url(#metalGold)"/>
+    <circle cx="314" cy="266" r="54" fill="url(#goldCenter)"/>
+    <circle cx="314" cy="266" r="22" fill="#F7D84F"/>
+
+    <rect x="308" y="186" width="12" height="56" rx="6" fill="url(#metalGold)"/>
+    <rect x="308" y="290" width="12" height="56" rx="6" fill="url(#metalGold)"/>
+
+    <rect x="249" y="260" width="56" height="12" rx="6" fill="url(#metalGold)"/>
+    <rect x="323" y="260" width="56" height="12" rx="6" fill="url(#metalGold)"/>
+
+    <rect x="269.2" y="219.2" width="50" height="12" rx="6" transform="rotate(-35 269.2 219.2)" fill="url(#metalGold)"/>
+    <rect x="327.1" y="258.1" width="50" height="12" rx="6" transform="rotate(-35 327.1 258.1)" fill="url(#metalGold)"/>
+
+    <rect x="98" y="430" width="58" height="10" rx="5" fill="#2A3146"/>
+    <rect x="408" y="430" width="58" height="10" rx="5" fill="#2A3146"/>
+  </g>
+</svg>

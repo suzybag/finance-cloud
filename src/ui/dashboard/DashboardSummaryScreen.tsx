@@ -149,8 +149,8 @@ export const DashboardSummaryScreen = () => {
               </div>
               <div className="relative h-[110px] w-[170px] shrink-0 self-end md:self-auto">
                 <Image
-                  src="/assets/3d/money-stack.svg"
-                  alt="Icone 3D de dinheiro"
+                  src="/assets/3d/vault-safe.svg"
+                  alt="Icone 3D de cofre"
                   fill
                   className="object-contain drop-shadow-[0_20px_30px_rgba(0,0,0,0.55)]"
                   sizes="170px"
