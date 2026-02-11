@@ -22,6 +22,7 @@ const BANK_ISSUER_OPTIONS = [
   "Santander",
   "Caixa",
   "Banco do Brasil",
+  "Wise",
   "BTG",
 ] as const;
 
@@ -56,6 +57,7 @@ const inferIssuer = (value?: string | null) => {
   if (text.includes("santander")) return "Santander";
   if (text.includes("caixa") || text.includes("caixaeconomicafederal")) return "Caixa";
   if (text.includes("bancodobrasil") || text === "bb") return "Banco do Brasil";
+  if (text.includes("wise") || text.includes("transferwise")) return "Wise";
   if (text.includes("mercadopago") || text.includes("mercadopag")) return "Mercado Pago";
   if (text.includes("btg") || text.includes("btgpactual")) return "BTG";
   if (text.includes("xp") || text.includes("xpinvestimentos")) return "XP Investimentos";

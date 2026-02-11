@@ -10,6 +10,7 @@ export const BANK_ICON_MAP = {
   santander: "/banks/santander.svg",
   caixa: "/banks/caixa.svg",
   bancodobrasil: "/banks/bancodobrasil.svg",
+  wise: "/banks/wise.svg",
 } as const;
 
 type BankKey = keyof typeof BANK_ICON_MAP;
@@ -26,6 +27,7 @@ const BANK_ALIASES: Record<BankKey, string[]> = {
   santander: ["santander", "banco santander"],
   caixa: ["caixa", "caixaeconomicafederal", "caixa economica", "caixa economica federal"],
   bancodobrasil: ["bb", "bancodobrasil", "banco do brasil"],
+  wise: ["wise", "transferwise", "transfer wise"],
 };
 
 const normalizeText = (value: string) =>
