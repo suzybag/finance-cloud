@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { AppShell } from "@/components/AppShell";
 import { BankLogo } from "@/components/BankLogo";
 import { getBankIconPath } from "@/lib/bankIcons";
@@ -146,15 +147,14 @@ export const DashboardSummaryScreen = () => {
                   mes de <span className="font-medium text-white/90">{monthName}</span>
                 </p>
               </div>
-              <div className="flex flex-col gap-3 text-xs text-slate-200/80">
-                <div className="flex items-center gap-2">
-                  <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" /> Receitas
-                  <span className="font-semibold text-white">{brl(summary.monthIncome)}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="inline-block h-2 w-2 rounded-full bg-rose-400" /> Despesas
-                  <span className="font-semibold text-white">{brl(summary.monthExpense)}</span>
-                </div>
+              <div className="relative h-[110px] w-[170px] shrink-0 self-end md:self-auto">
+                <Image
+                  src="/assets/3d/money-stack.svg"
+                  alt="Icone 3D de dinheiro"
+                  fill
+                  className="object-contain drop-shadow-[0_20px_30px_rgba(0,0,0,0.55)]"
+                  sizes="170px"
+                />
               </div>
             </div>
           </section>

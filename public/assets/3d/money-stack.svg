@@ -1,0 +1,45 @@
+<svg width="420" height="280" viewBox="0 0 420 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="notesTop" x1="52" y1="90" x2="370" y2="220" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7F859B"/>
+      <stop offset="1" stop-color="#555A6E"/>
+    </linearGradient>
+    <linearGradient id="notesFront" x1="54" y1="185" x2="365" y2="185" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4D5264"/>
+      <stop offset="1" stop-color="#373C4D"/>
+    </linearGradient>
+    <linearGradient id="bandTop" x1="150" y1="52" x2="255" y2="235" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFD76A"/>
+      <stop offset="0.45" stop-color="#D69E11"/>
+      <stop offset="1" stop-color="#8B5A00"/>
+    </linearGradient>
+    <linearGradient id="bandFront" x1="151" y1="192" x2="259" y2="192" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8E6006"/>
+      <stop offset="1" stop-color="#5F3C00"/>
+    </linearGradient>
+    <filter id="shadow" x="16" y="46" width="388" height="218" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="14"/>
+      <feGaussianBlur stdDeviation="10"/>
+      <feComposite in2="hardAlpha" operator="out"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.0156863 0 0 0 0 0.0196078 0 0 0 0 0.0509804 0 0 0 0.55 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_1_1"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_1_1" result="shape"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#shadow)">
+    <rect x="42" y="148" width="334" height="88" rx="20" fill="url(#notesFront)"/>
+    <rect x="44" y="140" width="330" height="90" rx="20" fill="url(#notesFront)" opacity="0.78"/>
+    <rect x="48" y="132" width="322" height="92" rx="22" fill="url(#notesFront)" opacity="0.55"/>
+    <rect x="52" y="78" width="314" height="122" rx="28" fill="url(#notesTop)"/>
+    <path d="M52 146L366 146V200H52V146Z" fill="#414759" opacity="0.46"/>
+
+    <path d="M150 74C150 63.9543 158.14 55.8142 168.186 55.8142H241.814C251.86 55.8142 260 63.9543 260 74V202H150V74Z" fill="url(#bandTop)"/>
+    <path d="M150 156H260V202H150V156Z" fill="url(#bandFront)"/>
+
+    <path d="M205.18 94.5C220.89 94.5 231.935 103.097 232.66 116.274H219.135C218.365 111.969 213.88 108.887 207.03 108.887C200.63 108.887 196.145 111.474 196.145 115.69C196.145 118.951 198.957 120.818 204.75 121.948L213.205 123.543C225.71 125.953 231.638 131.029 231.638 139.716C231.638 151.008 220.845 158.254 205.54 158.254C189.785 158.254 178.65 151.369 177.52 138.058H191.585C192.625 142.722 197.335 145.354 204.455 145.354C211.215 145.354 215.745 142.856 215.745 138.864C215.745 135.649 213.16 133.781 207.165 132.696L198.71 131.145C186.97 128.959 180.702 123.475 180.702 114.833C180.702 103.993 191.54 94.5 205.18 94.5Z" fill="#F6E8B1"/>
+    <rect x="199.7" y="85" width="10.6" height="84" rx="5.3" fill="#F1DC8D"/>
+  </g>
+</svg>
