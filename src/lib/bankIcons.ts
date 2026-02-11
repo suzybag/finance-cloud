@@ -19,8 +19,8 @@ type BankKey = keyof typeof BANK_ICON_MAP;
 
 const BANK_ALIASES: Record<BankKey, string[]> = {
   inter: ["inter", "bancointer", "banco inter"],
-  nubank: ["nubank", "nu", "nu bank", "roxinho", "ultravioleta"],
   nuinvest: ["nuinvest", "nu invest", "nuinvestimentos", "nu investimentos", "easynvest"],
+  nubank: ["nubank", "nu bank", "roxinho", "ultravioleta"],
   bradesco: ["bradesco"],
   mercadopago: ["mercadopago", "mercado pago", "mercado-pago", "mp"],
   xp: ["xp", "xpinvestimentos", "xp investimentos", "xpinvest"],
