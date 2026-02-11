@@ -70,6 +70,9 @@ const ULTRA_SECTION_CLASS =
 const isValidCycleDay = (value: number) =>
   Number.isInteger(value) && value >= 1 && value <= 31;
 
+const isMissingCardsStyleColumnError = (message?: string | null) =>
+  /could not find the '(color|note)' column of 'cards' in the schema cache/i.test(message ?? "");
+
 export default function CardsPage() {
   const [cards, setCards] = useState<Card[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -91,6 +94,7 @@ export default function CardsPage() {
   const [tab, setTab] = useState<"active" | "archived">("active");
   const [busyCardId, setBusyCardId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [supportsCardStyleFields, setSupportsCardStyleFields] = useState(true);
 
   const [paymentCard, setPaymentCard] = useState("");
   const [paymentAccount, setPaymentAccount] = useState("");
@@ -180,16 +184,32 @@ export default function CardsPage() {
     }
 
     const issuerToSave = resolveIssuerLabel(issuer, name);
-    const { error } = await supabase.from("cards").insert({
+    const basePayload = {
       user_id: resolvedUserId,
       name: name.trim(),
       issuer: issuerToSave || null,
       limit_total: toNumber(limitTotal),
       closing_day: closingDayValue,
       due_day: dueDayValue,
+    };
+    const styledPayload = {
+      ...basePayload,
       color: cardColor,
       note: cardNote.trim() ? cardNote.trim() : null,
-    });
+    };
+
+    let usedFallback = !supportsCardStyleFields;
+    const createRes = supportsCardStyleFields
+      ? await supabase.from("cards").insert(styledPayload)
+      : await supabase.from("cards").insert(basePayload);
+
+    let error = createRes.error;
+    if (error && supportsCardStyleFields && isMissingCardsStyleColumnError(error.message)) {
+      setSupportsCardStyleFields(false);
+      usedFallback = true;
+      const retryRes = await supabase.from("cards").insert(basePayload);
+      error = retryRes.error;
+    }
 
     if (error) {
       setSaving(false);
@@ -199,7 +219,11 @@ export default function CardsPage() {
 
     setSaving(false);
     setIsFormOpen(false);
-    setFeedback("Cartao criado com sucesso.");
+    setFeedback(
+      usedFallback
+        ? "Cartao criado. Cor e observacao ficam indisponiveis ate atualizar o banco."
+        : "Cartao criado com sucesso.",
+    );
     resetForm();
     loadData();
   };
@@ -270,18 +294,31 @@ export default function CardsPage() {
     }
 
     const issuerToSave = resolveIssuerLabel(issuer, name);
-    const { error } = await supabase
-      .from("cards")
-      .update({
-        name: name.trim(),
-        issuer: issuerToSave || null,
-        limit_total: toNumber(limitTotal),
-        closing_day: closingDayValue,
-        due_day: dueDayValue,
-        color: cardColor,
-        note: cardNote.trim() ? cardNote.trim() : null,
-      })
-      .eq("id", editId);
+    const basePayload = {
+      name: name.trim(),
+      issuer: issuerToSave || null,
+      limit_total: toNumber(limitTotal),
+      closing_day: closingDayValue,
+      due_day: dueDayValue,
+    };
+    const styledPayload = {
+      ...basePayload,
+      color: cardColor,
+      note: cardNote.trim() ? cardNote.trim() : null,
+    };
+
+    let usedFallback = !supportsCardStyleFields;
+    const saveRes = supportsCardStyleFields
+      ? await supabase.from("cards").update(styledPayload).eq("id", editId)
+      : await supabase.from("cards").update(basePayload).eq("id", editId);
+
+    let error = saveRes.error;
+    if (error && supportsCardStyleFields && isMissingCardsStyleColumnError(error.message)) {
+      setSupportsCardStyleFields(false);
+      usedFallback = true;
+      const retryRes = await supabase.from("cards").update(basePayload).eq("id", editId);
+      error = retryRes.error;
+    }
 
     if (error) {
       setSaving(false);
@@ -291,7 +328,11 @@ export default function CardsPage() {
 
     setSaving(false);
     setIsFormOpen(false);
-    setFeedback("Cartao atualizado com sucesso.");
+    setFeedback(
+      usedFallback
+        ? "Cartao atualizado. Cor e observacao ficam indisponiveis ate atualizar o banco."
+        : "Cartao atualizado com sucesso.",
+    );
     resetForm();
     loadData();
   };
