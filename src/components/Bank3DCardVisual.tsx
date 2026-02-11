@@ -23,9 +23,9 @@ const CARD_THEME: Record<
 > = {
   nubank: {
     background:
-      "radial-gradient(130% 120% at 0% 100%, rgba(202,119,255,0.32), rgba(202,119,255,0) 52%), linear-gradient(138deg, #6f2ac5 0%, #3d147f 46%, #200953 100%)",
-    borderColor: "rgba(196,154,255,0.45)",
-    shadow: "0 18px 42px rgba(43,11,94,0.62), 0 6px 18px rgba(0,0,0,0.44)",
+      "radial-gradient(130% 120% at 0% 100%, rgba(216,132,255,0.45), rgba(216,132,255,0) 52%), linear-gradient(138deg, #8f31f2 0%, #5f1ccf 48%, #310a84 100%)",
+    borderColor: "rgba(213,180,255,0.58)",
+    shadow: "0 14px 30px rgba(44,10,104,0.6), 0 5px 14px rgba(0,0,0,0.42)",
     title: "nu",
     subtitle: "Ultravioleta",
     textColor: "#f5f2ff",
@@ -34,9 +34,9 @@ const CARD_THEME: Record<
   },
   bradesco: {
     background:
-      "repeating-linear-gradient(95deg, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 11px), linear-gradient(135deg, #14171f 0%, #07080d 52%, #020204 100%)",
-    borderColor: "rgba(255,255,255,0.2)",
-    shadow: "0 18px 42px rgba(0,0,0,0.74), 0 6px 18px rgba(0,0,0,0.52)",
+      "repeating-linear-gradient(95deg, rgba(255,255,255,0.07) 0px, rgba(255,255,255,0.07) 1px, transparent 1px, transparent 10px), linear-gradient(135deg, #1f2531 0%, #090d15 52%, #020306 100%)",
+    borderColor: "rgba(255,255,255,0.26)",
+    shadow: "0 14px 30px rgba(0,0,0,0.68), 0 5px 14px rgba(0,0,0,0.5)",
     title: "bradesco",
     textColor: "#ecf0f5",
     network: "visa",
@@ -44,9 +44,9 @@ const CARD_THEME: Record<
   },
   inter: {
     background:
-      "radial-gradient(120% 120% at 0% 0%, rgba(255,255,255,0.1), rgba(255,255,255,0) 43%), linear-gradient(135deg, #2b2f38 0%, #11141c 55%, #07090f 100%)",
-    borderColor: "rgba(255,255,255,0.18)",
-    shadow: "0 18px 42px rgba(0,0,0,0.7), 0 6px 18px rgba(0,0,0,0.48)",
+      "radial-gradient(120% 120% at 0% 0%, rgba(255,255,255,0.14), rgba(255,255,255,0) 43%), linear-gradient(135deg, #323844 0%, #141a25 55%, #080b11 100%)",
+    borderColor: "rgba(255,255,255,0.24)",
+    shadow: "0 14px 30px rgba(0,0,0,0.64), 0 5px 14px rgba(0,0,0,0.46)",
     title: "inter",
     subtitle: "black",
     textColor: "#f3f4f7",
@@ -55,9 +55,9 @@ const CARD_THEME: Record<
   },
   xp: {
     background:
-      "repeating-linear-gradient(95deg, rgba(255,255,255,0.1) 0px, rgba(255,255,255,0.1) 1px, transparent 1px, transparent 8px), linear-gradient(135deg, #4b4e54 0%, #1f2227 54%, #0f1013 100%)",
-    borderColor: "rgba(255,255,255,0.18)",
-    shadow: "0 18px 42px rgba(0,0,0,0.7), 0 6px 18px rgba(0,0,0,0.5)",
+      "repeating-linear-gradient(95deg, rgba(255,255,255,0.13) 0px, rgba(255,255,255,0.13) 1px, transparent 1px, transparent 7px), linear-gradient(135deg, #61656e 0%, #2a2f38 54%, #11141a 100%)",
+    borderColor: "rgba(255,255,255,0.24)",
+    shadow: "0 14px 30px rgba(0,0,0,0.66), 0 5px 14px rgba(0,0,0,0.48)",
     title: "XP",
     subtitle: "Infinite",
     textColor: "#f5f5f6",
@@ -66,9 +66,9 @@ const CARD_THEME: Record<
   },
   btg: {
     background:
-      "radial-gradient(100% 130% at 100% 0%, rgba(255,255,255,0.16), rgba(255,255,255,0) 46%), linear-gradient(135deg, #0745a1 0%, #022f74 52%, #021a3f 100%)",
-    borderColor: "rgba(165,205,255,0.45)",
-    shadow: "0 18px 42px rgba(1,26,64,0.62), 0 6px 18px rgba(0,0,0,0.44)",
+      "radial-gradient(100% 130% at 100% 0%, rgba(255,255,255,0.2), rgba(255,255,255,0) 46%), linear-gradient(135deg, #0b59d4 0%, #053f9d 52%, #02245c 100%)",
+    borderColor: "rgba(176,218,255,0.58)",
+    shadow: "0 14px 30px rgba(1,31,78,0.62), 0 5px 14px rgba(0,0,0,0.42)",
     title: "btg pactual",
     textColor: "#eff6ff",
     network: "mastercard",
@@ -78,18 +78,18 @@ const CARD_THEME: Record<
 
 function Contactless({ color }: { color: string }) {
   return (
-    <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
-      <path d="M8 8c2.8 2.7 2.8 7.3 0 10" stroke={color} strokeWidth="2.1" strokeLinecap="round" />
-      <path d="M12 6.5c3.9 3.8 3.9 9.2 0 13" stroke={color} strokeWidth="2.1" strokeLinecap="round" />
-      <path d="M16 5c5 5 5 11 0 16" stroke={color} strokeWidth="2.1" strokeLinecap="round" />
+    <svg width="22" height="22" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+      <path d="M8 8c2.8 2.7 2.8 7.3 0 10" stroke={color} strokeWidth="2" strokeLinecap="round" />
+      <path d="M12 6.5c3.9 3.8 3.9 9.2 0 13" stroke={color} strokeWidth="2" strokeLinecap="round" />
+      <path d="M16 5c5 5 5 11 0 16" stroke={color} strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }
 
 function CardChip() {
   return (
-    <div className="rounded-lg border border-white/40 bg-white/85 p-[2px] shadow-[0_2px_4px_rgba(0,0,0,0.32)]">
-      <div className="relative h-[32px] w-[44px] rounded-[5px] border border-slate-500/55 bg-gradient-to-br from-slate-100 to-slate-300">
+    <div className="rounded-md border border-white/40 bg-white/85 p-[2px] shadow-[0_2px_4px_rgba(0,0,0,0.32)]">
+      <div className="relative h-[24px] w-[34px] rounded-[4px] border border-slate-500/55 bg-gradient-to-br from-slate-100 to-slate-300">
         <div className="absolute left-0 top-1/2 h-[1px] w-full -translate-y-1/2 bg-slate-500/70" />
         <div className="absolute left-1/3 top-0 h-full w-[1px] bg-slate-500/65" />
         <div className="absolute left-2/3 top-0 h-full w-[1px] bg-slate-500/65" />
@@ -100,17 +100,17 @@ function CardChip() {
 
 function Network({ type, color }: { type: "visa" | "mastercard"; color: string }) {
   if (type === "visa") {
-    return <p className="text-[50px] font-black italic leading-none tracking-tight" style={{ color }}>VISA</p>;
+    return <p className="text-[34px] font-black italic leading-none tracking-tight" style={{ color }}>VISA</p>;
   }
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <div className="relative h-9 w-[58px]">
-        <span className="absolute left-0 top-1 h-7 w-7 rounded-full bg-[#ea001b]" />
-        <span className="absolute right-0 top-1 h-7 w-7 rounded-full bg-[#ffb700]" />
-        <span className="absolute left-4 top-1 h-7 w-7 rounded-full bg-[#ff7b00]/85 mix-blend-multiply" />
+      <div className="relative h-7 w-[46px]">
+        <span className="absolute left-0 top-1 h-5 w-5 rounded-full bg-[#ea001b]" />
+        <span className="absolute right-0 top-1 h-5 w-5 rounded-full bg-[#ffb700]" />
+        <span className="absolute left-3 top-1 h-5 w-5 rounded-full bg-[#ff7b00]/85 mix-blend-multiply" />
       </div>
-      <p className="text-xs font-semibold leading-none tracking-tight" style={{ color }}>
+      <p className="text-[10px] font-semibold leading-none tracking-tight" style={{ color }}>
         mastercard
       </p>
     </div>
@@ -164,14 +164,14 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
   };
 
   return (
-    <div className="[perspective:1300px]">
+    <div className="mx-auto w-full max-w-[470px] [perspective:1300px]">
       <div
         ref={cardRef}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
-        className="relative h-[188px] w-full overflow-hidden rounded-2xl border px-5 py-4 transition-transform duration-150 ease-out [transform-style:preserve-3d]"
+        className="relative h-[154px] w-full overflow-hidden rounded-xl border px-4 py-3 transition-transform duration-150 ease-out [transform-style:preserve-3d]"
         style={{
           "--mx": "26%",
           "--my": "20%",
@@ -189,28 +189,28 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
           }}
         />
 
-        <div className="absolute left-5 top-4">
+        <div className="absolute left-4 top-3">
           <div className="flex items-end gap-2">
-            <p className={`font-black leading-none ${bankKey === "nubank" ? "text-[56px]" : "text-[34px]"}`} style={{ color: theme.textColor }}>
+            <p className={`font-black leading-none ${bankKey === "nubank" ? "text-[40px]" : "text-[27px]"}`} style={{ color: theme.textColor }}>
               {theme.title}
             </p>
             {theme.subtitle ? (
-              <p className="mb-[5px] text-lg font-medium leading-none" style={{ color: theme.textColor }}>
+              <p className="mb-[4px] text-sm font-medium leading-none" style={{ color: theme.textColor }}>
                 {theme.subtitle}
               </p>
             ) : null}
           </div>
         </div>
 
-        <div className="absolute right-5 top-4 opacity-90">
+        <div className="absolute right-4 top-3 opacity-90">
           <Contactless color={theme.textColor} />
         </div>
 
-        <div className={`absolute top-[70px] ${theme.chipSide === "left" ? "left-5" : "right-7"}`}>
+        <div className={`absolute top-[58px] ${theme.chipSide === "left" ? "left-4" : "right-5"}`}>
           <CardChip />
         </div>
 
-        <div className="absolute bottom-3 right-5">
+        <div className="absolute bottom-2 right-4">
           <Network type={theme.network} color={theme.textColor} />
         </div>
       </div>
