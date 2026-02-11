@@ -154,19 +154,28 @@ export const DashboardSummaryScreen = () => {
               >
                 <div className="dash-flip-card-inner">
                   <div className="dash-flip-card-front">
+                    <p className="dash-heading">MASTERCAD</p>
                     <div className="dash-chip" />
-                    <div className="dash-contactless">))))</div>
-                    <p className="dash-number">**** **** **** 8264</p>
-                    <p className="dash-name">Finance Cloud</p>
-                    <p className="dash-cta">Abrir cartoes</p>
+                    <div className="dash-contactless" aria-hidden="true">
+                      <span />
+                      <span />
+                      <span />
+                    </div>
+                    <p className="dash-number">9759 2484 5269 6576</p>
+                    <p className="dash-valid-thru">VALID THRU</p>
+                    <p className="dash-date">12/24</p>
+                    <p className="dash-name">FINANCE CLOUD</p>
+                    <div className="dash-logo" aria-hidden="true">
+                      <span className="dash-logo-left" />
+                      <span className="dash-logo-right" />
+                    </div>
                   </div>
                   <div className="dash-flip-card-back">
                     <div className="dash-strip" />
-                    <div className="dash-sign-row">
-                      <div className="dash-signature">Clique para abrir /cards</div>
-                      <div className="dash-code">CVC</div>
+                    <div className="dash-mstrip" />
+                    <div className="dash-sstrip">
+                      <p className="dash-code">***</p>
                     </div>
-                    <p className="dash-back-title">Atalho rapido de cartoes</p>
                   </div>
                 </div>
               </Link>
