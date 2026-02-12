@@ -50,7 +50,7 @@ export function AccountCard({
   };
   const fallbackImageByBank: Partial<Record<FallbackBankKey, string>> = {
     santander: "/cards/santander-unlimited.png",
-    btg: "/cards/btg-pactual.png",
+    btg: "/cards/btg-pactual.webp",
     xp: "/cards/xp-infinite.png",
     bancodobrasil: "/cards/bbce-ourocard.png",
     c6bank: "/cards/c6-carbon.png",
