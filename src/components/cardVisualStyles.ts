@@ -1,4 +1,4 @@
-export const CARD_VISUAL_WRAPPER_CLASS = "mx-auto w-full max-w-[280px] [perspective:1200px]";
+export const CARD_VISUAL_WRAPPER_CLASS = "mx-auto w-full max-w-[176px] [perspective:1200px]";
 
 export const CARD_VISUAL_FRAME_CLASS =
   "relative aspect-[1.586/1] w-full overflow-hidden rounded-[16px] border border-transparent bg-transparent shadow-none transition-transform duration-150 ease-out [transform-style:preserve-3d]";
