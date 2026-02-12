@@ -193,6 +193,7 @@ function MercadoPagoBadge({ textColor }: { textColor: string }) {
 export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
   const cardRef = useRef<HTMLDivElement | null>(null);
   const pressedRef = useRef(false);
+  const hoveredRef = useRef(false);
   const theme = CARD_THEME[bankKey];
   const cardImage = CARD_IMAGE_MAP[bankKey];
 
@@ -200,12 +201,18 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
     return <Image3DCard src={cardImage} alt={`Cartao ${bankKey}`} />;
   }
 
+  const getScale = () => {
+    if (pressedRef.current) return 1.006;
+    if (hoveredRef.current) return 1.016;
+    return 1;
+  };
+
   const applyTilt = (xPercent: number, yPercent: number) => {
     const card = cardRef.current;
     if (!card) return;
     const rx = ((50 - yPercent) / 50) * 7;
     const ry = ((xPercent - 50) / 50) * 9;
-    const scale = pressedRef.current ? 0.988 : 1;
+    const scale = getScale();
 
     card.style.transform = `perspective(1200px) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) scale(${scale})`;
     card.style.setProperty("--mx", `${xPercent.toFixed(2)}%`);
@@ -225,9 +232,15 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
     const card = cardRef.current;
     if (!card) return;
     pressedRef.current = false;
+    hoveredRef.current = false;
     card.style.transform = "perspective(1200px) rotateX(0deg) rotateY(0deg) scale(1)";
     card.style.setProperty("--mx", "26%");
     card.style.setProperty("--my", "20%");
+  };
+
+  const handlePointerEnter = () => {
+    hoveredRef.current = true;
+    applyTilt(54, 46);
   };
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -244,6 +257,7 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
     <div className={CARD_VISUAL_WRAPPER_CLASS}>
       <div
         ref={cardRef}
+        onPointerEnter={handlePointerEnter}
         onPointerMove={handlePointerMove}
         onPointerLeave={handlePointerLeave}
         onPointerDown={handlePointerDown}
@@ -256,9 +270,11 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
           background: theme.background,
           borderColor: theme.borderColor,
           boxShadow: theme.shadow,
+          filter: "saturate(0.9) brightness(0.92)",
           transform: "perspective(1200px) rotateX(0deg) rotateY(0deg) scale(1)",
         } as React.CSSProperties}
       >
+        <div className="pointer-events-none absolute inset-0 [transform:translateZ(18px)] bg-[linear-gradient(152deg,rgba(93,55,152,0.28),rgba(14,9,30,0.42)_45%,rgba(6,5,19,0.72))] mix-blend-multiply" />
         <div
           className="pointer-events-none absolute inset-0 opacity-35 [transform:translateZ(62px)]"
           style={{

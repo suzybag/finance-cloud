@@ -16,6 +16,13 @@ type Image3DCardProps = {
 export function Image3DCard({ src, alt, className }: Image3DCardProps) {
   const cardRef = useRef<HTMLDivElement | null>(null);
   const pressedRef = useRef(false);
+  const hoveredRef = useRef(false);
+
+  const getScale = () => {
+    if (pressedRef.current) return 1.006;
+    if (hoveredRef.current) return 1.016;
+    return 1;
+  };
 
   const applyTilt = (xPercent: number, yPercent: number) => {
     const card = cardRef.current;
@@ -23,7 +30,7 @@ export function Image3DCard({ src, alt, className }: Image3DCardProps) {
 
     const rx = ((50 - yPercent) / 50) * 8;
     const ry = ((xPercent - 50) / 50) * 10;
-    const scale = pressedRef.current ? 0.986 : 1;
+    const scale = getScale();
 
     card.style.transform = `perspective(1200px) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) scale(${scale})`;
     card.style.setProperty("--mx", `${xPercent.toFixed(2)}%`);
@@ -35,6 +42,7 @@ export function Image3DCard({ src, alt, className }: Image3DCardProps) {
     if (!card) return;
 
     pressedRef.current = false;
+    hoveredRef.current = false;
     card.style.transform = "perspective(1200px) rotateX(0deg) rotateY(0deg) scale(1)";
     card.style.setProperty("--mx", "26%");
     card.style.setProperty("--my", "20%");
@@ -51,6 +59,11 @@ export function Image3DCard({ src, alt, className }: Image3DCardProps) {
     applyTilt(x, y);
   };
 
+  const handlePointerEnter = () => {
+    hoveredRef.current = true;
+    applyTilt(54, 46);
+  };
+
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     pressedRef.current = true;
     handlePointerMove(event);
@@ -65,6 +78,7 @@ export function Image3DCard({ src, alt, className }: Image3DCardProps) {
     <div className={CARD_VISUAL_WRAPPER_CLASS}>
       <div
         ref={cardRef}
+        onPointerEnter={handlePointerEnter}
         onPointerMove={handlePointerMove}
         onPointerLeave={resetTilt}
         onPointerDown={handlePointerDown}
@@ -85,6 +99,14 @@ export function Image3DCard({ src, alt, className }: Image3DCardProps) {
           alt={alt}
           draggable={false}
           className={CARD_VISUAL_IMAGE_CLASS}
+        />
+        <div className="pointer-events-none absolute inset-0 [transform:translateZ(54px)] bg-[linear-gradient(150deg,rgba(89,53,143,0.34),rgba(20,11,43,0.42)_45%,rgba(6,4,18,0.74))] mix-blend-multiply" />
+        <div
+          className="pointer-events-none absolute inset-0 opacity-35 [transform:translateZ(60px)]"
+          style={{
+            background:
+              "radial-gradient(100% 120% at var(--mx) var(--my), rgba(255,255,255,0.26), rgba(255,255,255,0) 46%)",
+          }}
         />
       </div>
     </div>
