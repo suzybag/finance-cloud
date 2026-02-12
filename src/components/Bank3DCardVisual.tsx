@@ -10,7 +10,9 @@ export type StyledBankKey =
   | "btg"
   | "xp"
   | "santander"
-  | "c6bank";
+  | "c6bank"
+  | "wise"
+  | "nomad";
 
 type Bank3DCardVisualProps = {
   bankKey: StyledBankKey;
@@ -20,6 +22,8 @@ const CARD_IMAGE_MAP: Partial<Record<StyledBankKey, string>> = {
   santander: "/cards/santander-unlimited.png",
   btg: "/cards/btg-black.png",
   c6bank: "/cards/c6-carbon.png",
+  wise: "/cards/wise-card.png",
+  nomad: "/cards/nomad-debit.png",
 };
 
 const CARD_THEME: Record<
@@ -86,6 +90,20 @@ const CARD_THEME: Record<
     borderColor: "rgba(255,255,255,0.16)",
     shadow: "0 12px 24px rgba(0,0,0,0.74), 0 4px 10px rgba(0,0,0,0.52)",
     textColor: "#d7dce5",
+  },
+  wise: {
+    background:
+      "linear-gradient(136deg, #9dee7f 0%, #68d85d 52%, #4fcf58 100%)",
+    borderColor: "rgba(255,255,255,0.18)",
+    shadow: "0 12px 24px rgba(24,88,36,0.5), 0 4px 10px rgba(0,0,0,0.35)",
+    textColor: "#0e141f",
+  },
+  nomad: {
+    background:
+      "linear-gradient(136deg, #f2d85c 0%, #e0c347 52%, #cfb13e 100%)",
+    borderColor: "rgba(255,255,255,0.18)",
+    shadow: "0 12px 24px rgba(89,74,15,0.46), 0 4px 10px rgba(0,0,0,0.35)",
+    textColor: "#141414",
   },
 };
 
