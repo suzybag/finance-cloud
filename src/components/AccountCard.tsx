@@ -39,7 +39,7 @@ export function AccountCard({
     || resolveBankKey(bankLabel)
     || resolveBankKey(account.name);
   const isPicPay = detectedBankKey === "picpay";
-  const styledBankKeys: StyledBankKey[] = ["nubank", "bradesco", "inter", "mercadopago", "xp", "btg"];
+  const styledBankKeys: StyledBankKey[] = ["nubank", "bradesco", "inter", "mercadopago", "xp", "btg", "santander", "c6bank"];
   const isStyledBank = !!detectedBankKey && styledBankKeys.includes(detectedBankKey as StyledBankKey);
 
   return (

@@ -8,10 +8,18 @@ export type StyledBankKey =
   | "inter"
   | "mercadopago"
   | "btg"
-  | "xp";
+  | "xp"
+  | "santander"
+  | "c6bank";
 
 type Bank3DCardVisualProps = {
   bankKey: StyledBankKey;
+};
+
+const CARD_IMAGE_MAP: Partial<Record<StyledBankKey, string>> = {
+  santander: "/cards/santander-unlimited.png",
+  btg: "/cards/btg-black.png",
+  c6bank: "/cards/c6-carbon.webp",
 };
 
 const CARD_THEME: Record<
@@ -64,6 +72,20 @@ const CARD_THEME: Record<
     borderColor: "rgba(255,255,255,0.24)",
     shadow: "0 12px 24px rgba(0,0,0,0.7), 0 4px 10px rgba(0,0,0,0.48)",
     textColor: "#f7f8fa",
+  },
+  santander: {
+    background:
+      "linear-gradient(136deg, #111111 0%, #050505 52%, #000000 100%)",
+    borderColor: "rgba(255,255,255,0.18)",
+    shadow: "0 12px 24px rgba(0,0,0,0.74), 0 4px 10px rgba(0,0,0,0.5)",
+    textColor: "#d7dce5",
+  },
+  c6bank: {
+    background:
+      "linear-gradient(136deg, #111214 0%, #07090c 52%, #020305 100%)",
+    borderColor: "rgba(255,255,255,0.16)",
+    shadow: "0 12px 24px rgba(0,0,0,0.74), 0 4px 10px rgba(0,0,0,0.52)",
+    textColor: "#d7dce5",
   },
 };
 
@@ -133,6 +155,7 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
   const cardRef = useRef<HTMLDivElement | null>(null);
   const pressedRef = useRef(false);
   const theme = CARD_THEME[bankKey];
+  const cardImage = CARD_IMAGE_MAP[bankKey];
 
   const applyTilt = (xPercent: number, yPercent: number) => {
     const card = cardRef.current;
@@ -192,6 +215,18 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
           transform: "perspective(1200px) rotateX(0deg) rotateY(0deg) scale(1)",
         } as React.CSSProperties}
       >
+        {cardImage ? (
+          <>
+            <img
+              src={cardImage}
+              alt={`Cartao ${bankKey}`}
+              className="absolute inset-0 h-full w-full object-cover"
+              draggable={false}
+            />
+            <div className="pointer-events-none absolute inset-0 bg-black/12" />
+          </>
+        ) : null}
+
         <div
           className="pointer-events-none absolute inset-0 opacity-35"
           style={{
