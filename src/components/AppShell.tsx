@@ -11,6 +11,7 @@ import {
   BarChart3,
   Bot,
   CreditCard,
+  FileText,
   Home,
   Landmark,
   Receipt,
@@ -27,6 +28,7 @@ const navItems = [
   { href: "/ai", label: "Assistente IA", icon: Bot },
   { href: "/import", label: "Importacao", icon: Upload },
   { href: "/relatorio", label: "Relatorio", icon: BarChart3 },
+  { href: "/notes", label: "Notas", icon: FileText },
   { href: "/profile", label: "Configuracoes", icon: Settings },
 ];
 

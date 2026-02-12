@@ -164,6 +164,24 @@ body::after {
     linear-gradient(150deg, rgba(17, 10, 35, 0.82), rgba(9, 8, 24, 0.85));
 }
 
+.notes-dark-bg {
+  position: relative;
+  border-radius: 26px;
+  overflow: hidden;
+}
+
+.notes-dark-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    radial-gradient(760px 520px at 8% 8%, rgba(88, 28, 135, 0.24), transparent 62%),
+    radial-gradient(820px 520px at 92% 14%, rgba(30, 64, 175, 0.16), transparent 62%),
+    linear-gradient(152deg, rgba(9, 7, 20, 0.88), rgba(4, 4, 13, 0.92));
+}
+
 .dash-flip-card {
   background-color: transparent;
   width: 220px;
