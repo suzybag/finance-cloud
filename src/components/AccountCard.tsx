@@ -1,6 +1,5 @@
 import { BankLogo } from "@/components/BankLogo";
 import { Bank3DCardVisual, StyledBankKey } from "@/components/Bank3DCardVisual";
-import { PicPayCardVisual } from "@/components/PicPayCardVisual";
 import { Account } from "@/lib/finance";
 import { brl } from "@/lib/money";
 import { resolveBankKey } from "@/lib/bankIcons";
@@ -38,33 +37,38 @@ export function AccountCard({
     resolveBankKey(account.institution)
     || resolveBankKey(bankLabel)
     || resolveBankKey(account.name);
-  const isPicPay = detectedBankKey === "picpay";
-  const styledBankKeys: StyledBankKey[] = ["nubank", "bradesco", "inter", "mercadopago", "xp", "btg"];
+  const styledBankKeys: StyledBankKey[] = [
+    "nubank",
+    "bradesco",
+    "inter",
+    "mercadopago",
+    "xp",
+    "btg",
+    "santander",
+    "bancodobrasil",
+    "picpay",
+    "wise",
+    "c6bank",
+  ];
   const isStyledBank = !!detectedBankKey && styledBankKeys.includes(detectedBankKey as StyledBankKey);
 
   return (
     <div className="rounded-2xl border border-violet-300/20 bg-[linear-gradient(160deg,rgba(34,18,61,0.88),rgba(12,9,31,0.9))] p-5 shadow-[0_12px_35px_rgba(30,12,58,0.45)]">
       <div className="flex items-center justify-between gap-3">
-        {isPicPay ? (
-          <div />
-        ) : (
-          <div>
-            <p className="text-xl font-bold text-white">{account.name}</p>
-            <div className="mt-1 flex items-center gap-2">
-              <BankLogo bankName={bankLabel} size={30} />
-              <p className="text-xs text-slate-400">{bankLabel}</p>
-            </div>
+        <div>
+          <p className="text-xl font-bold text-white">{account.name}</p>
+          <div className="mt-1 flex items-center gap-2">
+            <BankLogo bankName={bankLabel} size={30} />
+            <p className="text-xs text-slate-400">{bankLabel}</p>
           </div>
-        )}
+        </div>
         <button className={softButtonClassName} onClick={onRefresh}>
           Atualizar
         </button>
       </div>
 
       <div className="mt-4">
-        {isPicPay ? (
-          <PicPayCardVisual />
-        ) : isStyledBank ? (
+        {isStyledBank ? (
           <Bank3DCardVisual bankKey={detectedBankKey as StyledBankKey} />
         ) : (
           <div className="rounded-xl border border-white/10 bg-slate-950/65 p-4">
