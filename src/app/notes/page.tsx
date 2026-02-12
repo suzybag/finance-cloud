@@ -5,7 +5,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } f
 import {
   Cloud,
   File,
-  Image as ImageIcon,
   Loader2,
   Paperclip,
   Pencil,
@@ -205,6 +204,16 @@ export default function NotesPage() {
       .map((attachment) => `${attachment.id}:${attachment.file_path}:${attachment.bucket || ""}`)
       .join("|");
   }, [selectedNote]);
+
+  const imageAttachments = useMemo(
+    () => attachments.filter((attachment) => (attachment.mime_type || "").startsWith("image/")),
+    [attachments],
+  );
+
+  const fileAttachments = useMemo(
+    () => attachments.filter((attachment) => !(attachment.mime_type || "").startsWith("image/")),
+    [attachments],
+  );
 
   const persistStore = useCallback(
     async (nextNotes: NoteRow[]) => {
@@ -680,7 +689,7 @@ export default function NotesPage() {
                   disabled={!selectedNoteId || uploadingFiles}
                 >
                   {uploadingFiles ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Paperclip className="h-3.5 w-3.5" />}
-                  Anexar arquivo
+                  Anexar foto ou arquivo
                 </button>
                 <button
                   type="button"
@@ -727,20 +736,69 @@ export default function NotesPage() {
                 placeholder="Clique aqui e comeca a escrever..."
                 className="h-[320px] w-full resize-none bg-transparent text-sm leading-6 text-slate-100 outline-none placeholder:text-slate-500"
               />
+
+              {imageAttachments.length ? (
+                <div className="mt-3 border-t border-violet-300/15 pt-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-slate-400">
+                    Imagens na nota
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {imageAttachments.map((attachment) => (
+                      <div
+                        key={attachment.id}
+                        className="overflow-hidden rounded-lg border border-violet-300/15 bg-black/35"
+                      >
+                        {attachment.signedUrl ? (
+                          <a href={attachment.signedUrl} target="_blank" rel="noreferrer">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={attachment.signedUrl}
+                              alt={attachment.file_name}
+                              loading="lazy"
+                              className="h-36 w-full bg-black/30 object-contain"
+                            />
+                          </a>
+                        ) : (
+                          <div className="flex h-36 items-center justify-center text-xs text-slate-500">
+                            Imagem indisponivel
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between gap-2 border-t border-violet-300/10 px-2 py-1.5">
+                          <span className="truncate text-xs text-slate-300">{attachment.file_name}</span>
+                          <button
+                            type="button"
+                            className="rounded-md border border-rose-400/35 bg-rose-500/10 p-1 text-rose-200 hover:bg-rose-500/20 disabled:opacity-60"
+                            onClick={() => void handleDeleteAttachment(attachment)}
+                            disabled={deletingAttachmentId === attachment.id}
+                            aria-label={`Excluir ${attachment.file_name}`}
+                          >
+                            {deletingAttachmentId === attachment.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-3 w-3" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             <div className="mt-4 rounded-xl border border-violet-300/15 bg-slate-950/45 p-3">
               <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-slate-100">Anexos</h3>
+                <h3 className="text-sm font-semibold text-slate-100">Arquivos anexados</h3>
                 {loadingAttachments ? <Loader2 className="h-4 w-4 animate-spin text-slate-400" /> : null}
               </div>
 
-              {!attachments.length ? (
-                <p className="text-xs text-slate-500">Sem anexos nesta nota.</p>
+              {!fileAttachments.length ? (
+                <p className="text-xs text-slate-500">
+                  Sem arquivos extras. As imagens aparecem dentro do bloco da nota.
+                </p>
               ) : (
                 <div className="space-y-2">
-                  {attachments.map((attachment) => {
-                    const isImage = (attachment.mime_type || "").startsWith("image/");
+                  {fileAttachments.map((attachment) => {
                     return (
                       <div
                         key={attachment.id}
@@ -748,11 +806,7 @@ export default function NotesPage() {
                       >
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            {isImage ? (
-                              <ImageIcon className="h-4 w-4 text-cyan-300" />
-                            ) : (
-                              <File className="h-4 w-4 text-slate-300" />
-                            )}
+                            <File className="h-4 w-4 text-slate-300" />
                             {attachment.signedUrl ? (
                               <a
                                 href={attachment.signedUrl}

@@ -16,6 +16,7 @@ import {
   Landmark,
   Receipt,
   Settings,
+  TrendingUp,
   Upload,
 } from "lucide-react";
 
@@ -23,6 +24,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
   { href: "/accounts", label: "Contas", icon: Landmark },
   { href: "/cards", label: "Cartoes", icon: CreditCard },
+  { href: "/investments", label: "Investimentos", icon: TrendingUp },
   { href: "/transactions", label: "Transacoes", icon: ArrowLeftRight },
   { href: "/gastos", label: "Gastos", icon: Receipt },
   { href: "/ai", label: "Assistente IA", icon: Bot },

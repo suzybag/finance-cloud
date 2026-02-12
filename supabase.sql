@@ -227,6 +227,28 @@ create table if not exists public.cards (
 alter table public.cards add column if not exists color text;
 alter table public.cards add column if not exists note text;
 
+create table if not exists public.investments (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  broker text not null,
+  investment_type text not null,
+  invested_amount numeric not null,
+  current_amount numeric not null,
+  annual_rate numeric,
+  created_at timestamp default now(),
+  start_date date not null
+);
+
+alter table public.investments add column if not exists broker text not null default '';
+alter table public.investments add column if not exists investment_type text not null default '';
+alter table public.investments add column if not exists invested_amount numeric not null default 0;
+alter table public.investments add column if not exists current_amount numeric not null default 0;
+alter table public.investments add column if not exists annual_rate numeric;
+alter table public.investments add column if not exists created_at timestamp default now();
+alter table public.investments add column if not exists start_date date default current_date;
+update public.investments set start_date = current_date where start_date is null;
+alter table public.investments alter column start_date set not null;
+
 create table if not exists public.transactions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -322,6 +344,7 @@ create table if not exists public.whatsapp_messages (
 alter table public.profiles enable row level security;
 alter table public.accounts enable row level security;
 alter table public.cards enable row level security;
+alter table public.investments enable row level security;
 alter table public.transactions enable row level security;
 alter table public.alerts enable row level security;
 alter table public.whatsapp_messages enable row level security;
@@ -384,6 +407,17 @@ begin
 
   if not exists (
     select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'investments' and policyname = 'investments_crud_own'
+  ) then
+    create policy investments_crud_own
+    on public.investments
+    for all
+    using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
     where schemaname = 'public' and tablename = 'transactions' and policyname = 'transactions_crud_own'
   ) then
     create policy transactions_crud_own
@@ -419,6 +453,7 @@ $$;
 
 create index if not exists idx_accounts_user on public.accounts(user_id);
 create index if not exists idx_cards_user on public.cards(user_id);
+create index if not exists idx_investments_user_date on public.investments(user_id, created_at desc);
 create index if not exists idx_tx_user_date on public.transactions(user_id, occurred_at desc);
 create index if not exists idx_alerts_user_date on public.alerts(user_id, created_at desc);
 create index if not exists idx_whatsapp_user_date on public.whatsapp_messages(user_id, created_at desc);
