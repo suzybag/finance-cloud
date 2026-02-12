@@ -100,7 +100,6 @@ export function Image3DCard({ src, alt, className }: Image3DCardProps) {
           draggable={false}
           className={CARD_VISUAL_IMAGE_CLASS}
         />
-        <div className="pointer-events-none absolute inset-0 [transform:translateZ(54px)] bg-[linear-gradient(150deg,rgba(89,53,143,0.34),rgba(20,11,43,0.42)_45%,rgba(6,4,18,0.74))] mix-blend-multiply" />
         <div
           className="pointer-events-none absolute inset-0 opacity-35 [transform:translateZ(60px)]"
           style={{

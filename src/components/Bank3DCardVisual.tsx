@@ -270,11 +270,9 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
           background: theme.background,
           borderColor: theme.borderColor,
           boxShadow: theme.shadow,
-          filter: "saturate(0.9) brightness(0.92)",
           transform: "perspective(1200px) rotateX(0deg) rotateY(0deg) scale(1)",
         } as React.CSSProperties}
       >
-        <div className="pointer-events-none absolute inset-0 [transform:translateZ(18px)] bg-[linear-gradient(152deg,rgba(93,55,152,0.28),rgba(14,9,30,0.42)_45%,rgba(6,5,19,0.72))] mix-blend-multiply" />
         <div
           className="pointer-events-none absolute inset-0 opacity-35 [transform:translateZ(62px)]"
           style={{
