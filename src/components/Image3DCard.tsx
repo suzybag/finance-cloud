@@ -1,6 +1,11 @@
 "use client";
 
 import { useRef } from "react";
+import {
+  CARD_VISUAL_FRAME_CLASS,
+  CARD_VISUAL_IMAGE_CLASS,
+  CARD_VISUAL_WRAPPER_CLASS,
+} from "@/components/cardVisualStyles";
 
 type Image3DCardProps = {
   src: string;
@@ -57,7 +62,7 @@ export function Image3DCard({ src, alt, className }: Image3DCardProps) {
   };
 
   return (
-    <div className="mx-auto w-full max-w-[280px] [perspective:1200px]">
+    <div className={CARD_VISUAL_WRAPPER_CLASS}>
       <div
         ref={cardRef}
         onPointerMove={handlePointerMove}
@@ -65,7 +70,7 @@ export function Image3DCard({ src, alt, className }: Image3DCardProps) {
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
         onPointerCancel={resetTilt}
-        className={`relative aspect-[1.586/1] w-full overflow-hidden rounded-[16px] border border-transparent bg-transparent shadow-none transition-transform duration-150 ease-out [transform-style:preserve-3d] ${className ?? ""}`}
+        className={`${CARD_VISUAL_FRAME_CLASS} ${className ?? ""}`}
         style={
           {
             "--mx": "26%",
@@ -79,7 +84,7 @@ export function Image3DCard({ src, alt, className }: Image3DCardProps) {
           src={src}
           alt={alt}
           draggable={false}
-          className="pointer-events-none absolute inset-0 block h-full w-full max-h-full max-w-full select-none object-contain object-center [transform:translateZ(44px)_scale(1.06)] drop-shadow-[0_14px_28px_rgba(0,0,0,0.58)]"
+          className={CARD_VISUAL_IMAGE_CLASS}
         />
       </div>
     </div>

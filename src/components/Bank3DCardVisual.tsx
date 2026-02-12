@@ -1,6 +1,8 @@
 "use client";
 
 import { useRef } from "react";
+import { Image3DCard } from "@/components/Image3DCard";
+import { CARD_VISUAL_FRAME_CLASS, CARD_VISUAL_WRAPPER_CLASS } from "@/components/cardVisualStyles";
 
 export type StyledBankKey =
   | "nubank"
@@ -185,6 +187,10 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
   const theme = CARD_THEME[bankKey];
   const cardImage = CARD_IMAGE_MAP[bankKey];
 
+  if (cardImage) {
+    return <Image3DCard src={cardImage} alt={`Cartao ${bankKey}`} />;
+  }
+
   const applyTilt = (xPercent: number, yPercent: number) => {
     const card = cardRef.current;
     if (!card) return;
@@ -226,7 +232,7 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
   };
 
   return (
-    <div className="mx-auto w-full max-w-[280px] [perspective:1200px]">
+    <div className={CARD_VISUAL_WRAPPER_CLASS}>
       <div
         ref={cardRef}
         onPointerMove={handlePointerMove}
@@ -234,42 +240,26 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerLeave}
-        className="relative aspect-[1.586/1] w-full overflow-hidden rounded-[16px] border transition-transform duration-150 ease-out [transform-style:preserve-3d]"
+        className={CARD_VISUAL_FRAME_CLASS}
         style={{
           "--mx": "26%",
           "--my": "20%",
-          background: cardImage ? "transparent" : theme.background,
-          borderColor: cardImage ? "transparent" : theme.borderColor,
-          boxShadow: cardImage ? "none" : theme.shadow,
+          background: theme.background,
+          borderColor: theme.borderColor,
+          boxShadow: theme.shadow,
           transform: "perspective(1200px) rotateX(0deg) rotateY(0deg) scale(1)",
         } as React.CSSProperties}
       >
-        {cardImage ? (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={cardImage}
-              alt={`Cartao ${bankKey}`}
-              className="pointer-events-none absolute inset-0 block h-full w-full max-h-full max-w-full select-none object-contain object-center [transform:translateZ(44px)] drop-shadow-[0_14px_28px_rgba(0,0,0,0.58)]"
-              draggable={false}
-            />
-          </>
-        ) : null}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-35 [transform:translateZ(62px)]"
+          style={{
+            background:
+              "radial-gradient(100% 120% at var(--mx) var(--my), rgba(255,255,255,0.24), rgba(255,255,255,0) 46%)",
+          }}
+        />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(140deg,rgba(255,255,255,0.16),rgba(255,255,255,0)_34%,rgba(0,0,0,0.22))] [transform:translateZ(24px)]" />
 
-        {!cardImage ? (
-          <>
-            <div
-              className="pointer-events-none absolute inset-0 opacity-35 [transform:translateZ(62px)]"
-              style={{
-                background:
-                  "radial-gradient(100% 120% at var(--mx) var(--my), rgba(255,255,255,0.24), rgba(255,255,255,0) 46%)",
-              }}
-            />
-            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(140deg,rgba(255,255,255,0.16),rgba(255,255,255,0)_34%,rgba(0,0,0,0.22))] [transform:translateZ(24px)]" />
-          </>
-        ) : null}
-
-        {!cardImage && bankKey === "nubank" ? (
+        {bankKey === "nubank" ? (
           <>
             <div className="absolute left-4 top-3">
               <p className="text-[40px] font-black leading-none" style={{ color: theme.textColor }}>nu</p>
@@ -287,7 +277,7 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
           </>
         ) : null}
 
-        {!cardImage && bankKey === "inter" ? (
+        {bankKey === "inter" ? (
           <>
             <div className="absolute right-4 top-3 text-right">
               <p className="text-[38px] font-black leading-none" style={{ color: theme.textColor }}>inter</p>
@@ -305,7 +295,7 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
           </>
         ) : null}
 
-        {!cardImage && bankKey === "bradesco" ? (
+        {bankKey === "bradesco" ? (
           <>
             <div className="absolute left-4 top-3 flex items-center gap-2">
               <span className="inline-block h-3 w-3 rounded-full border-2 border-slate-300/80 border-t-transparent rotate-45" />
@@ -327,7 +317,7 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
           </>
         ) : null}
 
-        {!cardImage && bankKey === "mercadopago" ? (
+        {bankKey === "mercadopago" ? (
           <>
             <p className="absolute left-14 top-1/2 -translate-y-1/2 text-[38px] font-black leading-[0.8] text-slate-100/10">
               MERCADO
@@ -349,7 +339,7 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
           </>
         ) : null}
 
-        {!cardImage && bankKey === "btg" ? (
+        {bankKey === "btg" ? (
           <>
             <div className="absolute right-3 top-1/2 h-[140px] w-[140px] -translate-y-1/2 rounded-full bg-sky-300/10" />
             <div className="absolute right-5 top-1/2 -translate-y-1/2 text-right">
@@ -369,7 +359,7 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
           </>
         ) : null}
 
-        {!cardImage && bankKey === "xp" ? (
+        {bankKey === "xp" ? (
           <>
             <div className="absolute right-4 top-3 rounded-md bg-amber-300/90 px-2 py-1 text-sm font-black leading-none text-black">
               XP
@@ -386,7 +376,7 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
           </>
         ) : null}
 
-        {!cardImage && bankKey === "bancodobrasil" ? (
+        {bankKey === "bancodobrasil" ? (
           <>
             <div className="absolute left-4 top-3 flex items-center gap-2">
               <div className="relative h-[24px] w-[24px]">
