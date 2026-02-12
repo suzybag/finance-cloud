@@ -3,13 +3,24 @@
 
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { BROKER_OPTIONS, INVESTMENT_TYPE_GROUPS } from "@/lib/calculateInvestment";
+import {
+  BROKER_OPTIONS,
+  INVESTMENT_CATEGORIES,
+  INVESTMENT_TYPE_GROUPS,
+  mapInvestmentTypeToCategory,
+  type InvestmentCategory,
+} from "@/lib/calculateInvestment";
 import { toNumber } from "@/lib/money";
 
 export type AddInvestmentPayload = {
   broker: string;
+  category: InvestmentCategory;
   investmentType: string;
-  investedAmount: number;
+  assetName: string;
+  assetLogoUrl: string | null;
+  quantity: number;
+  averagePrice: number;
+  currentPrice: number;
   annualRate: number;
   startDate: string;
 };
@@ -35,8 +46,13 @@ export function AddInvestmentModal({
   onSave,
 }: AddInvestmentModalProps) {
   const [broker, setBroker] = useState<string>(BROKER_OPTIONS[0]);
+  const [category, setCategory] = useState<InvestmentCategory>(mapInvestmentTypeToCategory(firstInvestmentType));
   const [investmentType, setInvestmentType] = useState<string>(firstInvestmentType);
-  const [investedAmount, setInvestedAmount] = useState("");
+  const [assetName, setAssetName] = useState("");
+  const [assetLogoUrl, setAssetLogoUrl] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [averagePrice, setAveragePrice] = useState("");
+  const [currentPrice, setCurrentPrice] = useState("");
   const [annualRate, setAnnualRate] = useState("");
   const [startDate, setStartDate] = useState(todayIso);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -44,27 +60,42 @@ export function AddInvestmentModal({
   useEffect(() => {
     if (!open) return;
     setBroker(BROKER_OPTIONS[0]);
+    setCategory(mapInvestmentTypeToCategory(firstInvestmentType));
     setInvestmentType(firstInvestmentType);
-    setInvestedAmount("");
+    setAssetName("");
+    setAssetLogoUrl("");
+    setQuantity("");
+    setAveragePrice("");
+    setCurrentPrice("");
     setAnnualRate("");
     setStartDate(todayIso());
     setValidationError(null);
   }, [open]);
 
   const handleSave = async () => {
-    const amount = toNumber(investedAmount);
+    const qty = toNumber(quantity);
+    const avgPrice = toNumber(averagePrice);
+    const curPrice = toNumber(currentPrice);
     const rate = toNumber(annualRate);
 
     if (!broker.trim()) {
       setValidationError("Selecione a corretora/banco.");
       return;
     }
-    if (!investmentType.trim()) {
-      setValidationError("Selecione o tipo de investimento.");
+    if (!assetName.trim()) {
+      setValidationError("Informe o nome do ativo.");
       return;
     }
-    if (amount <= 0) {
-      setValidationError("Informe um valor investido maior que zero.");
+    if (qty <= 0) {
+      setValidationError("Quantidade deve ser maior que zero.");
+      return;
+    }
+    if (avgPrice <= 0) {
+      setValidationError("Preco medio deve ser maior que zero.");
+      return;
+    }
+    if (curPrice <= 0) {
+      setValidationError("Preco atual deve ser maior que zero.");
       return;
     }
     if (!startDate) {
@@ -72,15 +103,20 @@ export function AddInvestmentModal({
       return;
     }
     if (rate < 0) {
-      setValidationError("A taxa anual nao pode ser negativa.");
+      setValidationError("Taxa anual nao pode ser negativa.");
       return;
     }
 
     setValidationError(null);
     await onSave({
       broker: broker.trim(),
+      category,
       investmentType: investmentType.trim(),
-      investedAmount: amount,
+      assetName: assetName.trim(),
+      assetLogoUrl: assetLogoUrl.trim() ? assetLogoUrl.trim() : null,
+      quantity: qty,
+      averagePrice: avgPrice,
+      currentPrice: curPrice,
       annualRate: rate,
       startDate,
     });
@@ -89,8 +125,8 @@ export function AddInvestmentModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-2xl rounded-2xl border border-[#7C3AED66] bg-[#101523] p-5 shadow-[0_24px_70px_rgba(124,58,237,0.35)]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-3xl rounded-2xl border border-[#7C3AED66] bg-[#101523] p-5 shadow-[0_24px_70px_rgba(124,58,237,0.35)]">
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-xl font-extrabold text-white">Adicionar investimento</h3>
           <button
@@ -124,6 +160,23 @@ export function AddInvestmentModal({
 
           <label className="block">
             <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">
+              Categoria
+            </span>
+            <select
+              className={INPUT_CLASS}
+              value={category}
+              onChange={(event) => setCategory(event.target.value as InvestmentCategory)}
+            >
+              {INVESTMENT_CATEGORIES.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">
               Tipo de investimento
             </span>
             <select
@@ -145,19 +198,67 @@ export function AddInvestmentModal({
 
           <label className="block">
             <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">
-              Valor investido
+              Nome do ativo
             </span>
             <input
               className={INPUT_CLASS}
-              placeholder="Ex: 10000"
-              value={investedAmount}
-              onChange={(event) => setInvestedAmount(event.target.value)}
+              placeholder="Ex: Bitcoin, ITUB4, Tesouro IPCA 2035"
+              value={assetName}
+              onChange={(event) => setAssetName(event.target.value)}
+            />
+          </label>
+
+          <label className="block md:col-span-2">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">
+              URL da foto/logo (opcional)
+            </span>
+            <input
+              className={INPUT_CLASS}
+              placeholder="https://..."
+              value={assetLogoUrl}
+              onChange={(event) => setAssetLogoUrl(event.target.value)}
             />
           </label>
 
           <label className="block">
             <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">
-              Taxa anual (%)
+              Quantidade
+            </span>
+            <input
+              className={INPUT_CLASS}
+              placeholder="Ex: 2"
+              value={quantity}
+              onChange={(event) => setQuantity(event.target.value)}
+            />
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">
+              Preco medio
+            </span>
+            <input
+              className={INPUT_CLASS}
+              placeholder="Ex: 100"
+              value={averagePrice}
+              onChange={(event) => setAveragePrice(event.target.value)}
+            />
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">
+              Preco atual
+            </span>
+            <input
+              className={INPUT_CLASS}
+              placeholder="Ex: 115"
+              value={currentPrice}
+              onChange={(event) => setCurrentPrice(event.target.value)}
+            />
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">
+              Taxa anual (%) - opcional
             </span>
             <input
               className={INPUT_CLASS}

@@ -15,6 +15,17 @@ export const BROKER_OPTIONS = [
   "Outros",
 ] as const;
 
+export const INVESTMENT_CATEGORIES = [
+  "Criptomoedas",
+  "Tesouro Direto",
+  "Acoes",
+  "FIIs",
+  "Renda Fixa",
+  "Outros",
+] as const;
+
+export type InvestmentCategory = typeof INVESTMENT_CATEGORIES[number];
+
 export const INVESTMENT_TYPE_GROUPS = [
   {
     label: "Renda fixa",
@@ -35,6 +46,7 @@ export const INVESTMENT_TYPE_GROUPS = [
       "Acoes",
       "FIIs",
       "ETFs",
+      "Criptomoedas",
     ],
   },
 ] as const;
@@ -58,6 +70,8 @@ export type MonthlyEvolutionPoint = {
   totalValue: number;
 };
 
+export type InvestmentStatus = "CARO" | "NORMAL" | "BARATO";
+
 const parseDate = (value: string) => {
   const parsed = new Date(`${value}T00:00:00`);
   if (Number.isNaN(parsed.getTime())) return new Date();
@@ -72,6 +86,11 @@ const monthDiff = (start: Date, end: Date) =>
 const monthStart = (value: Date) => new Date(value.getFullYear(), value.getMonth(), 1);
 
 const monthEnd = (value: Date) => new Date(value.getFullYear(), value.getMonth() + 1, 0);
+
+const safeNumber = (value: unknown) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
 
 export function calculateCompound({
   principal,
@@ -95,6 +114,117 @@ export function calculateCompound({
 export const calculateReturnPercent = (invested: number, current: number) => {
   if (!Number.isFinite(invested) || invested <= 0) return 0;
   return ((current - invested) / invested) * 100;
+};
+
+export const calculateReturn = (invested: number, current: number) => {
+  const difference = current - invested;
+  const percent = calculateReturnPercent(invested, current);
+  return {
+    difference: roundCurrency(difference),
+    percent,
+  };
+};
+
+export const calculateInvestmentStatus = (
+  averagePrice: number,
+  currentPrice: number,
+): InvestmentStatus => {
+  const average = safeNumber(averagePrice);
+  const current = safeNumber(currentPrice);
+  if (average <= 0 || current <= 0) return "NORMAL";
+  if (current > average * 1.15) return "CARO";
+  if (current < average * 0.85) return "BARATO";
+  return "NORMAL";
+};
+
+export const mapInvestmentTypeToCategory = (investmentType: string): InvestmentCategory => {
+  const normalized = (investmentType || "").toLowerCase();
+
+  if (
+    normalized.includes("cripto")
+    || normalized.includes("btc")
+    || normalized.includes("bitcoin")
+    || normalized.includes("eth")
+    || normalized.includes("ethereum")
+  ) {
+    return "Criptomoedas";
+  }
+
+  if (normalized.includes("tesouro")) return "Tesouro Direto";
+
+  if (
+    normalized.includes("acao")
+    || normalized.includes("ações")
+    || normalized.includes("stock")
+  ) {
+    return "Acoes";
+  }
+
+  if (normalized.includes("fii")) return "FIIs";
+
+  if (
+    normalized.includes("cdb")
+    || normalized.includes("lci")
+    || normalized.includes("lca")
+    || normalized.includes("ipca")
+    || normalized.includes("selic")
+    || normalized.includes("caixinha")
+    || normalized.includes("poup")
+    || normalized.includes("renda fixa")
+  ) {
+    return "Renda Fixa";
+  }
+
+  return "Outros";
+};
+
+const toHistoryNumbers = (value: unknown): number[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry) => safeNumber(entry))
+    .filter((entry) => entry > 0);
+};
+
+const hashSeed = (value: string) =>
+  value.split("").reduce((acc, char) => ((acc * 31) + char.charCodeAt(0)) % 9973, 17);
+
+export const buildSyntheticPriceHistory = (
+  averagePrice: number,
+  currentPrice: number,
+  seedRef = "",
+) => {
+  const avg = Math.max(safeNumber(averagePrice), 0.0001);
+  const cur = Math.max(safeNumber(currentPrice), 0.0001);
+  const seed = hashSeed(seedRef || "asset");
+  const delta = cur - avg;
+  const wiggleBase = Math.max(Math.abs(delta) * 0.12, avg * 0.01);
+
+  const history: number[] = [];
+  for (let index = 0; index < 30; index += 1) {
+    const progress = index / 29;
+    const trend = avg + (delta * progress);
+    const wave = Math.sin((index + seed) * 0.45) * wiggleBase * (1 - progress * 0.35);
+    history.push(roundCurrency(Math.max(0.0001, trend + wave)));
+  }
+  return history;
+};
+
+export const resolvePriceHistory = ({
+  history,
+  averagePrice,
+  currentPrice,
+  seedRef,
+}: {
+  history: unknown;
+  averagePrice: number;
+  currentPrice: number;
+  seedRef: string;
+}) => {
+  const parsed = toHistoryNumbers(history);
+  if (parsed.length >= 2) {
+    return parsed.slice(-30);
+  }
+  return buildSyntheticPriceHistory(averagePrice, currentPrice, seedRef);
 };
 
 export const buildMonthlyEvolution = (

@@ -1,25 +1,26 @@
 "use client";
 
+import { BarChart3, Building2, ImageIcon, Trash2 } from "lucide-react";
+import { MiniChart } from "@/components/investments/MiniChart";
 import {
-  Building2,
-  CalendarDays,
-  Coins,
-  Percent,
-  PiggyBank,
-  Trash2,
-  TrendingUp,
-} from "lucide-react";
+  calculateInvestmentStatus,
+  calculateReturn,
+} from "@/lib/calculateInvestment";
 import { brl, formatPercent } from "@/lib/money";
-import { calculateReturnPercent } from "@/lib/calculateInvestment";
 
 export type InvestmentCardItem = {
   id: string;
   broker: string;
   investment_type: string;
+  category: string;
+  asset_name: string;
+  asset_logo_url: string | null;
+  quantity: number;
+  average_price: number;
+  current_price: number;
   invested_amount: number;
   current_amount: number;
-  annual_rate: number | null;
-  start_date: string;
+  price_history: number[];
 };
 
 type InvestmentCardProps = {
@@ -28,43 +29,55 @@ type InvestmentCardProps = {
   onDelete: (id: string) => void;
 };
 
-const resolveTypeIcon = (investmentType: string) => {
-  const normalized = investmentType.toLowerCase();
-  if (normalized.includes("acao") || normalized.includes("fii") || normalized.includes("etf")) {
-    return <TrendingUp className="h-4 w-4 text-cyan-300" />;
-  }
-  if (normalized.includes("tesouro") || normalized.includes("cdb") || normalized.includes("lci") || normalized.includes("lca") || normalized.includes("caixinha") || normalized.includes("poup")) {
-    return <PiggyBank className="h-4 w-4 text-cyan-300" />;
-  }
-  return <Coins className="h-4 w-4 text-cyan-300" />;
-};
-
-const formatStartDate = (value: string) =>
-  new Date(`${value}T00:00:00`).toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
+const formatQty = (value: number) =>
+  value.toLocaleString("pt-BR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 6,
   });
 
+const statusStyles: Record<ReturnType<typeof calculateInvestmentStatus>, string> = {
+  CARO: "border-rose-300/35 bg-rose-500/15 text-rose-200",
+  NORMAL: "border-amber-300/35 bg-amber-500/15 text-amber-200",
+  BARATO: "border-emerald-300/35 bg-emerald-500/15 text-emerald-200",
+};
+
 export function InvestmentCard({ item, deleting, onDelete }: InvestmentCardProps) {
-  const typeIcon = resolveTypeIcon(item.investment_type);
-  const profit = item.current_amount - item.invested_amount;
-  const returnPct = calculateReturnPercent(item.invested_amount, item.current_amount);
-  const isPositive = profit >= 0;
+  const status = calculateInvestmentStatus(item.average_price, item.current_price);
+  const { difference, percent } = calculateReturn(item.invested_amount, item.current_amount);
+  const positive = difference >= 0;
 
   return (
-    <article className="rounded-2xl border border-[#7C3AED66] bg-[linear-gradient(160deg,rgba(17,24,39,0.96),rgba(8,12,24,0.95))] p-4 shadow-[0_14px_36px_rgba(17,24,39,0.56)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_44px_rgba(124,58,237,0.26)]">
+    <article className="group rounded-2xl border border-violet-300/25 bg-[linear-gradient(165deg,rgba(17,24,39,0.98),rgba(7,11,23,0.96))] p-4 shadow-[0_12px_34px_rgba(15,23,42,0.55)] transition-all duration-300 hover:-translate-y-0.5 hover:border-violet-300/45 hover:shadow-[0_18px_44px_rgba(124,58,237,0.28)]">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="inline-flex items-center gap-2 text-xs text-slate-300">
-            <Building2 className="h-3.5 w-3.5 text-violet-300" />
-            {item.broker}
-          </p>
-          <h3 className="mt-1 inline-flex items-center gap-2 text-lg font-bold text-white">
-            {typeIcon}
-            {item.investment_type}
-          </h3>
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-violet-300/25 bg-[#0a0f1d]">
+            {item.asset_logo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={item.asset_logo_url}
+                alt={item.asset_name}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <div className="grid h-full w-full place-items-center text-slate-400">
+                <ImageIcon className="h-5 w-5" />
+              </div>
+            )}
+          </div>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h4 className="truncate text-lg font-bold text-white">{item.asset_name}</h4>
+              <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${statusStyles[status]}`}>
+                {status}
+              </span>
+            </div>
+            <p className="line-clamp-1 text-xs text-slate-400">
+              {item.broker} • {item.investment_type}
+            </p>
+          </div>
         </div>
+
         <button
           type="button"
           className="rounded-lg border border-rose-300/35 bg-rose-500/10 p-1.5 text-rose-200 hover:bg-rose-500/20 disabled:opacity-60"
@@ -76,37 +89,55 @@ export function InvestmentCard({ item, deleting, onDelete }: InvestmentCardProps
         </button>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+      <div className="mt-4 grid gap-2 sm:grid-cols-3">
         <div className="rounded-xl border border-violet-300/20 bg-violet-950/20 p-3">
-          <p className="text-xs text-slate-400">Valor investido</p>
-          <p className="mt-1 font-extrabold text-slate-100">{brl(item.invested_amount)}</p>
+          <p className="text-[11px] text-slate-400">Quantidade</p>
+          <p className="mt-1 text-sm font-bold text-slate-100">{formatQty(item.quantity)}</p>
         </div>
-        <div className="rounded-xl border border-cyan-300/20 bg-cyan-950/20 p-3">
-          <p className="text-xs text-slate-400">Valor atual</p>
-          <p className="mt-1 font-extrabold text-cyan-200">{brl(item.current_amount)}</p>
+        <div className="rounded-xl border border-violet-300/20 bg-violet-950/20 p-3">
+          <p className="text-[11px] text-slate-400">Preco medio</p>
+          <p className="mt-1 text-sm font-bold text-slate-100">{brl(item.average_price)}</p>
         </div>
-        <div className="rounded-xl border border-slate-700/60 bg-slate-900/70 p-3">
-          <p className="text-xs text-slate-400">Retorno (%)</p>
-          <p className={`mt-1 font-extrabold ${isPositive ? "text-emerald-300" : "text-rose-300"}`}>
-            {formatPercent(returnPct)}
-          </p>
-        </div>
-        <div className="rounded-xl border border-slate-700/60 bg-slate-900/70 p-3">
-          <p className="text-xs text-slate-400">Lucro / prejuizo</p>
-          <p className={`mt-1 font-extrabold ${isPositive ? "text-emerald-300" : "text-rose-300"}`}>
-            {brl(profit)}
-          </p>
+        <div className="rounded-xl border border-violet-300/20 bg-violet-950/20 p-3">
+          <p className="text-[11px] text-slate-400">Preco atual</p>
+          <p className="mt-1 text-sm font-bold text-cyan-200">{brl(item.current_price)}</p>
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-slate-400">
-        <span className="inline-flex items-center gap-1.5">
-          <Percent className="h-3.5 w-3.5 text-violet-300" />
-          Taxa anual: {formatPercent(item.annual_rate ?? 0)}
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <CalendarDays className="h-3.5 w-3.5 text-violet-300" />
-          Inicio: {formatStartDate(item.start_date)}
+      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+        <div className="rounded-xl border border-slate-700/60 bg-slate-900/70 p-3">
+          <p className="text-[11px] text-slate-400">Total investido</p>
+          <p className="mt-1 text-sm font-bold text-slate-100">{brl(item.invested_amount)}</p>
+        </div>
+        <div className="rounded-xl border border-slate-700/60 bg-slate-900/70 p-3">
+          <p className="text-[11px] text-slate-400">Valor atual</p>
+          <p className="mt-1 text-sm font-bold text-cyan-200">{brl(item.current_amount)}</p>
+        </div>
+      </div>
+
+      <div className="mt-2 rounded-xl border border-slate-700/60 bg-slate-900/70 p-3">
+        <p className="inline-flex items-center gap-1.5 text-[11px] text-slate-400">
+          <BarChart3 className="h-3.5 w-3.5 text-violet-300" />
+          Rentabilidade
+        </p>
+        <div className="mt-1 flex items-center justify-between gap-2">
+          <span className={`text-sm font-bold ${positive ? "text-emerald-300" : "text-rose-300"}`}>
+            {formatPercent(percent)}
+          </span>
+          <span className={`text-sm font-bold ${positive ? "text-emerald-300" : "text-rose-300"}`}>
+            {brl(difference)}
+          </span>
+        </div>
+      </div>
+
+      <div className="mt-3">
+        <MiniChart prices={item.price_history} />
+      </div>
+
+      <div className="mt-2 text-[11px] text-slate-500">
+        <span className="inline-flex items-center gap-1">
+          <Building2 className="h-3 w-3" />
+          Categoria: {item.category}
         </span>
       </div>
     </article>

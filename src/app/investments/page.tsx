@@ -10,40 +10,44 @@ import {
   TrendingUp,
   Wallet,
 } from "lucide-react";
-import {
-  CartesianGrid,
-  Cell,
-  Legend,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import { AppShell } from "@/components/AppShell";
 import { AddInvestmentModal, type AddInvestmentPayload } from "@/components/investments/AddInvestmentModal";
-import { InvestmentCard, type InvestmentCardItem } from "@/components/investments/InvestmentCard";
-import { buildMonthlyEvolution, calculateCompound } from "@/lib/calculateInvestment";
+import { InvestmentCategory } from "@/components/investments/InvestmentCategory";
+import { type InvestmentCardItem } from "@/components/investments/InvestmentCard";
+import {
+  INVESTMENT_CATEGORIES,
+  calculateCompound,
+  mapInvestmentTypeToCategory,
+  resolvePriceHistory,
+  type InvestmentCategory as InvestmentCategoryType,
+} from "@/lib/calculateInvestment";
 import { brl, formatPercent, toNumber } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
 
 type InvestmentRow = InvestmentCardItem & {
   user_id: string;
+  annual_rate: number | null;
+  start_date: string;
   created_at: string;
 };
 
-type RawInvestmentRow = Partial<InvestmentRow> & {
+type RawInvestmentRow = {
+  id?: string | null;
+  user_id?: string | null;
+  broker?: string | null;
+  category?: string | null;
+  investment_type?: string | null;
+  asset_name?: string | null;
+  asset_logo_url?: string | null;
+  quantity?: number | string | null;
+  average_price?: number | string | null;
+  current_price?: number | string | null;
   invested_amount?: number | string | null;
   current_amount?: number | string | null;
   annual_rate?: number | string | null;
-};
-
-type DistributionPoint = {
-  name: string;
-  value: number;
+  start_date?: string | null;
+  created_at?: string | null;
+  price_history?: unknown;
 };
 
 const SECTION_CLASS =
@@ -52,32 +56,94 @@ const SECTION_CLASS =
 const PRIMARY_BUTTON_CLASS =
   "inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 via-fuchsia-500 to-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(124,58,237,0.4)] transition hover:brightness-110";
 
-const PIE_COLORS = ["#7C3AED", "#A855F7", "#22D3EE", "#38BDF8", "#6366F1", "#EC4899"];
-
-const tooltipStyle = {
-  background: "rgba(15, 23, 42, 0.95)",
-  border: "1px solid rgba(124,58,237,0.35)",
-  borderRadius: 12,
-  color: "#e2e8f0",
-};
-
 const roundCurrency = (value: number) => Math.round(value * 100) / 100;
 
+const safeRatio = (numerator: number, denominator: number, fallback = 0) => {
+  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator === 0) {
+    return fallback;
+  }
+  return numerator / denominator;
+};
+
+const normalizeCategory = (
+  rawCategory: string | null | undefined,
+  investmentType: string,
+): InvestmentCategoryType => {
+  if (rawCategory && INVESTMENT_CATEGORIES.includes(rawCategory as InvestmentCategoryType)) {
+    return rawCategory as InvestmentCategoryType;
+  }
+  return mapInvestmentTypeToCategory(investmentType);
+};
+
 const normalizeInvestment = (row: RawInvestmentRow): InvestmentRow | null => {
-  if (!row.id || !row.user_id || !row.start_date) return null;
+  if (!row.id || !row.user_id) return null;
+
+  const investmentType = (row.investment_type || "Outros").trim() || "Outros";
+  const category = normalizeCategory(row.category, investmentType);
+  const annualRate = row.annual_rate === null || typeof row.annual_rate === "undefined"
+    ? null
+    : toNumber(row.annual_rate);
+
+  const startDate = row.start_date || new Date().toISOString().slice(0, 10);
+  const broker = (row.broker || "Nao informado").trim() || "Nao informado";
+  const assetName = (row.asset_name || investmentType).trim() || investmentType;
+
+  let quantity = toNumber(row.quantity);
+  let averagePrice = toNumber(row.average_price);
+  let currentPrice = toNumber(row.current_price);
+  let investedAmount = toNumber(row.invested_amount);
+  let currentAmount = toNumber(row.current_amount);
+
+  if (quantity <= 0) {
+    quantity = investedAmount > 0 && averagePrice > 0
+      ? safeRatio(investedAmount, averagePrice, 1)
+      : 1;
+  }
+
+  if (averagePrice <= 0) {
+    averagePrice = investedAmount > 0 ? safeRatio(investedAmount, quantity, 0) : 0;
+  }
+
+  if (currentPrice <= 0) {
+    currentPrice = currentAmount > 0 ? safeRatio(currentAmount, quantity, 0) : 0;
+  }
+
+  if (currentPrice <= 0 && annualRate && annualRate > 0) {
+    currentPrice = calculateCompound({
+      principal: averagePrice > 0 ? averagePrice : 1,
+      annualRate,
+      startDate,
+    });
+  }
+
+  if (averagePrice <= 0) averagePrice = currentPrice > 0 ? currentPrice : 1;
+  if (currentPrice <= 0) currentPrice = averagePrice;
+
+  investedAmount = roundCurrency(quantity * averagePrice);
+  currentAmount = roundCurrency(quantity * currentPrice);
 
   return {
     id: row.id,
     user_id: row.user_id,
-    broker: row.broker || "Nao informado",
-    investment_type: row.investment_type || "Nao informado",
-    invested_amount: toNumber(row.invested_amount),
-    current_amount: toNumber(row.current_amount),
-    annual_rate: row.annual_rate === null || typeof row.annual_rate === "undefined"
-      ? null
-      : toNumber(row.annual_rate),
-    start_date: row.start_date,
+    broker,
+    category,
+    investment_type: investmentType,
+    asset_name: assetName,
+    asset_logo_url: row.asset_logo_url?.trim() || null,
+    quantity: roundCurrency(quantity),
+    average_price: roundCurrency(averagePrice),
+    current_price: roundCurrency(currentPrice),
+    invested_amount: investedAmount,
+    current_amount: currentAmount,
+    annual_rate: annualRate,
+    start_date: startDate,
     created_at: row.created_at || new Date().toISOString(),
+    price_history: resolvePriceHistory({
+      history: row.price_history,
+      averagePrice,
+      currentPrice,
+      seedRef: `${assetName}-${broker}-${row.id}`,
+    }),
   };
 };
 
@@ -89,6 +155,11 @@ export default function InvestmentsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [investments, setInvestments] = useState<InvestmentRow[]>([]);
+  const [openCategories, setOpenCategories] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(
+      INVESTMENT_CATEGORIES.map((category, index) => [category, index === 0]),
+    ),
+  );
 
   const loadInvestments = useCallback(async () => {
     setLoading(true);
@@ -124,33 +195,24 @@ export default function InvestmentsPage() {
       .map(normalizeInvestment)
       .filter((item): item is InvestmentRow => !!item);
 
-    const recalculated = normalized.map((item) => {
-      const currentAmount = calculateCompound({
-        principal: item.invested_amount,
-        annualRate: item.annual_rate ?? 0,
-        startDate: item.start_date,
-      });
-
-      return {
-        ...item,
-        current_amount: roundCurrency(currentAmount),
-      };
-    });
-
-    setInvestments(recalculated);
+    setInvestments(normalized);
     setLoading(false);
 
-    const updates = recalculated.filter(
-      (item, index) => Math.abs(item.current_amount - normalized[index].current_amount) >= 0.01,
-    );
-
-    if (!updates.length) return;
-
     await Promise.allSettled(
-      updates.map((item) =>
+      normalized.map((item) =>
         supabase
           .from("investments")
-          .update({ current_amount: item.current_amount })
+          .update({
+            category: item.category,
+            asset_name: item.asset_name,
+            asset_logo_url: item.asset_logo_url,
+            quantity: item.quantity,
+            average_price: item.average_price,
+            current_price: item.current_price,
+            invested_amount: item.invested_amount,
+            current_amount: item.current_amount,
+            price_history: item.price_history,
+          })
           .eq("id", item.id),
       ),
     );
@@ -171,20 +233,30 @@ export default function InvestmentsPage() {
       return;
     }
 
-    const calculatedAmount = calculateCompound({
-      principal: payload.investedAmount,
-      annualRate: payload.annualRate,
-      startDate: payload.startDate,
+    const investedAmount = roundCurrency(payload.quantity * payload.averagePrice);
+    const currentAmount = roundCurrency(payload.quantity * payload.currentPrice);
+    const initialHistory = resolvePriceHistory({
+      history: [],
+      averagePrice: payload.averagePrice,
+      currentPrice: payload.currentPrice,
+      seedRef: `${payload.assetName}-${payload.broker}`,
     });
 
     const { error } = await supabase.from("investments").insert({
       user_id: resolvedUserId,
       broker: payload.broker,
+      category: payload.category,
       investment_type: payload.investmentType,
-      invested_amount: payload.investedAmount,
-      current_amount: roundCurrency(calculatedAmount),
+      asset_name: payload.assetName,
+      asset_logo_url: payload.assetLogoUrl,
+      quantity: payload.quantity,
+      average_price: payload.averagePrice,
+      current_price: payload.currentPrice,
+      invested_amount: investedAmount,
+      current_amount: currentAmount,
       annual_rate: payload.annualRate,
       start_date: payload.startDate,
+      price_history: initialHistory,
     });
 
     if (error) {
@@ -225,40 +297,34 @@ export default function InvestmentsPage() {
     const profitability = totalInvested > 0 ? (profit / totalInvested) * 100 : 0;
 
     return {
-      totalInvested,
-      totalCurrent,
-      profit,
+      totalInvested: roundCurrency(totalInvested),
+      totalCurrent: roundCurrency(totalCurrent),
+      profit: roundCurrency(profit),
       profitability,
     };
   }, [investments]);
 
-  const distributionData = useMemo(() => {
-    const grouped = new Map<string, number>();
+  const groupedByCategory = useMemo(() => {
+    const map = new Map<InvestmentCategoryType, InvestmentRow[]>();
+    INVESTMENT_CATEGORIES.forEach((category) => map.set(category, []));
     investments.forEach((item) => {
-      const prev = grouped.get(item.investment_type) ?? 0;
-      grouped.set(item.investment_type, prev + item.current_amount);
+      const list = map.get(item.category as InvestmentCategoryType);
+      if (list) list.push(item);
     });
-    return Array.from(grouped.entries())
-      .map(([name, value]) => ({ name, value: roundCurrency(value) } satisfies DistributionPoint))
-      .sort((a, b) => b.value - a.value);
+    return map;
   }, [investments]);
 
-  const monthlySeries = useMemo(
-    () =>
-      buildMonthlyEvolution(
-        investments.map((item) => ({
-          principal: item.invested_amount,
-          annualRate: item.annual_rate ?? 0,
-          startDate: item.start_date,
-        })),
-      ),
-    [investments],
-  );
+  const toggleCategory = (category: string) => {
+    setOpenCategories((prev) => ({
+      ...prev,
+      [category]: !(prev[category] ?? false),
+    }));
+  };
 
   return (
     <AppShell
       title="Investimentos"
-      subtitle="Rendimento automatico com juros compostos mensais"
+      subtitle="Lista profissional por categoria, com status inteligente e mini graficos"
       contentClassName="investments-ultra-bg"
     >
       <AddInvestmentModal
@@ -276,7 +342,7 @@ export default function InvestmentsPage() {
           </span>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-5">
           {feedback ? (
             <div className="rounded-xl border border-violet-300/30 bg-violet-950/35 px-4 py-3 text-sm text-violet-100">
               {feedback}
@@ -286,9 +352,9 @@ export default function InvestmentsPage() {
           <section className={`${SECTION_CLASS} p-5`}>
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
-                <h2 className="text-xl font-extrabold tracking-tight text-white">Carteira de investimentos</h2>
+                <h2 className="text-xl font-extrabold tracking-tight text-white">Lista de investimentos</h2>
                 <p className="mt-1 text-sm text-slate-300">
-                  Visao consolidada com rendimento recalculado automaticamente.
+                  Visual minimalista por categoria com foco em decisao rapida.
                 </p>
               </div>
               <button
@@ -337,116 +403,20 @@ export default function InvestmentsPage() {
             </div>
           </section>
 
-          <section className="grid gap-4 xl:grid-cols-2">
-            <div className={`${SECTION_CLASS} p-5`}>
-              <h3 className="text-lg font-bold text-white">Distribuicao por tipo</h3>
-              <p className="text-sm text-slate-400">Participacao atual da carteira por classe.</p>
-              <div className="mt-3 h-[300px] w-full">
-                {distributionData.length ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={distributionData}
-                        dataKey="value"
-                        nameKey="name"
-                        innerRadius={72}
-                        outerRadius={105}
-                        paddingAngle={2}
-                        stroke="rgba(255,255,255,0.14)"
-                      >
-                        {distributionData.map((entry, index) => (
-                          <Cell
-                            key={`${entry.name}-${index}`}
-                            fill={PIE_COLORS[index % PIE_COLORS.length]}
-                          />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        formatter={(value: number | string | undefined) => [brl(Number(value) || 0), "Valor atual"]}
-                        contentStyle={tooltipStyle}
-                      />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="grid h-full place-items-center rounded-xl border border-violet-300/20 bg-slate-950/45 text-sm text-slate-400">
-                    Sem dados para distribuicao.
-                  </div>
-                )}
-              </div>
+          <section className={`${SECTION_CLASS} p-4`}>
+            <div className="space-y-3">
+              {INVESTMENT_CATEGORIES.map((category) => (
+                <InvestmentCategory
+                  key={category}
+                  category={category}
+                  items={groupedByCategory.get(category) || []}
+                  open={openCategories[category] ?? false}
+                  deletingId={deletingId}
+                  onToggle={() => toggleCategory(category)}
+                  onDelete={(id) => void handleDelete(id)}
+                />
+              ))}
             </div>
-
-            <div className={`${SECTION_CLASS} p-5`}>
-              <h3 className="text-lg font-bold text-white">Evolucao mensal</h3>
-              <p className="text-sm text-slate-400">
-                Curva de crescimento com base em juros compostos mensais.
-              </p>
-              <div className="mt-3 h-[300px] w-full">
-                {monthlySeries.length ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={monthlySeries}>
-                      <CartesianGrid strokeDasharray="4 4" stroke="rgba(124,58,237,0.18)" />
-                      <XAxis dataKey="month" tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                      <YAxis
-                        tick={{ fill: "#94a3b8", fontSize: 12 }}
-                        tickFormatter={(value: number) => `R$${Math.round(value / 1000)}k`}
-                      />
-                      <Tooltip
-                        formatter={(value: number | string | undefined, name: string | undefined) => [
-                          brl(Number(value) || 0),
-                          name === "invested" ? "Total investido" : "Total atual",
-                        ]}
-                        contentStyle={tooltipStyle}
-                      />
-                      <Legend />
-                      <Line
-                        type="monotone"
-                        dataKey="invested"
-                        name="Total investido"
-                        stroke="#A78BFA"
-                        strokeWidth={2}
-                        dot={false}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="totalValue"
-                        name="Total atual"
-                        stroke="#22D3EE"
-                        strokeWidth={3}
-                        dot={false}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="grid h-full place-items-center rounded-xl border border-violet-300/20 bg-slate-950/45 text-sm text-slate-400">
-                    Adicione investimentos para ver a evolucao.
-                  </div>
-                )}
-              </div>
-            </div>
-          </section>
-
-          <section className={`${SECTION_CLASS} p-5`}>
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-white">Lista de investimentos</h3>
-              <span className="text-xs text-slate-400">{investments.length} item(ns)</span>
-            </div>
-            {investments.length ? (
-              <div className="grid gap-4 xl:grid-cols-2">
-                {investments.map((item) => (
-                  <InvestmentCard
-                    key={item.id}
-                    item={item}
-                    deleting={deletingId === item.id}
-                    onDelete={(id) => void handleDelete(id)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-xl border border-violet-300/20 bg-slate-950/45 p-4 text-sm text-slate-400">
-                Nenhum investimento cadastrado.
-              </div>
-            )}
           </section>
         </div>
       )}

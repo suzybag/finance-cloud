@@ -231,21 +231,76 @@ create table if not exists public.investments (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   broker text not null,
+  category text not null default 'Outros',
   investment_type text not null,
+  asset_name text not null default '',
+  asset_logo_url text,
+  quantity numeric not null default 1,
+  average_price numeric not null default 0,
+  current_price numeric not null default 0,
   invested_amount numeric not null,
   current_amount numeric not null,
+  price_history jsonb,
   annual_rate numeric,
   created_at timestamp default now(),
   start_date date not null
 );
 
 alter table public.investments add column if not exists broker text not null default '';
+alter table public.investments add column if not exists category text not null default 'Outros';
 alter table public.investments add column if not exists investment_type text not null default '';
+alter table public.investments add column if not exists asset_name text not null default '';
+alter table public.investments add column if not exists asset_logo_url text;
+alter table public.investments add column if not exists quantity numeric not null default 1;
+alter table public.investments add column if not exists average_price numeric not null default 0;
+alter table public.investments add column if not exists current_price numeric not null default 0;
 alter table public.investments add column if not exists invested_amount numeric not null default 0;
 alter table public.investments add column if not exists current_amount numeric not null default 0;
+alter table public.investments add column if not exists price_history jsonb;
 alter table public.investments add column if not exists annual_rate numeric;
 alter table public.investments add column if not exists created_at timestamp default now();
 alter table public.investments add column if not exists start_date date default current_date;
+
+update public.investments
+set asset_name = coalesce(nullif(trim(asset_name), ''), investment_type, 'Ativo')
+where coalesce(trim(asset_name), '') = '';
+
+update public.investments
+set category = case
+  when lower(coalesce(investment_type, '')) like '%cripto%'
+    or lower(coalesce(investment_type, '')) like '%btc%'
+    or lower(coalesce(investment_type, '')) like '%bitcoin%'
+    or lower(coalesce(investment_type, '')) like '%eth%' then 'Criptomoedas'
+  when lower(coalesce(investment_type, '')) like '%tesouro%' then 'Tesouro Direto'
+  when lower(coalesce(investment_type, '')) like '%acao%'
+    or lower(coalesce(investment_type, '')) like '%ações%' then 'Acoes'
+  when lower(coalesce(investment_type, '')) like '%fii%' then 'FIIs'
+  when lower(coalesce(investment_type, '')) like '%cdb%'
+    or lower(coalesce(investment_type, '')) like '%lci%'
+    or lower(coalesce(investment_type, '')) like '%lca%'
+    or lower(coalesce(investment_type, '')) like '%ipca%'
+    or lower(coalesce(investment_type, '')) like '%selic%'
+    or lower(coalesce(investment_type, '')) like '%caixinha%'
+    or lower(coalesce(investment_type, '')) like '%poup%' then 'Renda Fixa'
+  else 'Outros'
+end
+where coalesce(trim(category), '') = '';
+
+update public.investments set quantity = 1 where quantity is null or quantity <= 0;
+update public.investments set average_price = 0 where average_price is null;
+update public.investments set current_price = 0 where current_price is null;
+update public.investments
+set average_price = invested_amount / nullif(quantity, 0)
+where average_price <= 0 and invested_amount > 0 and quantity > 0;
+update public.investments
+set current_price = current_amount / nullif(quantity, 0)
+where current_price <= 0 and current_amount > 0 and quantity > 0;
+update public.investments
+set invested_amount = quantity * average_price
+where invested_amount is null or invested_amount = 0;
+update public.investments
+set current_amount = quantity * current_price
+where current_amount is null or current_amount = 0;
 update public.investments set start_date = current_date where start_date is null;
 alter table public.investments alter column start_date set not null;
 
