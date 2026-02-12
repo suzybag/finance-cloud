@@ -342,11 +342,13 @@ body::after {
 .cardImageWrap {
   position: relative;
   width: 100%;
-  height: 170px;
+  max-width: 420px;
+  aspect-ratio: 1.586 / 1;
   border-radius: 18px;
   overflow: hidden;
   background: rgba(0, 0, 0, 0.18);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  margin-inline: auto;
   margin-bottom: 14px;
 }
 
@@ -355,7 +357,7 @@ body::after {
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   object-position: center;
   display: block;
 }

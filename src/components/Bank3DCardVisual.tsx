@@ -216,14 +216,14 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
   };
 
   return (
-    <div className="mx-auto w-full max-w-[370px] [perspective:1200px]">
+    <div className="mx-auto w-full max-w-[420px] [perspective:1200px]">
       <div
         ref={cardRef}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
-        className="relative h-[142px] w-full overflow-hidden rounded-xl border px-4 py-3 transition-transform duration-150 ease-out [transform-style:preserve-3d]"
+        className="relative aspect-[1.586/1] w-full overflow-hidden rounded-[18px] border transition-transform duration-150 ease-out [transform-style:preserve-3d]"
         style={{
           "--mx": "26%",
           "--my": "20%",
@@ -238,7 +238,7 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
             <img
               src={cardImage}
               alt={`Cartao ${bankKey}`}
-              className="absolute inset-0 h-full w-full object-cover"
+              className="absolute inset-0 h-full w-full object-contain"
               draggable={false}
             />
             <div className="pointer-events-none absolute inset-0 bg-black/12" />

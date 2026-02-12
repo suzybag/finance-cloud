@@ -51,14 +51,14 @@ export function PicPayCardVisual() {
   };
 
   return (
-    <div className="group mx-auto w-full max-w-[400px] [perspective:1200px]">
+    <div className="group mx-auto w-full max-w-[420px] [perspective:1200px]">
       <div
         ref={cardRef}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
-        className="relative h-[154px] w-full select-none overflow-hidden rounded-xl border border-emerald-100/35 transition-transform duration-150 ease-out [transform-style:preserve-3d]"
+        className="relative aspect-[1.586/1] w-full select-none overflow-hidden rounded-[18px] border border-emerald-100/35 transition-transform duration-150 ease-out [transform-style:preserve-3d]"
         style={{
           "--mx": "28%",
           "--my": "22%",
