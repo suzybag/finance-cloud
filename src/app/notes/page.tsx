@@ -15,6 +15,16 @@ import {
 import { AppShell } from "@/components/AppShell";
 import { supabase } from "@/lib/supabaseClient";
 
+type NoteAttachment = {
+  id: string;
+  file_name: string;
+  file_path: string;
+  bucket: string | null;
+  mime_type: string | null;
+  size_bytes: number | null;
+  created_at: string;
+};
+
 type NoteRow = {
   id: string;
   user_id: string;
@@ -22,24 +32,20 @@ type NoteRow = {
   content: string;
   created_at: string;
   updated_at: string;
+  attachments: NoteAttachment[];
 };
 
-type NoteFileRow = {
-  id: string;
-  note_id: string;
-  user_id: string;
-  file_name: string;
-  file_path: string;
-  mime_type: string | null;
-  size_bytes: number | null;
-  created_at: string;
-};
-
-type NoteFileView = NoteFileRow & {
+type NoteFileView = NoteAttachment & {
   signedUrl: string | null;
 };
 
-const NOTE_BUCKET = "note-files";
+type NotesStorePayload = {
+  version: number;
+  notes: NoteRow[];
+};
+
+const PRIMARY_BUCKET = "note-files";
+const FALLBACK_BUCKET = "avatars";
 const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
 
 const sortNotesByUpdated = (a: NoteRow, b: NoteRow) =>
@@ -66,12 +72,6 @@ const formatDateTime = (value: string) =>
     minute: "2-digit",
   });
 
-const getNoteCardTitle = (note: NoteRow) => {
-  const title = note.title.trim();
-  if (title) return title;
-  return "Sem nome";
-};
-
 const getSaveLabel = (state: "idle" | "saving" | "saved" | "error") => {
   if (state === "saving") return "Salvando...";
   if (state === "saved") return "Salvo na nuvem";
@@ -79,8 +79,99 @@ const getSaveLabel = (state: "idle" | "saving" | "saved" | "error") => {
   return "Pronto";
 };
 
+const getNoteCardTitle = (note: NoteRow) => {
+  const title = note.title.trim();
+  return title || "Sem nome";
+};
+
+const isStorageMissingError = (message?: string | null) => {
+  const text = (message || "").toLowerCase();
+  return text.includes("not found") || text.includes("does not exist");
+};
+
+const createId = () =>
+  typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+const getStorePath = (userId: string) => `${userId}/notes/notes.json`;
+
+const createNewNote = (userId: string, title: string): NoteRow => {
+  const now = new Date().toISOString();
+  return {
+    id: createId(),
+    user_id: userId,
+    title,
+    content: "",
+    created_at: now,
+    updated_at: now,
+    attachments: [],
+  };
+};
+
+const ensureSorted = (notes: NoteRow[]) => [...notes].sort(sortNotesByUpdated);
+
+const normalizeAttachments = (value: unknown): NoteAttachment[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => item as Partial<NoteAttachment> | null)
+    .filter((item): item is Partial<NoteAttachment> => !!item && !!item.id && !!item.file_path)
+    .map((item) => ({
+      id: String(item.id),
+      file_name: typeof item.file_name === "string" && item.file_name.trim()
+        ? item.file_name
+        : "arquivo",
+      file_path: String(item.file_path),
+      bucket: typeof item.bucket === "string" && item.bucket.trim() ? item.bucket : null,
+      mime_type: typeof item.mime_type === "string" ? item.mime_type : null,
+      size_bytes: typeof item.size_bytes === "number" ? item.size_bytes : null,
+      created_at: typeof item.created_at === "string" ? item.created_at : new Date().toISOString(),
+    }));
+};
+
+const normalizeNotes = (userId: string, value: unknown): NoteRow[] => {
+  if (!Array.isArray(value)) return [];
+  return ensureSorted(
+    value
+      .map((item) => item as Partial<NoteRow> | null)
+      .filter((item): item is Partial<NoteRow> => !!item && typeof item.id === "string")
+      .map((item) => ({
+        id: item.id as string,
+        user_id: typeof item.user_id === "string" && item.user_id ? item.user_id : userId,
+        title: typeof item.title === "string" ? item.title : "",
+        content: typeof item.content === "string" ? item.content : "",
+        created_at: typeof item.created_at === "string" ? item.created_at : new Date().toISOString(),
+        updated_at: typeof item.updated_at === "string" ? item.updated_at : new Date().toISOString(),
+        attachments: normalizeAttachments(item.attachments),
+      })),
+  );
+};
+
+const saveStoreToBucket = async (userId: string, bucket: string, notes: NoteRow[]) => {
+  const payload: NotesStorePayload = { version: 1, notes };
+  const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+  const { error } = await supabase.storage.from(bucket).upload(getStorePath(userId), blob, {
+    upsert: true,
+    contentType: "application/json",
+  });
+  return { ok: !error, error: error?.message || null };
+};
+
+const resolveAttachmentUrl = async (bucket: string, filePath: string) => {
+  const { data: signed, error: signedError } = await supabase
+    .storage
+    .from(bucket)
+    .createSignedUrl(filePath, 60 * 60);
+
+  if (!signedError && signed?.signedUrl) return signed.signedUrl;
+
+  const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(filePath);
+  return publicData.publicUrl || null;
+};
+
 export default function NotesPage() {
   const [userId, setUserId] = useState<string | null>(null);
+  const [bucketName, setBucketName] = useState<string>(PRIMARY_BUCKET);
   const [notes, setNotes] = useState<NoteRow[]>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
@@ -97,158 +188,78 @@ export default function NotesPage() {
   const editorRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const latestDraftRef = useRef({ title: "", content: "" });
-  const latestSelectedRef = useRef<string | null>(null);
+  const latestNotesRef = useRef<NoteRow[]>([]);
 
   useEffect(() => {
-    latestDraftRef.current = { title: draftTitle, content: draftContent };
-  }, [draftTitle, draftContent]);
-
-  useEffect(() => {
-    latestSelectedRef.current = selectedNoteId;
-  }, [selectedNoteId]);
-
-  const setDraftFromNote = useCallback((note: NoteRow) => {
-    setDraftTitle(note.title ?? "");
-    setDraftContent(note.content ?? "");
-    latestDraftRef.current = { title: note.title ?? "", content: note.content ?? "" };
-  }, []);
+    latestNotesRef.current = notes;
+  }, [notes]);
 
   const selectedNote = useMemo(
     () => notes.find((note) => note.id === selectedNoteId) ?? null,
     [notes, selectedNoteId],
   );
 
-  const persistNote = useCallback(
-    async (noteId: string, title: string, content: string) => {
-      const current = notes.find((note) => note.id === noteId);
-      if (current && current.title === title && current.content === content) {
+  const selectedAttachmentKey = useMemo(() => {
+    if (!selectedNote) return "";
+    return selectedNote.attachments
+      .map((attachment) => `${attachment.id}:${attachment.file_path}:${attachment.bucket || ""}`)
+      .join("|");
+  }, [selectedNote]);
+
+  const persistStore = useCallback(
+    async (nextNotes: NoteRow[]) => {
+      if (!userId) return false;
+
+      setSaveState("saving");
+      const firstTry = await saveStoreToBucket(userId, bucketName, nextNotes);
+      if (firstTry.ok) {
         setSaveState("saved");
         return true;
       }
 
-      setSaveState("saving");
-      const updatedAt = new Date().toISOString();
-      const { error } = await supabase
-        .from("notes")
-        .update({ title, content, updated_at: updatedAt })
-        .eq("id", noteId);
-
-      if (error) {
-        setSaveState("error");
-        setFeedback(`Nao foi possivel salvar a nota: ${error.message}`);
-        return false;
+      if (bucketName !== FALLBACK_BUCKET) {
+        const fallbackTry = await saveStoreToBucket(userId, FALLBACK_BUCKET, nextNotes);
+        if (fallbackTry.ok) {
+          setBucketName(FALLBACK_BUCKET);
+          setFeedback("Storage principal indisponivel. Usando bucket de fallback.");
+          setSaveState("saved");
+          return true;
+        }
       }
 
-      setNotes((prev) =>
-        prev
-          .map((note) =>
-            note.id === noteId
-              ? {
-                ...note,
-                title,
-                content,
-                updated_at: updatedAt,
-              }
-              : note,
-          )
-          .sort(sortNotesByUpdated),
-      );
-      setSaveState("saved");
-      return true;
+      setSaveState("error");
+      setFeedback(`Nao foi possivel salvar: ${firstTry.error || "erro desconhecido"}`);
+      return false;
     },
-    [notes],
+    [bucketName, userId],
   );
 
   const queuePersist = useCallback(
-    (noteId: string, title: string, content: string) => {
+    (nextNotes: NoteRow[]) => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       setSaveState("saving");
+      latestNotesRef.current = nextNotes;
       saveTimerRef.current = setTimeout(() => {
         saveTimerRef.current = null;
-        void persistNote(noteId, title, content);
+        void persistStore(latestNotesRef.current);
       }, 550);
     },
-    [persistNote],
+    [persistStore],
   );
 
   const flushPendingSave = useCallback(async () => {
-    const noteId = latestSelectedRef.current;
-    if (!noteId) return;
     if (!saveTimerRef.current) return;
-
     clearTimeout(saveTimerRef.current);
     saveTimerRef.current = null;
-    await persistNote(
-      noteId,
-      latestDraftRef.current.title,
-      latestDraftRef.current.content,
-    );
-  }, [persistNote]);
+    await persistStore(latestNotesRef.current);
+  }, [persistStore]);
 
-  const createBlankNote = useCallback(
-    async (forcedUserId?: string, initialTitle = "") => {
-      const resolvedUserId = forcedUserId || userId;
-      if (!resolvedUserId) return null;
-
-      const { data, error } = await supabase
-        .from("notes")
-        .insert({
-          user_id: resolvedUserId,
-          title: initialTitle,
-          content: "",
-        })
-        .select("*")
-        .single();
-
-      if (error) {
-        setFeedback(`Nao foi possivel criar nota: ${error.message}`);
-        return null;
-      }
-
-      return data as NoteRow;
-    },
-    [userId],
-  );
-
-  const loadAttachments = useCallback(async (noteId: string) => {
-    setLoadingAttachments(true);
-
-    const { data, error } = await supabase
-      .from("note_files")
-      .select("*")
-      .eq("note_id", noteId)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      setFeedback(`Nao foi possivel carregar anexos: ${error.message}`);
-      setAttachments([]);
-      setLoadingAttachments(false);
-      return;
-    }
-
-    const rows = ((data as NoteFileRow[]) || []);
-    const withSignedUrls = await Promise.all(
-      rows.map(async (row) => {
-        const { data: signedData, error: signedError } = await supabase
-          .storage
-          .from(NOTE_BUCKET)
-          .createSignedUrl(row.file_path, 60 * 60);
-
-        return {
-          ...row,
-          signedUrl: signedError ? null : signedData.signedUrl,
-        } as NoteFileView;
-      }),
-    );
-
-    if (latestSelectedRef.current === noteId) {
-      setAttachments(withSignedUrls);
-    }
-    setLoadingAttachments(false);
+  const setDraftFromNote = useCallback((note: NoteRow) => {
+    setDraftTitle(note.title || "");
+    setDraftContent(note.content || "");
   }, []);
 
-  const loadNotes = useCallback(async () => {
+  const loadInitialData = useCallback(async () => {
     setLoading(true);
     setFeedback(null);
 
@@ -262,87 +273,153 @@ export default function NotesPage() {
 
     setUserId(user.id);
 
-    const { data, error } = await supabase
-      .from("notes")
-      .select("*")
-      .order("updated_at", { ascending: false });
+    const primaryProbe = await supabase.storage
+      .from(PRIMARY_BUCKET)
+      .list(`${user.id}/notes`, { limit: 1 });
 
-    if (error) {
-      setLoading(false);
-      setFeedback(`Nao foi possivel carregar notas: ${error.message}`);
-      return;
+    const resolvedBucket = primaryProbe.error ? FALLBACK_BUCKET : PRIMARY_BUCKET;
+    setBucketName(resolvedBucket);
+
+    const { data: storeFile, error: loadError } = await supabase
+      .storage
+      .from(resolvedBucket)
+      .download(getStorePath(user.id));
+
+    let initialNotes: NoteRow[] = [];
+    if (loadError) {
+      if (!isStorageMissingError(loadError.message)) {
+        setFeedback(`Falha ao carregar notas: ${loadError.message}`);
+      }
+    } else {
+      try {
+        const parsed = JSON.parse(await storeFile.text()) as Partial<NotesStorePayload>;
+        initialNotes = normalizeNotes(user.id, parsed.notes);
+      } catch {
+        initialNotes = [];
+      }
     }
 
-    let rows = ((data as NoteRow[]) || []).sort(sortNotesByUpdated);
-    if (!rows.length) {
-      const created = await createBlankNote(user.id, "Minha primeira nota");
-      if (created) rows = [created];
+    if (!initialNotes.length) {
+      initialNotes = [createNewNote(user.id, "Minha primeira nota")];
+      const firstWrite = await saveStoreToBucket(user.id, resolvedBucket, initialNotes);
+      if (!firstWrite.ok && resolvedBucket !== FALLBACK_BUCKET) {
+        const fallbackWrite = await saveStoreToBucket(user.id, FALLBACK_BUCKET, initialNotes);
+        if (fallbackWrite.ok) {
+          setBucketName(FALLBACK_BUCKET);
+          setFeedback("Storage principal indisponivel. Usando bucket de fallback.");
+        } else {
+          setFeedback(`Nao foi possivel inicializar notas: ${firstWrite.error || "erro desconhecido"}`);
+        }
+      } else if (!firstWrite.ok) {
+        setFeedback(`Nao foi possivel inicializar notas: ${firstWrite.error || "erro desconhecido"}`);
+      }
     }
 
-    setNotes(rows);
+    const sorted = ensureSorted(initialNotes);
+    setNotes(sorted);
+    latestNotesRef.current = sorted;
 
-    if (rows.length) {
-      const first = rows[0];
-      setSelectedNoteId(first.id);
-      setDraftFromNote(first);
-      void loadAttachments(first.id);
-      requestAnimationFrame(() => editorRef.current?.focus());
-    }
-
+    const first = sorted[0];
+    setSelectedNoteId(first.id);
+    setDraftFromNote(first);
     setLoading(false);
-  }, [createBlankNote, loadAttachments, setDraftFromNote]);
+
+    requestAnimationFrame(() => editorRef.current?.focus());
+  }, [setDraftFromNote]);
 
   useEffect(() => {
-    void loadNotes();
-  }, [loadNotes]);
+    void loadInitialData();
+  }, [loadInitialData]);
 
   useEffect(() => {
     return () => {
       if (!saveTimerRef.current) return;
       clearTimeout(saveTimerRef.current);
       saveTimerRef.current = null;
-      const noteId = latestSelectedRef.current;
-      if (noteId) {
-        void persistNote(
-          noteId,
-          latestDraftRef.current.title,
-          latestDraftRef.current.content,
-        );
-      }
+      void persistStore(latestNotesRef.current);
     };
-  }, [persistNote]);
+  }, [persistStore]);
 
   useEffect(() => {
     if (!selectedNoteId) return;
 
-    const current = notes.find((note) => note.id === selectedNoteId);
-    if (!current) return;
-    if (current.title === draftTitle && current.content === draftContent) return;
+    setNotes((prev) => {
+      const current = prev.find((note) => note.id === selectedNoteId);
+      if (!current) return prev;
+      if (current.title === draftTitle && current.content === draftContent) return prev;
 
-    queuePersist(selectedNoteId, draftTitle, draftContent);
-  }, [draftTitle, draftContent, selectedNoteId, notes, queuePersist]);
+      const updated = ensureSorted(
+        prev.map((note) =>
+          note.id === selectedNoteId
+            ? {
+              ...note,
+              title: draftTitle,
+              content: draftContent,
+              updated_at: new Date().toISOString(),
+            }
+            : note,
+        ),
+      );
+      latestNotesRef.current = updated;
+      queuePersist(updated);
+      return updated;
+    });
+  }, [draftContent, draftTitle, selectedNoteId, queuePersist]);
+
+  useEffect(() => {
+    if (!selectedNote) {
+      setAttachments([]);
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingAttachments(true);
+
+    const run = async () => {
+      const views = await Promise.all(
+        selectedNote.attachments.map(async (attachment) => {
+          const fileBucket = attachment.bucket || bucketName;
+          const signedUrl = await resolveAttachmentUrl(fileBucket, attachment.file_path);
+          return {
+            ...attachment,
+            signedUrl,
+          } as NoteFileView;
+        }),
+      );
+
+      if (!cancelled) {
+        setAttachments(views);
+        setLoadingAttachments(false);
+      }
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedNoteId, selectedAttachmentKey, bucketName, selectedNote]);
 
   const handleSelectNote = async (note: NoteRow) => {
     if (note.id === selectedNoteId) return;
     await flushPendingSave();
     setSelectedNoteId(note.id);
     setDraftFromNote(note);
-    setAttachments([]);
-    void loadAttachments(note.id);
     requestAnimationFrame(() => editorRef.current?.focus());
   };
 
   const handleCreateNote = async () => {
+    if (!userId) return;
     await flushPendingSave();
-    const created = await createBlankNote(undefined, `Nova nota ${notes.length + 1}`);
-    if (!created) return;
 
-    setNotes((prev) => [created, ...prev].sort(sortNotesByUpdated));
+    const created = createNewNote(userId, `Nova nota ${notes.length + 1}`);
+    const next = ensureSorted([created, ...latestNotesRef.current]);
+    setNotes(next);
+    latestNotesRef.current = next;
     setSelectedNoteId(created.id);
     setDraftFromNote(created);
     setAttachments([]);
-    setSaveState("idle");
-    setFeedback(null);
+    setSaveState("saving");
+    await persistStore(next);
     requestAnimationFrame(() => editorRef.current?.focus());
   };
 
@@ -351,7 +428,6 @@ export default function NotesPage() {
     const currentName = draftTitle.trim() || getNoteCardTitle(selectedNote);
     const nextName = window.prompt("Nome da nota:", currentName);
     if (nextName === null) return;
-
     setDraftTitle(nextName.trim());
   };
 
@@ -361,65 +437,82 @@ export default function NotesPage() {
     const confirmed = window.confirm("Excluir esta nota e todos os anexos?");
     if (!confirmed) return;
 
+    await flushPendingSave();
     setDeletingNoteId(selectedNote.id);
     setFeedback(null);
 
-    const { data: files } = await supabase
-      .from("note_files")
-      .select("file_path")
-      .eq("note_id", selectedNote.id);
+    const groupedByBucket = selectedNote.attachments.reduce<Record<string, string[]>>((acc, attachment) => {
+      const key = attachment.bucket || bucketName;
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(attachment.file_path);
+      return acc;
+    }, {});
 
-    const filePaths = (files || [])
-      .map((file) => (file as { file_path: string }).file_path)
-      .filter(Boolean);
+    const removeJobs = Object.entries(groupedByBucket).map(([bucket, paths]) =>
+      supabase.storage.from(bucket).remove(paths),
+    );
+    await Promise.all(removeJobs);
 
-    if (filePaths.length) {
-      await supabase.storage.from(NOTE_BUCKET).remove(filePaths);
-    }
-
-    const { error } = await supabase
-      .from("notes")
-      .delete()
-      .eq("id", selectedNote.id);
-
-    if (error) {
-      setDeletingNoteId(null);
-      setFeedback(`Nao foi possivel excluir nota: ${error.message}`);
-      return;
-    }
-
-    let remaining = notes.filter((note) => note.id !== selectedNote.id);
+    let remaining = latestNotesRef.current.filter((note) => note.id !== selectedNote.id);
     if (!remaining.length) {
-      const created = await createBlankNote(userId);
-      if (created) remaining = [created];
+      remaining = [createNewNote(userId, "Nova nota 1")];
     }
-    remaining = [...remaining].sort(sortNotesByUpdated);
+    remaining = ensureSorted(remaining);
+
     setNotes(remaining);
+    latestNotesRef.current = remaining;
 
-    if (remaining.length) {
-      const next = remaining[0];
-      setSelectedNoteId(next.id);
-      setDraftFromNote(next);
-      void loadAttachments(next.id);
-    } else {
-      setSelectedNoteId(null);
-      setDraftTitle("");
-      setDraftContent("");
-      setAttachments([]);
-    }
-
+    const next = remaining[0];
+    setSelectedNoteId(next.id);
+    setDraftFromNote(next);
     setDeletingNoteId(null);
-    setSaveState("idle");
+    setSaveState("saving");
+    await persistStore(remaining);
   };
+
+  const uploadFileWithFallback = useCallback(
+    async (filePath: string, file: File) => {
+      const first = await supabase
+        .storage
+        .from(bucketName)
+        .upload(filePath, file, {
+          upsert: false,
+          contentType: file.type || "application/octet-stream",
+        });
+
+      if (!first.error) return { ok: true, bucket: bucketName, error: null as string | null };
+
+      if (bucketName !== FALLBACK_BUCKET) {
+        const second = await supabase
+          .storage
+          .from(FALLBACK_BUCKET)
+          .upload(filePath, file, {
+            upsert: false,
+            contentType: file.type || "application/octet-stream",
+          });
+
+        if (!second.error) {
+          setBucketName(FALLBACK_BUCKET);
+          return { ok: true, bucket: FALLBACK_BUCKET, error: null as string | null };
+        }
+      }
+
+      return { ok: false, bucket: bucketName, error: first.error.message };
+    },
+    [bucketName],
+  );
 
   const handleAttachFiles = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
-    if (!files.length || !selectedNoteId || !userId) return;
+    if (!files.length || !selectedNote || !userId) return;
 
+    await flushPendingSave();
     setUploadingFiles(true);
     setFeedback(null);
 
     const failures: string[] = [];
+    const newAttachments: NoteAttachment[] = [];
+
     for (const file of files) {
       if (file.size > MAX_FILE_SIZE_BYTES) {
         failures.push(`${file.name}: acima de 20MB`);
@@ -428,39 +521,55 @@ export default function NotesPage() {
 
       const safeName = sanitizeFileName(file.name);
       const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const filePath = `${userId}/${selectedNoteId}/${unique}-${safeName}`;
+      const filePath = `${userId}/notes/files/${selectedNote.id}/${unique}-${safeName}`;
 
-      const { error: uploadError } = await supabase
-        .storage
-        .from(NOTE_BUCKET)
-        .upload(filePath, file, {
-          upsert: false,
-          contentType: file.type || "application/octet-stream",
-        });
-
-      if (uploadError) {
-        failures.push(`${file.name}: falha no upload`);
+      const uploadRes = await uploadFileWithFallback(filePath, file);
+      if (!uploadRes.ok) {
+        failures.push(`${file.name}: ${uploadRes.error || "falha no upload"}`);
         continue;
       }
 
-      const { error: insertError } = await supabase
-        .from("note_files")
-        .insert({
-          note_id: selectedNoteId,
-          user_id: userId,
-          file_name: file.name,
-          file_path: filePath,
-          mime_type: file.type || null,
-          size_bytes: file.size,
-        });
-
-      if (insertError) {
-        await supabase.storage.from(NOTE_BUCKET).remove([filePath]);
-        failures.push(`${file.name}: falha ao registrar`);
-      }
+      newAttachments.push({
+        id: createId(),
+        file_name: file.name,
+        file_path: filePath,
+        bucket: uploadRes.bucket,
+        mime_type: file.type || null,
+        size_bytes: file.size,
+        created_at: new Date().toISOString(),
+      });
     }
 
-    await loadAttachments(selectedNoteId);
+    if (newAttachments.length) {
+      const nextNotes = ensureSorted(
+        latestNotesRef.current.map((note) =>
+          note.id === selectedNote.id
+            ? {
+              ...note,
+              attachments: [...note.attachments, ...newAttachments],
+              updated_at: new Date().toISOString(),
+            }
+            : note,
+        ),
+      );
+
+      // Keep attachment order newest first
+      const fixed = nextNotes.map((note) =>
+        note.id === selectedNote.id
+          ? {
+            ...note,
+            attachments: [...note.attachments].sort(
+              (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+            ),
+          }
+          : note,
+      );
+
+      setNotes(fixed);
+      latestNotesRef.current = fixed;
+      await persistStore(fixed);
+    }
+
     setUploadingFiles(false);
     event.target.value = "";
 
@@ -473,26 +582,34 @@ export default function NotesPage() {
   };
 
   const handleDeleteAttachment = async (attachment: NoteFileView) => {
+    if (!selectedNote) return;
+
     const confirmed = window.confirm(`Remover anexo "${attachment.file_name}"?`);
     if (!confirmed) return;
 
+    await flushPendingSave();
     setDeletingAttachmentId(attachment.id);
     setFeedback(null);
 
-    await supabase.storage.from(NOTE_BUCKET).remove([attachment.file_path]);
-    const { error } = await supabase
-      .from("note_files")
-      .delete()
-      .eq("id", attachment.id);
+    const fileBucket = attachment.bucket || bucketName;
+    await supabase.storage.from(fileBucket).remove([attachment.file_path]);
 
-    if (error) {
-      setDeletingAttachmentId(null);
-      setFeedback(`Nao foi possivel remover anexo: ${error.message}`);
-      return;
-    }
+    const next = ensureSorted(
+      latestNotesRef.current.map((note) =>
+        note.id === selectedNote.id
+          ? {
+            ...note,
+            attachments: note.attachments.filter((item) => item.id !== attachment.id),
+            updated_at: new Date().toISOString(),
+          }
+          : note,
+      ),
+    );
 
-    setAttachments((prev) => prev.filter((item) => item.id !== attachment.id));
+    setNotes(next);
+    latestNotesRef.current = next;
     setDeletingAttachmentId(null);
+    await persistStore(next);
   };
 
   return (
