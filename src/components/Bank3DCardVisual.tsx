@@ -21,6 +21,7 @@ type Bank3DCardVisualProps = {
 const CARD_IMAGE_MAP: Partial<Record<StyledBankKey, string>> = {
   santander: "/cards/santander-unlimited.png",
   btg: "/cards/btg-black.png",
+  xp: "/cards/xp-infinite.png",
   c6bank: "/cards/c6-carbon.png",
   wise: "/cards/wise-card.png",
   nomad: "/cards/nomad-debit.png",
