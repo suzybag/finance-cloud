@@ -132,7 +132,7 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
   };
 
   return (
-    <div className="mx-auto w-full max-w-[430px] [perspective:1200px]">
+    <div className="mx-auto w-[220px] max-w-[76%] [perspective:1200px]">
       <div
         ref={cardRef}
         onMouseMove={handleMouseMove}
@@ -171,4 +171,3 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
     </div>
   );
 }
-
