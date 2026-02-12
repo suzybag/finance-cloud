@@ -42,7 +42,7 @@ export function AccountCard({
     || resolveBankKey(account.name);
   const isPicPay = detectedBankKey === "picpay";
   const resolvedBankLabel = isPicPay ? "PicPay" : bankLabel;
-  const styledBankKeys: StyledBankKey[] = ["nubank", "bradesco", "inter", "mercadopago", "xp", "btg", "santander", "c6bank", "wise", "nomad", "bancodobrasil"];
+  const styledBankKeys: StyledBankKey[] = ["nubank", "bradesco", "inter", "mercadopago", "xp", "btg", "santander", "caixa", "c6bank", "wise", "nomad", "bancodobrasil"];
   const isStyledBank = !!detectedBankKey && styledBankKeys.includes(detectedBankKey as StyledBankKey);
   const accountWithImage = account as Account & {
     imageUrl?: string | null;

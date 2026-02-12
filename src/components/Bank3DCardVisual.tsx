@@ -12,6 +12,7 @@ export type StyledBankKey =
   | "btg"
   | "xp"
   | "santander"
+  | "caixa"
   | "c6bank"
   | "wise"
   | "nomad"
@@ -22,6 +23,7 @@ type Bank3DCardVisualProps = {
 };
 
 const CARD_IMAGE_MAP: Partial<Record<StyledBankKey, string>> = {
+  bradesco: "/cards/bradesco-aeternum.png",
   santander: "/cards/santander-unlimited.png",
   btg: "/cards/btg-pactual.webp",
   xp: "/cards/xp-infinite.png",
@@ -88,6 +90,13 @@ const CARD_THEME: Record<
     borderColor: "rgba(255,255,255,0.18)",
     shadow: "0 12px 24px rgba(0,0,0,0.74), 0 4px 10px rgba(0,0,0,0.5)",
     textColor: "#d7dce5",
+  },
+  caixa: {
+    background:
+      "linear-gradient(136deg, #0a5da8 0%, #004793 52%, #01336f 100%)",
+    borderColor: "rgba(255,165,78,0.45)",
+    shadow: "0 12px 24px rgba(3,39,84,0.62), 0 4px 10px rgba(0,0,0,0.42)",
+    textColor: "#f6f9ff",
   },
   c6bank: {
     background:
@@ -370,6 +379,30 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
             <div className="absolute left-[52px] top-[56px] opacity-70">
               <Contactless color="#c9ced7" />
             </div>
+            <div className="absolute bottom-2 right-4">
+              <VisaMark textColor={theme.textColor} />
+            </div>
+          </>
+        ) : null}
+
+        {bankKey === "caixa" ? (
+          <>
+            <div className="absolute left-4 top-3 flex items-center gap-2">
+              <div className="relative h-6 w-6 rounded-sm bg-[#005ca9] shadow-[0_2px_6px_rgba(0,0,0,0.35)]">
+                <span className="absolute left-1 top-1 h-1.5 w-4 rotate-45 bg-[#f4a100]" />
+                <span className="absolute left-1 top-3 h-1.5 w-4 -rotate-45 bg-white" />
+              </div>
+              <p className="text-[22px] font-black leading-none tracking-tight text-[#f4a100]">caixa</p>
+            </div>
+            <div className="absolute right-4 top-3 opacity-90">
+              <Contactless color={theme.textColor} />
+            </div>
+            <div className="absolute left-4 top-[54px]">
+              <CardChip />
+            </div>
+            <p className="absolute left-4 bottom-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/80">
+              economica federal
+            </p>
             <div className="absolute bottom-2 right-4">
               <VisaMark textColor={theme.textColor} />
             </div>

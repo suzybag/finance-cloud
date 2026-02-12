@@ -98,6 +98,7 @@ const STYLED_BANK_KEYS: StyledBankKey[] = [
   "xp",
   "btg",
   "santander",
+  "caixa",
   "c6bank",
   "wise",
   "nomad",
