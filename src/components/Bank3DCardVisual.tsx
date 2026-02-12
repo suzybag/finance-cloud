@@ -12,7 +12,8 @@ export type StyledBankKey =
   | "santander"
   | "c6bank"
   | "wise"
-  | "nomad";
+  | "nomad"
+  | "bancodobrasil";
 
 type Bank3DCardVisualProps = {
   bankKey: StyledBankKey;
@@ -25,6 +26,7 @@ const CARD_IMAGE_MAP: Partial<Record<StyledBankKey, string>> = {
   c6bank: "/cards/c6-carbon.png",
   wise: "/cards/wise-card.png",
   nomad: "/cards/nomad-debit.png",
+  bancodobrasil: "/cards/bbce-ourocard.png",
 };
 
 const CARD_THEME: Record<
@@ -105,6 +107,13 @@ const CARD_THEME: Record<
     borderColor: "rgba(255,255,255,0.18)",
     shadow: "0 12px 24px rgba(89,74,15,0.46), 0 4px 10px rgba(0,0,0,0.35)",
     textColor: "#141414",
+  },
+  bancodobrasil: {
+    background:
+      "radial-gradient(110% 130% at 0% 100%, rgba(255,221,87,0.32), rgba(255,221,87,0) 55%), linear-gradient(136deg, #0a3274 0%, #08285f 52%, #061d49 100%)",
+    borderColor: "rgba(255,220,102,0.45)",
+    shadow: "0 12px 24px rgba(4,25,66,0.64), 0 4px 10px rgba(0,0,0,0.42)",
+    textColor: "#f4d34e",
   },
 };
 
@@ -188,7 +197,7 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
     card.style.setProperty("--my", `${yPercent.toFixed(2)}%`);
   };
 
-  const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     const card = cardRef.current;
     if (!card) return;
     const rect = card.getBoundingClientRect();
@@ -197,7 +206,7 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
     applyTilt(x, y);
   };
 
-  const handleMouseLeave = () => {
+  const handlePointerLeave = () => {
     const card = cardRef.current;
     if (!card) return;
     pressedRef.current = false;
@@ -206,25 +215,26 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
     card.style.setProperty("--my", "20%");
   };
 
-  const handleMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     pressedRef.current = true;
-    handleMouseMove(event);
+    handlePointerMove(event);
   };
 
-  const handleMouseUp = (event: React.MouseEvent<HTMLDivElement>) => {
+  const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
     pressedRef.current = false;
-    handleMouseMove(event);
+    handlePointerMove(event);
   };
 
   return (
-    <div className="mx-auto w-full max-w-[420px] [perspective:1200px]">
+    <div className="mx-auto w-full max-w-[280px] [perspective:1200px]">
       <div
         ref={cardRef}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-        className="relative aspect-[1.586/1] w-full overflow-hidden rounded-[18px] border transition-transform duration-150 ease-out [transform-style:preserve-3d]"
+        onPointerMove={handlePointerMove}
+        onPointerLeave={handlePointerLeave}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerLeave}
+        className="relative aspect-[1.586/1] w-full overflow-hidden rounded-[16px] border transition-transform duration-150 ease-out [transform-style:preserve-3d]"
         style={{
           "--mx": "26%",
           "--my": "20%",
@@ -236,25 +246,27 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
       >
         {cardImage ? (
           <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={cardImage}
               alt={`Cartao ${bankKey}`}
-              className="absolute inset-0 h-full w-full object-contain"
+              className="pointer-events-none absolute inset-0 block h-full w-full max-h-full max-w-full select-none object-contain object-center [transform:translateZ(44px)] drop-shadow-[0_14px_28px_rgba(0,0,0,0.58)]"
               draggable={false}
             />
-            <div className="pointer-events-none absolute inset-0 bg-black/12" />
+            <div className="pointer-events-none absolute inset-0 bg-black/12 [transform:translateZ(18px)]" />
           </>
         ) : null}
 
         <div
-          className="pointer-events-none absolute inset-0 opacity-35"
+          className="pointer-events-none absolute inset-0 opacity-35 [transform:translateZ(62px)]"
           style={{
             background:
               "radial-gradient(100% 120% at var(--mx) var(--my), rgba(255,255,255,0.24), rgba(255,255,255,0) 46%)",
           }}
         />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(140deg,rgba(255,255,255,0.16),rgba(255,255,255,0)_34%,rgba(0,0,0,0.22))] [transform:translateZ(24px)]" />
 
-        {bankKey === "nubank" ? (
+        {!cardImage && bankKey === "nubank" ? (
           <>
             <div className="absolute left-4 top-3">
               <p className="text-[40px] font-black leading-none" style={{ color: theme.textColor }}>nu</p>
@@ -272,7 +284,7 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
           </>
         ) : null}
 
-        {bankKey === "inter" ? (
+        {!cardImage && bankKey === "inter" ? (
           <>
             <div className="absolute right-4 top-3 text-right">
               <p className="text-[38px] font-black leading-none" style={{ color: theme.textColor }}>inter</p>
@@ -290,7 +302,7 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
           </>
         ) : null}
 
-        {bankKey === "bradesco" ? (
+        {!cardImage && bankKey === "bradesco" ? (
           <>
             <div className="absolute left-4 top-3 flex items-center gap-2">
               <span className="inline-block h-3 w-3 rounded-full border-2 border-slate-300/80 border-t-transparent rotate-45" />
@@ -312,7 +324,7 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
           </>
         ) : null}
 
-        {bankKey === "mercadopago" ? (
+        {!cardImage && bankKey === "mercadopago" ? (
           <>
             <p className="absolute left-14 top-1/2 -translate-y-1/2 text-[38px] font-black leading-[0.8] text-slate-100/10">
               MERCADO
@@ -334,7 +346,7 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
           </>
         ) : null}
 
-        {bankKey === "btg" ? (
+        {!cardImage && bankKey === "btg" ? (
           <>
             <div className="absolute right-3 top-1/2 h-[140px] w-[140px] -translate-y-1/2 rounded-full bg-sky-300/10" />
             <div className="absolute right-5 top-1/2 -translate-y-1/2 text-right">
@@ -354,7 +366,7 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
           </>
         ) : null}
 
-        {bankKey === "xp" ? (
+        {!cardImage && bankKey === "xp" ? (
           <>
             <div className="absolute right-4 top-3 rounded-md bg-amber-300/90 px-2 py-1 text-sm font-black leading-none text-black">
               XP
@@ -365,6 +377,32 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
             <div className="absolute left-[52px] top-[56px] opacity-70">
               <Contactless color="#c9ced7" />
             </div>
+            <div className="absolute bottom-2 right-4">
+              <VisaMark textColor={theme.textColor} />
+            </div>
+          </>
+        ) : null}
+
+        {!cardImage && bankKey === "bancodobrasil" ? (
+          <>
+            <div className="absolute left-4 top-3 flex items-center gap-2">
+              <div className="relative h-[24px] w-[24px]">
+                <span className="absolute left-1/2 top-0 h-[24px] w-[10px] -translate-x-1/2 rotate-45 rounded-sm border-2 border-[#f4d34e]" />
+                <span className="absolute left-1/2 top-0 h-[24px] w-[10px] -translate-x-1/2 -rotate-45 rounded-sm border-2 border-[#f4d34e]" />
+              </div>
+              <p className="text-[22px] font-black leading-none tracking-tight" style={{ color: theme.textColor }}>
+                bb
+              </p>
+            </div>
+            <div className="absolute right-4 top-3 opacity-90">
+              <Contactless color={theme.textColor} />
+            </div>
+            <div className="absolute left-4 top-[54px]">
+              <CardChip />
+            </div>
+            <p className="absolute left-4 bottom-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#f4d34e]/90">
+              Banco do Brasil
+            </p>
             <div className="absolute bottom-2 right-4">
               <VisaMark textColor={theme.textColor} />
             </div>

@@ -1,5 +1,6 @@
 import { BankLogo } from "@/components/BankLogo";
 import { Bank3DCardVisual, StyledBankKey } from "@/components/Bank3DCardVisual";
+import { Image3DCard } from "@/components/Image3DCard";
 import { PicPayCardVisual } from "@/components/PicPayCardVisual";
 import { Account } from "@/lib/finance";
 import { brl } from "@/lib/money";
@@ -34,31 +35,34 @@ export function AccountCard({
   onToggleArchive,
   onDelete,
 }: AccountCardProps) {
+  type FallbackBankKey = StyledBankKey | "picpay";
   const detectedBankKey =
     resolveBankKey(account.institution)
     || resolveBankKey(bankLabel)
     || resolveBankKey(account.name);
   const isPicPay = detectedBankKey === "picpay";
-  const styledBankKeys: StyledBankKey[] = ["nubank", "bradesco", "inter", "mercadopago", "xp", "btg", "santander", "c6bank", "wise", "nomad"];
+  const styledBankKeys: StyledBankKey[] = ["nubank", "bradesco", "inter", "mercadopago", "xp", "btg", "santander", "c6bank", "wise", "nomad", "bancodobrasil"];
   const isStyledBank = !!detectedBankKey && styledBankKeys.includes(detectedBankKey as StyledBankKey);
   const accountWithImage = account as Account & {
     imageUrl?: string | null;
     image_url?: string | null;
     card_image_url?: string | null;
   };
-  const fallbackImageByBank: Partial<Record<StyledBankKey, string>> = {
+  const fallbackImageByBank: Partial<Record<FallbackBankKey, string>> = {
     santander: "/cards/santander-unlimited.png",
     btg: "/cards/btg-pactual.png",
     xp: "/cards/xp-infinite.png",
+    bancodobrasil: "/cards/bbce-ourocard.png",
     c6bank: "/cards/c6-carbon.png",
     wise: "/cards/wise-card.png",
     nomad: "/cards/nomad-debit.png",
+    picpay: "/cards/picpay-black.png",
   };
   const accountImageUrl =
     accountWithImage.imageUrl
     || accountWithImage.image_url
     || accountWithImage.card_image_url
-    || (detectedBankKey && fallbackImageByBank[detectedBankKey as StyledBankKey])
+    || (detectedBankKey && fallbackImageByBank[detectedBankKey as FallbackBankKey])
     || null;
 
   return (
@@ -82,13 +86,10 @@ export function AccountCard({
 
       <div className="mt-4">
         {accountImageUrl ? (
-          <div className="cardImageWrap">
-            <img
-              className="cardImage"
-              src={accountImageUrl}
-              alt={`${bankLabel || account.institution || account.name} card`}
-            />
-          </div>
+          <Image3DCard
+            src={accountImageUrl}
+            alt={`${bankLabel || account.institution || account.name} card`}
+          />
         ) : isPicPay ? (
           <PicPayCardVisual />
         ) : isStyledBank ? (

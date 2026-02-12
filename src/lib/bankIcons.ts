@@ -38,7 +38,7 @@ const BANK_ALIASES: Record<BankKey, string[]> = {
   picpay: ["picpay", "pic pay"],
   santander: ["santander", "banco santander"],
   caixa: ["caixa", "caixaeconomicafederal", "caixa economica", "caixa economica federal"],
-  bancodobrasil: ["bb", "bancodobrasil", "banco do brasil"],
+  bancodobrasil: ["bb", "bbce", "bancodobrasil", "banco do brasil"],
   wise: ["wise", "transferwise", "transfer wise"],
   nomad: ["nomad", "nomad bank"],
   c6bank: ["c6", "c6bank", "c6 bank"],

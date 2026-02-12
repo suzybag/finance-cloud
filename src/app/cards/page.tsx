@@ -6,8 +6,10 @@ import Link from "next/link";
 import { Archive, Calendar, CreditCard, Pencil, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { BankLogo } from "@/components/BankLogo";
+import { Bank3DCardVisual, StyledBankKey } from "@/components/Bank3DCardVisual";
+import { PicPayCardVisual } from "@/components/PicPayCardVisual";
 import { supabase } from "@/lib/supabaseClient";
-import { getBankIconPath } from "@/lib/bankIcons";
+import { getBankIconPath, resolveBankKey } from "@/lib/bankIcons";
 import { brl, toNumber } from "@/lib/money";
 import { Account, Card, Transaction, computeCardSummary } from "@/lib/finance";
 
@@ -87,6 +89,20 @@ const SOFT_BUTTON_CLASS =
 
 const ULTRA_SECTION_CLASS =
   "rounded-2xl border border-violet-300/20 bg-[linear-gradient(160deg,rgba(34,18,61,0.76),rgba(12,9,31,0.86))] shadow-[0_18px_46px_rgba(76,29,149,0.28)] backdrop-blur-xl";
+
+const STYLED_BANK_KEYS: StyledBankKey[] = [
+  "nubank",
+  "bradesco",
+  "inter",
+  "mercadopago",
+  "xp",
+  "btg",
+  "santander",
+  "c6bank",
+  "wise",
+  "nomad",
+  "bancodobrasil",
+];
 
 const isValidCycleDay = (value: number) =>
   Number.isInteger(value) && value >= 1 && value <= 31;
@@ -623,6 +639,12 @@ export default function CardsPage() {
                 const issuerLabel = resolveIssuerLabel(card.issuer, card.name);
                 const bankName = issuerLabel || card.name?.trim() || "";
                 const hasBankLogo = !!getBankIconPath(bankName);
+                const detectedBankKey =
+                  resolveBankKey(issuerLabel) || resolveBankKey(card.name);
+                const isPicPay = detectedBankKey === "picpay";
+                const isStyledBank =
+                  !!detectedBankKey
+                  && STYLED_BANK_KEYS.includes(detectedBankKey as StyledBankKey);
                 const accentColor =
                   card.color && /^#([0-9a-fA-F]{6})$/.test(card.color)
                     ? card.color
@@ -659,6 +681,14 @@ export default function CardsPage() {
                         <p className="text-xs text-slate-400">Fatura atual</p>
                         <p className="text-xl font-extrabold text-slate-100">{brl(summary.currentTotal)}</p>
                       </div>
+                    </div>
+
+                    <div className="mt-4">
+                      {isPicPay ? (
+                        <PicPayCardVisual />
+                      ) : isStyledBank ? (
+                        <Bank3DCardVisual bankKey={detectedBankKey as StyledBankKey} />
+                      ) : null}
                     </div>
 
                     <div className="mt-4">
