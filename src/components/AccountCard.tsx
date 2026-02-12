@@ -41,6 +41,7 @@ export function AccountCard({
     || resolveBankKey(bankLabel)
     || resolveBankKey(account.name);
   const isPicPay = detectedBankKey === "picpay";
+  const resolvedBankLabel = isPicPay ? "PicPay" : bankLabel;
   const styledBankKeys: StyledBankKey[] = ["nubank", "bradesco", "inter", "mercadopago", "xp", "btg", "santander", "c6bank", "wise", "nomad", "bancodobrasil"];
   const isStyledBank = !!detectedBankKey && styledBankKeys.includes(detectedBankKey as StyledBankKey);
   const accountWithImage = account as Account & {
@@ -56,7 +57,7 @@ export function AccountCard({
     c6bank: "/cards/c6-carbon.png",
     wise: "/cards/wise-card.png",
     nomad: "/cards/nomad-debit.png",
-    picpay: "/cards/picpay-black.png",
+    picpay: "/cards/picpay-platinum.svg",
   };
   const accountImageUrl =
     accountWithImage.imageUrl
@@ -68,30 +69,26 @@ export function AccountCard({
   return (
     <div className="rounded-2xl border border-violet-300/20 bg-[linear-gradient(160deg,rgba(34,18,61,0.88),rgba(12,9,31,0.9))] p-5 shadow-[0_12px_35px_rgba(30,12,58,0.45)]">
       <div className="flex items-center justify-between gap-3">
-        {isPicPay ? (
-          <div />
-        ) : (
-          <div>
-            <p className="text-xl font-bold text-white">{account.name}</p>
-            <div className="mt-1 flex items-center gap-2">
-              <BankLogo bankName={bankLabel} size={30} />
-              <p className="text-xs text-slate-400">{bankLabel}</p>
-            </div>
+        <div>
+          <p className="text-xl font-bold text-white">{account.name}</p>
+          <div className="mt-1 flex items-center gap-2">
+            <BankLogo bankName={resolvedBankLabel} size={30} />
+            <p className="text-xs text-slate-400">{resolvedBankLabel}</p>
           </div>
-        )}
+        </div>
         <button className={softButtonClassName} onClick={onRefresh}>
           Atualizar
         </button>
       </div>
 
       <div className="mt-4">
-        {accountImageUrl ? (
+        {isPicPay ? (
+          <PicPayCardVisual />
+        ) : accountImageUrl ? (
           <Image3DCard
             src={accountImageUrl}
             alt={`${bankLabel || account.institution || account.name} card`}
           />
-        ) : isPicPay ? (
-          <PicPayCardVisual />
         ) : isStyledBank ? (
           <Bank3DCardVisual bankKey={detectedBankKey as StyledBankKey} />
         ) : (
