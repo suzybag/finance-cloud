@@ -1,4 +1,4 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 
 :root {
   color-scheme: dark;
@@ -166,7 +166,7 @@ body::after {
 
 .dash-flip-card {
   background-color: transparent;
-  width: 220px;
+  width: 240px;
   height: 154px;
   perspective: 1000px;
   color: white;
@@ -398,7 +398,8 @@ body::after {
   }
 
   .dash-flip-card {
-    width: 196px;
+    width: 214px;
     height: 138px;
   }
 }
+

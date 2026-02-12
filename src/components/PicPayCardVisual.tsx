@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useRef } from "react";
 
@@ -51,7 +51,7 @@ export function PicPayCardVisual() {
   };
 
   return (
-    <div className="group mx-auto w-full max-w-[400px] [perspective:1200px]">
+    <div className="group mx-auto w-full max-w-[470px] [perspective:1200px]">
       <div
         ref={cardRef}
         onMouseMove={handleMouseMove}
@@ -104,3 +104,4 @@ export function PicPayCardVisual() {
     </div>
   );
 }
+
