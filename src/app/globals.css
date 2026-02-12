@@ -166,7 +166,7 @@ body::after {
 
 .dash-flip-card {
   background-color: transparent;
-  width: 190px;
+  width: 240px;
   height: 154px;
   perspective: 1000px;
   color: white;
@@ -202,13 +202,11 @@ body::after {
 }
 
 .dash-flip-card-front {
-  background-color: #0e1014;
-  filter: saturate(1.35) contrast(1.08);
+  background-color: #171717;
 }
 
 .dash-flip-card-back {
-  background-color: #0e1014;
-  filter: saturate(1.35) contrast(1.08);
+  background-color: #171717;
   transform: rotateY(180deg);
 }
 
@@ -400,7 +398,7 @@ body::after {
   }
 
   .dash-flip-card {
-    width: 168px;
+    width: 214px;
     height: 138px;
   }
 }
