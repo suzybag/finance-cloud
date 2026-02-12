@@ -238,9 +238,9 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
         style={{
           "--mx": "26%",
           "--my": "20%",
-          background: theme.background,
-          borderColor: theme.borderColor,
-          boxShadow: theme.shadow,
+          background: cardImage ? "transparent" : theme.background,
+          borderColor: cardImage ? "transparent" : theme.borderColor,
+          boxShadow: cardImage ? "none" : theme.shadow,
           transform: "perspective(1200px) rotateX(0deg) rotateY(0deg) scale(1)",
         } as React.CSSProperties}
       >
@@ -253,18 +253,21 @@ export function Bank3DCardVisual({ bankKey }: Bank3DCardVisualProps) {
               className="pointer-events-none absolute inset-0 block h-full w-full max-h-full max-w-full select-none object-contain object-center [transform:translateZ(44px)] drop-shadow-[0_14px_28px_rgba(0,0,0,0.58)]"
               draggable={false}
             />
-            <div className="pointer-events-none absolute inset-0 bg-black/12 [transform:translateZ(18px)]" />
           </>
         ) : null}
 
-        <div
-          className="pointer-events-none absolute inset-0 opacity-35 [transform:translateZ(62px)]"
-          style={{
-            background:
-              "radial-gradient(100% 120% at var(--mx) var(--my), rgba(255,255,255,0.24), rgba(255,255,255,0) 46%)",
-          }}
-        />
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(140deg,rgba(255,255,255,0.16),rgba(255,255,255,0)_34%,rgba(0,0,0,0.22))] [transform:translateZ(24px)]" />
+        {!cardImage ? (
+          <>
+            <div
+              className="pointer-events-none absolute inset-0 opacity-35 [transform:translateZ(62px)]"
+              style={{
+                background:
+                  "radial-gradient(100% 120% at var(--mx) var(--my), rgba(255,255,255,0.24), rgba(255,255,255,0) 46%)",
+              }}
+            />
+            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(140deg,rgba(255,255,255,0.16),rgba(255,255,255,0)_34%,rgba(0,0,0,0.22))] [transform:translateZ(24px)]" />
+          </>
+        ) : null}
 
         {!cardImage && bankKey === "nubank" ? (
           <>

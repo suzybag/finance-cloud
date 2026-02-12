@@ -65,7 +65,7 @@ export function Image3DCard({ src, alt, className }: Image3DCardProps) {
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
         onPointerCancel={resetTilt}
-        className={`relative aspect-[1.586/1] w-full overflow-hidden rounded-[16px] border border-white/15 bg-black/20 shadow-[0_20px_45px_rgba(0,0,0,0.5)] transition-transform duration-150 ease-out [transform-style:preserve-3d] ${className ?? ""}`}
+        className={`relative aspect-[1.586/1] w-full overflow-hidden rounded-[16px] border border-transparent bg-transparent shadow-none transition-transform duration-150 ease-out [transform-style:preserve-3d] ${className ?? ""}`}
         style={
           {
             "--mx": "26%",
@@ -79,18 +79,8 @@ export function Image3DCard({ src, alt, className }: Image3DCardProps) {
           src={src}
           alt={alt}
           draggable={false}
-          className="pointer-events-none absolute inset-0 block h-full w-full max-h-full max-w-full select-none object-contain object-center [transform:translateZ(44px)] drop-shadow-[0_14px_28px_rgba(0,0,0,0.58)]"
+          className="pointer-events-none absolute inset-0 block h-full w-full max-h-full max-w-full select-none object-contain object-center [transform:translateZ(44px)_scale(1.06)] drop-shadow-[0_14px_28px_rgba(0,0,0,0.58)]"
         />
-
-        <div
-          className="pointer-events-none absolute inset-0 opacity-45 [transform:translateZ(64px)]"
-          style={{
-            background:
-              "radial-gradient(110% 120% at var(--mx) var(--my), rgba(255,255,255,0.36), rgba(255,255,255,0) 42%)",
-          }}
-        />
-
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(140deg,rgba(255,255,255,0.16),rgba(255,255,255,0)_34%,rgba(0,0,0,0.22))] [transform:translateZ(24px)]" />
       </div>
     </div>
   );
