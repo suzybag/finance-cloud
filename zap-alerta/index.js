@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import makeWASocket, {
   DisconnectReason,
   fetchLatestBaileysVersion,
-  useMultiFileAuthState,
+  useMultiFileAuthState as getMultiFileAuthState,
 } from "@whiskeysockets/baileys";
 import cron from "node-cron";
 import OpenAI from "openai";
@@ -868,7 +868,7 @@ function startHttpServer() {
 }
 
 async function connectWhatsApp() {
-  const { state, saveCreds } = await useMultiFileAuthState("auth");
+  const { state, saveCreds } = await getMultiFileAuthState("auth");
   const { version } = await fetchLatestBaileysVersion();
 
   const socket = makeWASocket({
