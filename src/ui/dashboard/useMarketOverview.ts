@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
 
 export type MarketOverviewPayload = {
   updatedAt: string;
@@ -69,9 +70,18 @@ export const useMarketOverview = () => {
 
     try {
       if (!silent) setLoading(true);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) {
+        throw new Error("Sessao expirada. Faca login novamente.");
+      }
+
       const response = await fetch("/api/market/overview", {
         method: "GET",
         cache: "no-store",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
       const json = await response.json().catch(() => ({}));
       if (!response.ok) {

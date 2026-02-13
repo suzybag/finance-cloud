@@ -288,30 +288,36 @@ export const DashboardSummaryScreen = () => {
                 de rendimento (24h)
               </p>
 
-              <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
-                {market.cryptos.list.slice(0, 5).map((coin) => {
-                  const positive = coin.changePct24h >= 0;
-                  return (
-                    <div
-                      key={coin.id}
-                      className="min-w-[140px] rounded-xl border border-white/10 bg-[#0e141d] px-3 py-2"
-                    >
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="font-semibold text-slate-300">{coin.symbol}</span>
-                        <span className={positive ? "text-emerald-400" : "text-rose-400"}>
-                          {formatSignedPercent(coin.changePct24h)}
-                        </span>
+              {market.cryptos.list.length ? (
+                <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+                  {market.cryptos.list.slice(0, 5).map((coin) => {
+                    const positive = coin.changePct24h >= 0;
+                    return (
+                      <div
+                        key={coin.id}
+                        className="min-w-[140px] rounded-xl border border-white/10 bg-[#0e141d] px-3 py-2"
+                      >
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="font-semibold text-slate-300">{coin.symbol}</span>
+                          <span className={positive ? "text-emerald-400" : "text-rose-400"}>
+                            {formatSignedPercent(coin.changePct24h)}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-sm font-semibold text-slate-200">
+                          {brl(coin.currentPrice)}
+                        </p>
+                        <div className="mt-2 h-8">
+                          <CryptoSparkline values={coin.sparkline} positive={positive} />
+                        </div>
                       </div>
-                      <p className="mt-1 text-sm font-semibold text-slate-200">
-                        {brl(coin.currentPrice)}
-                      </p>
-                      <div className="mt-2 h-8">
-                        <CryptoSparkline values={coin.sparkline} positive={positive} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="mt-4 rounded-xl border border-white/10 bg-[#0e141d] px-3 py-4 text-sm text-slate-400">
+                  Nenhuma cripto investida ainda. Adicione em Investimentos para aparecer aqui.
+                </div>
+              )}
 
               <p className="mt-3 text-[11px] text-slate-400">
                 {loadingMarket ? "Atualizando mercado..." : `Atualizado as ${marketTimeLabel}`}

@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { resolveCoinGeckoId } from "@/lib/coinGecko";
 
 type DollarApiResponse = {
   USDBRL?: {
@@ -39,7 +41,33 @@ type CoinGeckoMarketRow = {
   };
 };
 
-const COIN_IDS = ["bitcoin", "ethereum", "solana", "ripple", "binancecoin"];
+type InvestmentRow = {
+  id: string;
+  user_id: string;
+  type_id: string | null;
+  asset_id: string | null;
+  investment_type: string | null;
+  category: string | null;
+  asset_name: string | null;
+};
+
+type InvestmentTypeRow = {
+  id: string;
+  name: string;
+  category: string;
+  symbol: string | null;
+};
+
+type AssetRow = {
+  id: string;
+  name: string;
+  category: string | null;
+  symbol: string | null;
+};
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
 const toNumber = (value: unknown) => {
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
@@ -95,6 +123,45 @@ const fetchJson = async <T>(url: string): Promise<T> => {
   } finally {
     clearTimeout(timeoutId);
   }
+};
+
+const getAuthToken = (request: Request) => {
+  const authHeader = request.headers.get("authorization") || "";
+  return authHeader.replace("Bearer ", "").trim();
+};
+
+const getClientForToken = (token: string) => {
+  if (!supabaseUrl) {
+    return { client: null, error: "NEXT_PUBLIC_SUPABASE_URL nao configurada." };
+  }
+  if (!token) {
+    return { client: null, error: "Token ausente." };
+  }
+
+  const keyToUse = serviceRole || supabaseAnonKey;
+  if (!keyToUse) {
+    return { client: null, error: "SUPABASE_SERVICE_ROLE_KEY ou NEXT_PUBLIC_SUPABASE_ANON_KEY nao configurada." };
+  }
+
+  const client = createClient(supabaseUrl, keyToUse, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+
+  return { client, error: null };
+};
+
+const resolveRowCoinId = (
+  row: InvestmentRow,
+  typesById: Map<string, InvestmentTypeRow>,
+  assetsById: Map<string, AssetRow>,
+) => {
+  const type = row.type_id ? typesById.get(row.type_id) : undefined;
+  const asset = row.asset_id ? assetsById.get(row.asset_id) : undefined;
+  return resolveCoinGeckoId({
+    symbol: asset?.symbol || type?.symbol,
+    name: asset?.name || row.asset_name || type?.name || row.investment_type,
+    category: asset?.category || type?.category || row.category,
+  });
 };
 
 const fetchDollar = async () => {
@@ -181,10 +248,30 @@ const fetchCdi = async () => {
   };
 };
 
-const fetchCryptos = async () => {
+const fetchCryptos = async (coinIds: string[]) => {
+  if (!coinIds.length) {
+    return {
+      list: [] as Array<{
+        id: string;
+        symbol: string;
+        name: string;
+        image: string;
+        currentPrice: number;
+        changePct24h: number;
+        changeValue24h: number;
+        sparkline: number[];
+      }>,
+      summary: {
+        basketTotal: 0,
+        basketChangeValue: 0,
+        basketChangePct: 0,
+      },
+    };
+  }
+
   const url =
     "https://api.coingecko.com/api/v3/coins/markets" +
-    `?vs_currency=brl&ids=${encodeURIComponent(COIN_IDS.join(","))}` +
+    `?vs_currency=brl&ids=${encodeURIComponent(coinIds.join(","))}` +
     "&price_change_percentage=24h&sparkline=true&per_page=10&page=1";
 
   const rows = await fetchJson<CoinGeckoMarketRow[]>(url);
@@ -200,7 +287,7 @@ const fetchCryptos = async () => {
       sparkline: sampleSeries(row.sparkline_in_7d?.price || []),
     }))
     .filter((row) => row.id && row.currentPrice > 0)
-    .slice(0, 6);
+    .slice(0, 12);
 
   const basketCurrent = cryptos.reduce((sum, coin) => sum + coin.currentPrice, 0);
   const basketPrevious = cryptos.reduce(
@@ -220,13 +307,61 @@ const fetchCryptos = async () => {
   };
 };
 
-export async function GET() {
+export async function GET(request: Request) {
+  const token = getAuthToken(request);
+  const { client, error } = getClientForToken(token);
+  if (!client || error) {
+    return NextResponse.json({ message: error || "Nao autorizado." }, { status: 401 });
+  }
+
+  const { data: userData, error: userError } = await client.auth.getUser(token);
+  if (userError || !userData.user) {
+    return NextResponse.json({ message: "Token invalido." }, { status: 401 });
+  }
+
+  const userId = userData.user.id;
+
+  const [investmentsRes, typesRes, assetsRes] = await Promise.all([
+    client
+      .from("investments")
+      .select("id, user_id, type_id, asset_id, investment_type, category, asset_name")
+      .eq("user_id", userId),
+    client
+      .from("investment_types")
+      .select("id, name, category, symbol"),
+    client
+      .from("assets")
+      .select("id, name, category, symbol"),
+  ]);
+
+  if (investmentsRes.error || typesRes.error || assetsRes.error) {
+    const message =
+      investmentsRes.error?.message || typesRes.error?.message || assetsRes.error?.message || "Falha ao carregar investimentos.";
+    return NextResponse.json({ message }, { status: 500 });
+  }
+
+  const investments = (investmentsRes.data || []) as InvestmentRow[];
+  const typesById = new Map<string, InvestmentTypeRow>(
+    (((typesRes.data || []) as InvestmentTypeRow[]).map((item) => [item.id, item])),
+  );
+  const assetsById = new Map<string, AssetRow>(
+    (((assetsRes.data || []) as AssetRow[]).map((item) => [item.id, item])),
+  );
+
+  const coinIds = Array.from(
+    new Set(
+      investments
+        .map((row) => resolveRowCoinId(row, typesById, assetsById))
+        .filter((coinId): coinId is string => !!coinId),
+    ),
+  );
+
   const now = new Date().toISOString();
   const [dollarResult, ibovespaResult, cdiResult, cryptoResult] = await Promise.allSettled([
     fetchDollar(),
     fetchIbovespa(),
     fetchCdi(),
-    fetchCryptos(),
+    fetchCryptos(coinIds),
   ]);
 
   const dollar =
