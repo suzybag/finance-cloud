@@ -187,8 +187,8 @@ export const calculateInvestmentStatus = (
   const average = safeNumber(averagePrice);
   const current = safeNumber(currentPrice);
   if (average <= 0 || current <= 0) return "NORMAL";
-  if (current > average * 1.15) return "CARO";
-  if (current < average * 0.85) return "BARATO";
+  if (current > average * 1.1) return "CARO";
+  if (current < average * 0.9) return "BARATO";
   return "NORMAL";
 };
 

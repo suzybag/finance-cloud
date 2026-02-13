@@ -238,6 +238,8 @@ create table if not exists public.investment_types (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   category text not null,
+  symbol text,
+  is_variable boolean default false,
   created_at timestamptz not null default now()
 );
 
@@ -258,6 +260,8 @@ alter table public.banks alter column name set not null;
 
 alter table public.investment_types add column if not exists name text;
 alter table public.investment_types add column if not exists category text;
+alter table public.investment_types add column if not exists symbol text;
+alter table public.investment_types add column if not exists is_variable boolean default false;
 alter table public.investment_types add column if not exists created_at timestamptz not null default now();
 alter table public.investment_types alter column name set not null;
 alter table public.investment_types alter column category set not null;
@@ -452,7 +456,8 @@ create table if not exists public.investments (
   price_history jsonb,
   annual_rate numeric,
   created_at timestamp default now(),
-  start_date date not null
+  start_date date not null,
+  updated_at timestamptz default now()
 );
 
 alter table public.investments add column if not exists bank_id uuid;
@@ -475,6 +480,40 @@ alter table public.investments add column if not exists price_history jsonb;
 alter table public.investments add column if not exists annual_rate numeric;
 alter table public.investments add column if not exists created_at timestamp default now();
 alter table public.investments add column if not exists start_date date default current_date;
+alter table public.investments add column if not exists updated_at timestamptz default now();
+
+update public.investment_types set symbol = 'CDB100', is_variable = false where lower(name) = lower('CDB 100% CDI');
+update public.investment_types set symbol = 'CDB110', is_variable = false where lower(name) = lower('CDB 110% CDI');
+update public.investment_types set symbol = 'CDB115', is_variable = false where lower(name) = lower('CDB 115% CDI');
+update public.investment_types set symbol = 'CDB120', is_variable = false where lower(name) = lower('CDB 120% CDI');
+update public.investment_types set symbol = 'SELIC', is_variable = false where lower(name) = lower('Tesouro Selic');
+update public.investment_types set symbol = 'IPCA', is_variable = false where lower(name) = lower('Tesouro IPCA+');
+update public.investment_types set symbol = 'NUBOX', is_variable = false where lower(name) = lower('Caixinha Nubank');
+update public.investment_types set symbol = 'XAU', is_variable = true where lower(name) = lower('Ouro');
+update public.investment_types set symbol = 'ACOES', is_variable = true where lower(name) = lower('Acoes');
+update public.investment_types set symbol = 'FIIS', is_variable = true where lower(name) = lower('FIIs');
+update public.investment_types set symbol = 'ETFS', is_variable = true where lower(name) = lower('ETFs');
+update public.investment_types set symbol = 'BTC', is_variable = true where lower(name) = lower('Bitcoin (BTC)');
+update public.investment_types set symbol = 'ETH', is_variable = true where lower(name) = lower('Ethereum (ETH)');
+update public.investment_types set symbol = 'XRP', is_variable = true where lower(name) = lower('XRP');
+update public.investment_types set symbol = 'USDC', is_variable = true where lower(name) = lower('USDC');
+
+update public.investments set updated_at = now() where updated_at is null;
+
+create or replace function public.set_investments_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end
+$$;
+
+drop trigger if exists trg_investments_set_updated_at on public.investments;
+create trigger trg_investments_set_updated_at
+before update on public.investments
+for each row execute function public.set_investments_updated_at();
 
 do $$
 begin
