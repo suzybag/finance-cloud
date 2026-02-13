@@ -325,7 +325,8 @@ export async function GET(request: Request) {
     client
       .from("investments")
       .select("id, user_id, type_id, asset_id, investment_type, category, asset_name")
-      .eq("user_id", userId),
+      .eq("user_id", userId)
+      .gt("current_amount", 0),
     client
       .from("investment_types")
       .select("id, name, category, symbol"),
