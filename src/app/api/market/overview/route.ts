@@ -180,41 +180,24 @@ const resolveRowCoinId = (
 };
 
 const fetchDollar = async () => {
-  try {
-    const data = await fetchJson<DollarApiResponse>(
-      "https://economia.awesomeapi.com.br/json/last/USD-BRL",
-    );
-    const row = data.USDBRL;
-    const price = toNumber(row?.bid);
-    const changePct = toNumber(row?.pctChange);
-    if (price > 0) {
-      return {
-        price,
-        changePct,
-        updatedAt:
-          row?.timestamp && Number.isFinite(Number(row.timestamp))
-            ? new Date(Number(row.timestamp) * 1000).toISOString()
-            : new Date().toISOString(),
-      };
-    }
-  } catch (_error) {
-    // Fallback below
-  }
-
-  const yahoo = await fetchJson<YahooChartResponse>(
-    "https://query1.finance.yahoo.com/v8/finance/chart/USDBRL=X?range=2d&interval=1d",
+  const data = await fetchJson<DollarApiResponse>(
+    "https://economia.awesomeapi.com.br/json/last/USD-BRL",
   );
-  const meta = yahoo.chart?.result?.[0]?.meta;
-  const price = toNumber(meta?.regularMarketPrice);
-  const previous = toNumber(meta?.chartPreviousClose);
-  const changePct = previous > 0 ? ((price - previous) / previous) * 100 : 0;
+  const row = data.USDBRL;
+  const price = toNumber(row?.bid);
+  const changePct = toNumber(row?.pctChange);
+
+  if (price <= 0) {
+    throw new Error("Falha ao atualizar o dolar na AwesomeAPI.");
+  }
 
   return {
     price,
     changePct,
-    updatedAt: meta?.regularMarketTime
-      ? new Date(meta.regularMarketTime * 1000).toISOString()
-      : new Date().toISOString(),
+    updatedAt:
+      row?.timestamp && Number.isFinite(Number(row.timestamp))
+        ? new Date(Number(row.timestamp) * 1000).toISOString()
+        : new Date().toISOString(),
   };
 };
 
@@ -380,10 +363,14 @@ export async function GET(request: Request) {
     fetchCryptos(coinIds),
   ]);
 
-  const dollar =
-    dollarResult.status === "fulfilled"
-      ? dollarResult.value
-      : { price: 0, changePct: 0, updatedAt: now };
+  if (dollarResult.status !== "fulfilled") {
+    return jsonNoStore(
+      { message: "Falha ao atualizar, tentando novamente..." },
+      { status: 502 },
+    );
+  }
+
+  const dollar = dollarResult.value;
   const ibovespa =
     ibovespaResult.status === "fulfilled"
       ? ibovespaResult.value
@@ -426,9 +413,18 @@ export async function GET(request: Request) {
   return jsonNoStore({
     updatedAt: now,
     indicators: {
-      dollar,
-      ibovespa,
-      cdi,
+      dollar: {
+        ...dollar,
+        updatedAt: now,
+      },
+      ibovespa: {
+        ...ibovespa,
+        updatedAt: now,
+      },
+      cdi: {
+        ...cdi,
+        updatedAt: now,
+      },
     },
     cryptos,
   });
