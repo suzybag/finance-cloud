@@ -21,7 +21,10 @@ export function InvestmentCategory({
   onToggle,
   onDelete,
 }: InvestmentCategoryProps) {
-  const categoryTotal = items.reduce((sum, item) => sum + item.current_amount, 0);
+  const categoryTotal = items.reduce(
+    (sum, item) => sum + (item.operation === "venda" ? -item.current_amount : item.current_amount),
+    0,
+  );
 
   return (
     <section className="rounded-2xl border border-violet-300/25 bg-[linear-gradient(160deg,rgba(17,24,39,0.92),rgba(8,12,24,0.95))]">

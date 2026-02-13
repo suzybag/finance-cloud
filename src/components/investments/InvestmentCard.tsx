@@ -13,6 +13,8 @@ export type InvestmentCardItem = {
   broker: string;
   investment_type: string;
   category: string;
+  operation: "compra" | "venda";
+  costs: number;
   asset_name: string;
   asset_logo_url: string | null;
   quantity: number;
@@ -45,6 +47,7 @@ export function InvestmentCard({ item, deleting, onDelete }: InvestmentCardProps
   const status = calculateInvestmentStatus(item.average_price, item.current_price);
   const { difference, percent } = calculateReturn(item.invested_amount, item.current_amount);
   const positive = difference >= 0;
+  const isBuy = item.operation === "compra";
 
   return (
     <article className="group rounded-2xl border border-violet-300/25 bg-[linear-gradient(165deg,rgba(17,24,39,0.98),rgba(7,11,23,0.96))] p-4 shadow-[0_12px_34px_rgba(15,23,42,0.55)] transition-all duration-300 hover:-translate-y-0.5 hover:border-violet-300/45 hover:shadow-[0_18px_44px_rgba(124,58,237,0.28)]">
@@ -68,6 +71,9 @@ export function InvestmentCard({ item, deleting, onDelete }: InvestmentCardProps
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h4 className="truncate text-lg font-bold text-white">{item.asset_name}</h4>
+              <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${isBuy ? "border-emerald-300/35 bg-emerald-500/15 text-emerald-200" : "border-rose-300/35 bg-rose-500/15 text-rose-200"}`}>
+                {isBuy ? "COMPRA" : "VENDA"}
+              </span>
               <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${statusStyles[status]}`}>
                 {status}
               </span>
@@ -92,7 +98,7 @@ export function InvestmentCard({ item, deleting, onDelete }: InvestmentCardProps
       <div className="mt-4 grid gap-2 sm:grid-cols-3">
         <div className="rounded-xl border border-violet-300/20 bg-violet-950/20 p-3">
           <p className="text-[11px] text-slate-400">Quantidade</p>
-          <p className="mt-1 text-sm font-bold text-slate-100">{formatQty(item.quantity)}</p>
+          <p className="mt-1 text-sm font-bold text-slate-100">{formatQty(Math.abs(item.quantity))}</p>
         </div>
         <div className="rounded-xl border border-violet-300/20 bg-violet-950/20 p-3">
           <p className="text-[11px] text-slate-400">Preco medio</p>
@@ -137,7 +143,7 @@ export function InvestmentCard({ item, deleting, onDelete }: InvestmentCardProps
       <div className="mt-2 text-[11px] text-slate-500">
         <span className="inline-flex items-center gap-1">
           <Building2 className="h-3 w-3" />
-          Categoria: {item.category}
+          Categoria: {item.category} • Custos: {brl(item.costs)}
         </span>
       </div>
     </article>

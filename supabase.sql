@@ -231,6 +231,8 @@ create table if not exists public.investments (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   broker text not null,
+  operation text not null default 'compra',
+  costs numeric not null default 0,
   category text not null default 'Outros',
   investment_type text not null,
   asset_name text not null default '',
@@ -247,6 +249,8 @@ create table if not exists public.investments (
 );
 
 alter table public.investments add column if not exists broker text not null default '';
+alter table public.investments add column if not exists operation text not null default 'compra';
+alter table public.investments add column if not exists costs numeric not null default 0;
 alter table public.investments add column if not exists category text not null default 'Outros';
 alter table public.investments add column if not exists investment_type text not null default '';
 alter table public.investments add column if not exists asset_name text not null default '';
@@ -285,6 +289,15 @@ set category = case
   else 'Outros'
 end
 where coalesce(trim(category), '') = '';
+
+update public.investments
+set operation = case
+  when lower(coalesce(operation, '')) = 'venda' then 'venda'
+  else 'compra'
+end
+where coalesce(trim(operation), '') = '' or lower(coalesce(operation, '')) not in ('compra', 'venda');
+
+update public.investments set costs = 0 where costs is null or costs < 0;
 
 update public.investments set quantity = 1 where quantity is null or quantity <= 0;
 update public.investments set average_price = 0 where average_price is null;

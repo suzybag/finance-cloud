@@ -125,6 +125,21 @@ export const calculateReturn = (invested: number, current: number) => {
   };
 };
 
+export const calculateTotal = ({
+  quantity,
+  unitPrice,
+  costs = 0,
+}: {
+  quantity: number;
+  unitPrice: number;
+  costs?: number;
+}) => {
+  const qty = safeNumber(quantity);
+  const price = safeNumber(unitPrice);
+  const extra = safeNumber(costs);
+  return roundCurrency((qty * price) + extra);
+};
+
 export const calculateInvestmentStatus = (
   averagePrice: number,
   currentPrice: number,

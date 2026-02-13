@@ -11,7 +11,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
-import { AddInvestmentModal, type AddInvestmentPayload } from "@/components/investments/AddInvestmentModal";
+import { InvestmentModal, type InvestmentLaunchPayload } from "@/components/investments/InvestmentModal";
 import { InvestmentCategory } from "@/components/investments/InvestmentCategory";
 import { type InvestmentCardItem } from "@/components/investments/InvestmentCard";
 import {
@@ -48,6 +48,8 @@ type RawInvestmentRow = {
   start_date?: string | null;
   created_at?: string | null;
   price_history?: unknown;
+  operation?: string | null;
+  costs?: number | string | null;
 };
 
 const SECTION_CLASS =
@@ -64,6 +66,10 @@ const safeRatio = (numerator: number, denominator: number, fallback = 0) => {
   }
   return numerator / denominator;
 };
+
+const isMissingInvestmentsExtendedColumnError = (message?: string | null) =>
+  /could not find the '(operation|costs|category|asset_name|asset_logo_url|quantity|average_price|current_price|price_history)' column of 'investments' in the schema cache/i
+    .test(message ?? "");
 
 const normalizeCategory = (
   rawCategory: string | null | undefined,
@@ -83,12 +89,14 @@ const normalizeInvestment = (row: RawInvestmentRow): InvestmentRow | null => {
   const annualRate = row.annual_rate === null || typeof row.annual_rate === "undefined"
     ? null
     : toNumber(row.annual_rate);
+  const operation = row.operation === "venda" ? "venda" : "compra";
+  const costs = Math.max(0, toNumber(row.costs));
 
   const startDate = row.start_date || new Date().toISOString().slice(0, 10);
   const broker = (row.broker || "Nao informado").trim() || "Nao informado";
   const assetName = (row.asset_name || investmentType).trim() || investmentType;
 
-  let quantity = toNumber(row.quantity);
+  let quantity = Math.abs(toNumber(row.quantity));
   let averagePrice = toNumber(row.average_price);
   let currentPrice = toNumber(row.current_price);
   let investedAmount = toNumber(row.invested_amount);
@@ -119,7 +127,7 @@ const normalizeInvestment = (row: RawInvestmentRow): InvestmentRow | null => {
   if (averagePrice <= 0) averagePrice = currentPrice > 0 ? currentPrice : 1;
   if (currentPrice <= 0) currentPrice = averagePrice;
 
-  investedAmount = roundCurrency(quantity * averagePrice);
+  investedAmount = roundCurrency((quantity * averagePrice) + costs);
   currentAmount = roundCurrency(quantity * currentPrice);
 
   return {
@@ -128,6 +136,8 @@ const normalizeInvestment = (row: RawInvestmentRow): InvestmentRow | null => {
     broker,
     category,
     investment_type: investmentType,
+    operation,
+    costs,
     asset_name: assetName,
     asset_logo_url: row.asset_logo_url?.trim() || null,
     quantity: roundCurrency(quantity),
@@ -203,6 +213,8 @@ export default function InvestmentsPage() {
         supabase
           .from("investments")
           .update({
+            operation: item.operation,
+            costs: item.costs,
             category: item.category,
             asset_name: item.asset_name,
             asset_logo_url: item.asset_logo_url,
@@ -222,7 +234,7 @@ export default function InvestmentsPage() {
     void loadInvestments();
   }, [loadInvestments]);
 
-  const handleAddInvestment = async (payload: AddInvestmentPayload) => {
+  const handleAddInvestment = async (payload: InvestmentLaunchPayload) => {
     setSaving(true);
     setFeedback(null);
 
@@ -233,31 +245,51 @@ export default function InvestmentsPage() {
       return;
     }
 
-    const investedAmount = roundCurrency(payload.quantity * payload.averagePrice);
-    const currentAmount = roundCurrency(payload.quantity * payload.currentPrice);
+    const investedAmount = roundCurrency(payload.totalValue);
+    const currentAmount = roundCurrency(payload.quantity * payload.unitPrice);
     const initialHistory = resolvePriceHistory({
       history: [],
-      averagePrice: payload.averagePrice,
-      currentPrice: payload.currentPrice,
-      seedRef: `${payload.assetName}-${payload.broker}`,
+      averagePrice: payload.unitPrice,
+      currentPrice: payload.unitPrice,
+      seedRef: `${payload.assetName}-${payload.assetType}-${payload.side}`,
     });
 
-    const { error } = await supabase.from("investments").insert({
+    const fullInsertPayload = {
       user_id: resolvedUserId,
-      broker: payload.broker,
-      category: payload.category,
-      investment_type: payload.investmentType,
+      broker: "Manual",
+      operation: payload.side,
+      costs: payload.costs,
+      category: payload.assetType,
+      investment_type: payload.assetType,
       asset_name: payload.assetName,
       asset_logo_url: payload.assetLogoUrl,
       quantity: payload.quantity,
-      average_price: payload.averagePrice,
-      current_price: payload.currentPrice,
+      average_price: payload.unitPrice,
+      current_price: payload.unitPrice,
       invested_amount: investedAmount,
       current_amount: currentAmount,
-      annual_rate: payload.annualRate,
-      start_date: payload.startDate,
+      annual_rate: null,
+      start_date: payload.tradeDate,
       price_history: initialHistory,
-    });
+    };
+
+    const initialInsert = await supabase.from("investments").insert(fullInsertPayload);
+    let error = initialInsert.error;
+    let usedFallback = false;
+
+    if (error && isMissingInvestmentsExtendedColumnError(error.message)) {
+      usedFallback = true;
+      const fallbackInsert = await supabase.from("investments").insert({
+        user_id: resolvedUserId,
+        broker: "Manual",
+        investment_type: payload.assetType,
+        invested_amount: investedAmount,
+        current_amount: currentAmount,
+        annual_rate: null,
+        start_date: payload.tradeDate,
+      });
+      error = fallbackInsert.error;
+    }
 
     if (error) {
       setSaving(false);
@@ -267,7 +299,11 @@ export default function InvestmentsPage() {
 
     setSaving(false);
     setShowModal(false);
-    setFeedback("Investimento salvo com sucesso.");
+    setFeedback(
+      usedFallback
+        ? "Lancamento salvo, mas alguns campos visuais exigem atualizacao do banco."
+        : "Lancamento salvo com sucesso.",
+    );
     await loadInvestments();
   };
 
@@ -291,8 +327,14 @@ export default function InvestmentsPage() {
   };
 
   const summary = useMemo(() => {
-    const totalInvested = investments.reduce((sum, item) => sum + item.invested_amount, 0);
-    const totalCurrent = investments.reduce((sum, item) => sum + item.current_amount, 0);
+    const totalInvested = investments.reduce(
+      (sum, item) => sum + (item.operation === "venda" ? -item.invested_amount : item.invested_amount),
+      0,
+    );
+    const totalCurrent = investments.reduce(
+      (sum, item) => sum + (item.operation === "venda" ? -item.current_amount : item.current_amount),
+      0,
+    );
     const profit = totalCurrent - totalInvested;
     const profitability = totalInvested > 0 ? (profit / totalInvested) * 100 : 0;
 
@@ -324,10 +366,10 @@ export default function InvestmentsPage() {
   return (
     <AppShell
       title="Investimentos"
-      subtitle="Lista profissional por categoria, com status inteligente e mini graficos"
+      subtitle="Lista profissional por categoria com lancamentos de compra e venda"
       contentClassName="investments-ultra-bg"
     >
-      <AddInvestmentModal
+      <InvestmentModal
         open={showModal}
         saving={saving}
         onClose={() => setShowModal(false)}
@@ -363,7 +405,7 @@ export default function InvestmentsPage() {
                 onClick={() => setShowModal(true)}
               >
                 <Plus className="h-4 w-4" />
-                Adicionar investimento
+                Adicionar lancamento
               </button>
             </div>
           </section>
