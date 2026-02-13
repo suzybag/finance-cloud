@@ -131,22 +131,40 @@ const fetchJson = async <T>(url: string): Promise<T> => {
 };
 
 const fetchDollar = async () => {
-  const data = await fetchJson<AwesomeDollarResponse>(
-    "https://economia.awesomeapi.com.br/json/last/USD-BRL",
-  );
-  const row = data.USDBRL;
-  const price = toNumber(row?.bid);
-  const changePct = toNumber(row?.pctChange);
-  if (price <= 0) {
-    throw new Error("Falha ao atualizar dolar.");
+  try {
+    const data = await fetchJson<AwesomeDollarResponse>(
+      "https://economia.awesomeapi.com.br/json/last/USD-BRL",
+    );
+    const row = data.USDBRL;
+    const price = toNumber(row?.bid);
+    const changePct = toNumber(row?.pctChange);
+    if (price > 0) {
+      return {
+        price,
+        changePct,
+        updatedAt:
+          row?.timestamp && Number.isFinite(Number(row.timestamp))
+            ? new Date(Number(row.timestamp) * 1000).toISOString()
+            : new Date().toISOString(),
+      };
+    }
+  } catch {
+    // fallback below
   }
+
+  const yahoo = await fetchJson<YahooChartResponse>(
+    "https://query1.finance.yahoo.com/v8/finance/chart/USDBRL=X?range=2d&interval=1d",
+  );
+  const meta = yahoo.chart?.result?.[0]?.meta;
+  const price = toNumber(meta?.regularMarketPrice);
+  const previous = toNumber(meta?.chartPreviousClose);
+  const changePct = previous > 0 ? ((price - previous) / previous) * 100 : 0;
   return {
     price,
     changePct,
-    updatedAt:
-      row?.timestamp && Number.isFinite(Number(row.timestamp))
-        ? new Date(Number(row.timestamp) * 1000).toISOString()
-        : new Date().toISOString(),
+    updatedAt: meta?.regularMarketTime
+      ? new Date(meta.regularMarketTime * 1000).toISOString()
+      : new Date().toISOString(),
   };
 };
 
