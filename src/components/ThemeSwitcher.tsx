@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpenText, MoonStar, Palette, SunMedium } from "lucide-react";
+import { BookOpenText, Eye, MoonStar, Palette, SunMedium } from "lucide-react";
 import { type ReactNode } from "react";
 import { ThemeMode, useTheme } from "@/context/ThemeContext";
 
@@ -34,6 +34,25 @@ export const ThemeSwitcher = () => {
     { mode: "normal", icon: <SunMedium className="h-3.5 w-3.5" /> },
   ];
 
+  const applySafeViewPreset = (preset: "off" | "safe" | "safe-plus") => {
+    if (preset === "off") {
+      setThemeMode("normal");
+      return;
+    }
+
+    setThemeMode("reading");
+    if (preset === "safe") {
+      setBrightness(0.94);
+      setContrast(0.86);
+      setSaturation(0.8);
+      return;
+    }
+
+    setBrightness(0.88);
+    setContrast(0.8);
+    setSaturation(0.68);
+  };
+
   return (
     <div className="rounded-2xl border border-violet-300/15 bg-slate-900/30 p-4">
       <div className="flex items-center gap-2">
@@ -64,6 +83,36 @@ export const ThemeSwitcher = () => {
             </button>
           );
         })}
+      </div>
+
+      <div className="mt-3 rounded-xl border border-violet-300/15 bg-black/20 p-3">
+        <p className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-200">
+          <Eye className="h-3.5 w-3.5" />
+          Modo de Vista Segura
+        </p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <button
+            type="button"
+            className={`${buttonBaseClass} border-violet-300/20 bg-slate-950/40 text-slate-300 hover:bg-slate-900/65`}
+            onClick={() => applySafeViewPreset("off")}
+          >
+            Vista normal
+          </button>
+          <button
+            type="button"
+            className={`${buttonBaseClass} border-violet-300/30 bg-violet-500/15 text-violet-100 hover:bg-violet-500/25`}
+            onClick={() => applySafeViewPreset("safe")}
+          >
+            Vista segura
+          </button>
+          <button
+            type="button"
+            className={`${buttonBaseClass} border-violet-300/35 bg-violet-500/20 text-violet-100 hover:bg-violet-500/30`}
+            onClick={() => applySafeViewPreset("safe-plus")}
+          >
+            Vista segura+
+          </button>
+        </div>
       </div>
 
       <div className="mt-4 grid gap-3">

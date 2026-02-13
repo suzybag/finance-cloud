@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   Bell,
   CalendarDays,
@@ -29,6 +30,7 @@ type Profile = {
 
 type PreferencesState = {
   notifications: boolean;
+  twoFactorEnabled: boolean;
   currency: "BRL";
   monthStartDay: number;
 };
@@ -38,6 +40,7 @@ type SecurityModalMode = "password" | "email";
 const MAX_SIZE_BYTES = 2 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const PREFERENCES_KEY = "finance_cloud_preferences";
+const REVIEW_URL = process.env.NEXT_PUBLIC_APP_REVIEW_URL || "https://github.com/";
 
 const normalizeDisplayName = (value: string) => value.replace(/\s+/g, " ").trim();
 const validateDisplayName = (value: string) => {
@@ -56,6 +59,7 @@ const lineClass = "flex items-center justify-between gap-3 border-t border-viole
 
 const defaultPreferences: PreferencesState = {
   notifications: true,
+  twoFactorEnabled: false,
   currency: "BRL",
   monthStartDay: 1,
 };
@@ -113,6 +117,7 @@ export default function ProfilePage() {
   const [privacyMessage, setPrivacyMessage] = useState<string | null>(null);
   const [privacyError, setPrivacyError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   const [preferences, setPreferences] = useState<PreferencesState>(defaultPreferences);
 
@@ -439,14 +444,42 @@ export default function ProfilePage() {
     setExporting(false);
   };
 
-  const handleDeleteAccount = () => {
+  const handleDeleteAccount = async () => {
     const confirmed = window.confirm(
       "Tem certeza? Essa acao e irreversivel e remove todos os seus dados.",
     );
     if (!confirmed) return;
-    setPrivacyError(
-      "Exclusao definitiva ainda nao esta habilitada no app. Entre em contato com o suporte.",
-    );
+
+    setDeletingAccount(true);
+    setPrivacyError(null);
+    setPrivacyMessage(null);
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) {
+      setDeletingAccount(false);
+      setPrivacyError("Sessao nao encontrada.");
+      return;
+    }
+
+    const response = await fetch("/api/profile/account", {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setDeletingAccount(false);
+      setPrivacyError(data.message || "Falha ao excluir conta.");
+      return;
+    }
+
+    await supabase.auth.signOut();
+    window.location.href = "/";
+  };
+
+  const handleOpenReview = () => {
+    window.open(REVIEW_URL, "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -716,16 +749,18 @@ export default function ProfilePage() {
               <Shield className="h-4 w-4 text-slate-300" />
               <div>
                 <p className="text-sm font-semibold text-slate-100">Biometria / 2FA</p>
-                <p className="text-xs text-slate-400">Camada extra de seguranca (em breve)</p>
+                <p className="text-xs text-slate-400">Camada extra de seguranca</p>
               </div>
             </div>
-            <button
-              type="button"
-              className="rounded-lg border border-white/10 bg-slate-800/50 px-4 py-1.5 text-xs font-semibold text-slate-400"
-              disabled
-            >
-              Em breve
-            </button>
+            <Toggle
+              checked={preferences.twoFactorEnabled}
+              onToggle={() =>
+                setPreferences((prev) => ({
+                  ...prev,
+                  twoFactorEnabled: !prev.twoFactorEnabled,
+                }))
+              }
+            />
           </div>
 
           {securityError ? (
@@ -841,13 +876,12 @@ export default function ProfilePage() {
                 <p className="text-xs text-slate-400">Saiba como usamos seus dados</p>
               </div>
             </div>
-            <button
-              type="button"
+            <Link
+              href="/privacy"
               className="rounded-lg bg-slate-100/95 px-4 py-1.5 text-xs font-semibold text-slate-900"
-              onClick={() => window.alert("Pagina de politica de privacidade em breve.")}
             >
               Ver
-            </button>
+            </Link>
           </div>
 
           <div className="mt-4 rounded-xl border border-rose-500/35 bg-rose-950/25 px-4 py-3">
@@ -863,8 +897,9 @@ export default function ProfilePage() {
                 type="button"
                 className="rounded-lg border border-rose-400/40 bg-rose-500/15 px-4 py-1.5 text-xs font-semibold text-rose-100"
                 onClick={handleDeleteAccount}
+                disabled={deletingAccount}
               >
-                Excluir
+                {deletingAccount ? "Excluindo..." : "Excluir"}
               </button>
             </div>
           </div>
@@ -902,13 +937,12 @@ export default function ProfilePage() {
               <FileText className="h-4 w-4 text-slate-300" />
               <p className="text-sm font-semibold text-slate-100">Termos de uso</p>
             </div>
-            <button
-              type="button"
+            <Link
+              href="/terms"
               className="rounded-lg border border-violet-300/20 bg-slate-900/45 px-4 py-1.5 text-xs font-semibold text-slate-100"
-              onClick={() => window.alert("Termos de uso em breve.")}
             >
               Ver
-            </button>
+            </Link>
           </div>
 
           <div className={lineClass}>
@@ -932,7 +966,7 @@ export default function ProfilePage() {
             <button
               type="button"
               className="rounded-lg border border-violet-300/20 bg-slate-900/45 px-4 py-1.5 text-xs font-semibold text-slate-100"
-              onClick={() => window.alert("Obrigado! Integracao de avaliacao em breve.")}
+              onClick={handleOpenReview}
             >
               Avaliar
             </button>
