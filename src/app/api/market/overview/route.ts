@@ -180,24 +180,42 @@ const resolveRowCoinId = (
 };
 
 const fetchDollar = async () => {
-  const data = await fetchJson<DollarApiResponse>(
-    "https://economia.awesomeapi.com.br/json/last/USD-BRL",
-  );
-  const row = data.USDBRL;
-  const price = toNumber(row?.bid);
-  const changePct = toNumber(row?.pctChange);
+  try {
+    const data = await fetchJson<DollarApiResponse>(
+      "https://economia.awesomeapi.com.br/json/last/USD-BRL",
+    );
+    const row = data.USDBRL;
+    const price = toNumber(row?.bid);
+    const changePct = toNumber(row?.pctChange);
 
-  if (price <= 0) {
-    throw new Error("Falha ao atualizar o dolar na AwesomeAPI.");
+    if (price > 0) {
+      return {
+        price,
+        changePct,
+        updatedAt:
+          row?.timestamp && Number.isFinite(Number(row.timestamp))
+            ? new Date(Number(row.timestamp) * 1000).toISOString()
+            : new Date().toISOString(),
+      };
+    }
+  } catch {
+    // fallback below
   }
+
+  const yahoo = await fetchJson<YahooChartResponse>(
+    "https://query1.finance.yahoo.com/v8/finance/chart/USDBRL=X?range=2d&interval=1d",
+  );
+  const meta = yahoo.chart?.result?.[0]?.meta;
+  const price = toNumber(meta?.regularMarketPrice);
+  const previous = toNumber(meta?.chartPreviousClose);
+  const changePct = previous > 0 ? ((price - previous) / previous) * 100 : 0;
 
   return {
     price,
     changePct,
-    updatedAt:
-      row?.timestamp && Number.isFinite(Number(row.timestamp))
-        ? new Date(Number(row.timestamp) * 1000).toISOString()
-        : new Date().toISOString(),
+    updatedAt: meta?.regularMarketTime
+      ? new Date(meta.regularMarketTime * 1000).toISOString()
+      : new Date().toISOString(),
   };
 };
 
@@ -306,54 +324,47 @@ const fetchCryptos = async (coinIds: string[]) => {
 };
 
 export async function GET(request: Request) {
+  let coinIds: string[] = [];
   const token = getAuthToken(request);
-  const { client, error } = getClientForToken(token);
-  if (!client || error) {
-    return jsonNoStore({ message: error || "Nao autorizado." }, { status: 401 });
+  const { client } = getClientForToken(token);
+
+  if (client && token) {
+    const { data: userData, error: userError } = await client.auth.getUser(token);
+    if (!userError && userData.user) {
+      const userId = userData.user.id;
+      const [investmentsRes, typesRes, assetsRes] = await Promise.all([
+        client
+          .from("investments")
+          .select("id, user_id, type_id, asset_id, investment_type, category, asset_name")
+          .eq("user_id", userId)
+          .gt("current_amount", 0),
+        client
+          .from("investment_types")
+          .select("id, name, category, symbol"),
+        client
+          .from("assets")
+          .select("id, name, category, symbol"),
+      ]);
+
+      if (!investmentsRes.error && !typesRes.error && !assetsRes.error) {
+        const investments = (investmentsRes.data || []) as InvestmentRow[];
+        const typesById = new Map<string, InvestmentTypeRow>(
+          (((typesRes.data || []) as InvestmentTypeRow[]).map((item) => [item.id, item])),
+        );
+        const assetsById = new Map<string, AssetRow>(
+          (((assetsRes.data || []) as AssetRow[]).map((item) => [item.id, item])),
+        );
+
+        coinIds = Array.from(
+          new Set(
+            investments
+              .map((row) => resolveRowCoinId(row, typesById, assetsById))
+              .filter((coinId): coinId is string => !!coinId),
+          ),
+        );
+      }
+    }
   }
-
-  const { data: userData, error: userError } = await client.auth.getUser(token);
-  if (userError || !userData.user) {
-    return jsonNoStore({ message: "Token invalido." }, { status: 401 });
-  }
-
-  const userId = userData.user.id;
-
-  const [investmentsRes, typesRes, assetsRes] = await Promise.all([
-    client
-      .from("investments")
-      .select("id, user_id, type_id, asset_id, investment_type, category, asset_name")
-      .eq("user_id", userId)
-      .gt("current_amount", 0),
-    client
-      .from("investment_types")
-      .select("id, name, category, symbol"),
-    client
-      .from("assets")
-      .select("id, name, category, symbol"),
-  ]);
-
-  if (investmentsRes.error || typesRes.error || assetsRes.error) {
-    const message =
-      investmentsRes.error?.message || typesRes.error?.message || assetsRes.error?.message || "Falha ao carregar investimentos.";
-    return jsonNoStore({ message }, { status: 500 });
-  }
-
-  const investments = (investmentsRes.data || []) as InvestmentRow[];
-  const typesById = new Map<string, InvestmentTypeRow>(
-    (((typesRes.data || []) as InvestmentTypeRow[]).map((item) => [item.id, item])),
-  );
-  const assetsById = new Map<string, AssetRow>(
-    (((assetsRes.data || []) as AssetRow[]).map((item) => [item.id, item])),
-  );
-
-  const coinIds = Array.from(
-    new Set(
-      investments
-        .map((row) => resolveRowCoinId(row, typesById, assetsById))
-        .filter((coinId): coinId is string => !!coinId),
-    ),
-  );
 
   const now = new Date().toISOString();
   const [dollarResult, ibovespaResult, cdiResult, cryptoResult] = await Promise.allSettled([
@@ -363,14 +374,10 @@ export async function GET(request: Request) {
     fetchCryptos(coinIds),
   ]);
 
-  if (dollarResult.status !== "fulfilled") {
-    return jsonNoStore(
-      { message: "Falha ao atualizar, tentando novamente..." },
-      { status: 502 },
-    );
-  }
-
-  const dollar = dollarResult.value;
+  const dollar =
+    dollarResult.status === "fulfilled"
+      ? dollarResult.value
+      : { price: 0, changePct: 0, updatedAt: now };
   const ibovespa =
     ibovespaResult.status === "fulfilled"
       ? ibovespaResult.value
