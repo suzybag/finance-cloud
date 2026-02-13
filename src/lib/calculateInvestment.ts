@@ -20,11 +20,51 @@ export const INVESTMENT_CATEGORIES = [
   "Tesouro Direto",
   "Acoes",
   "FIIs",
+  "Commodities",
   "Renda Fixa",
   "Outros",
 ] as const;
 
 export type InvestmentCategory = typeof INVESTMENT_CATEGORIES[number];
+
+export const INVESTMENT_TYPE_CATEGORY_KEYS = [
+  "renda_fixa",
+  "renda_variavel",
+  "cripto",
+  "commodities",
+] as const;
+
+export type InvestmentTypeCategoryKey = typeof INVESTMENT_TYPE_CATEGORY_KEYS[number];
+
+export const mapCategoryKeyToLabel = (key: string) => {
+  switch ((key || "").toLowerCase()) {
+    case "renda_fixa":
+      return "Renda fixa";
+    case "renda_variavel":
+      return "Renda variavel";
+    case "cripto":
+      return "Cripto";
+    case "commodities":
+      return "Commodities";
+    default:
+      return "Outros";
+  }
+};
+
+export const mapCategoryKeyToUiCategory = (key: string): InvestmentCategory => {
+  switch ((key || "").toLowerCase()) {
+    case "renda_fixa":
+      return "Renda Fixa";
+    case "renda_variavel":
+      return "Acoes";
+    case "cripto":
+      return "Criptomoedas";
+    case "commodities":
+      return "Commodities";
+    default:
+      return "Outros";
+  }
+};
 
 export const INVESTMENT_TYPE_GROUPS = [
   {
@@ -176,6 +216,14 @@ export const mapInvestmentTypeToCategory = (investmentType: string): InvestmentC
   }
 
   if (normalized.includes("fii")) return "FIIs";
+
+  if (
+    normalized.includes("ouro")
+    || normalized.includes("commodity")
+    || normalized.includes("commodities")
+  ) {
+    return "Commodities";
+  }
 
   if (
     normalized.includes("cdb")

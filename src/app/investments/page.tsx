@@ -14,6 +14,7 @@ import { type InvestmentCardItem } from "@/components/investments/InvestmentCard
 import {
   INVESTMENT_CATEGORIES,
   calculateCompound,
+  mapCategoryKeyToUiCategory,
   mapInvestmentTypeToCategory,
   resolvePriceHistory,
   type InvestmentCategory as InvestmentCategoryType,
@@ -31,6 +32,9 @@ type InvestmentRow = InvestmentCardItem & {
 type RawInvestmentRow = {
   id?: string | null;
   user_id?: string | null;
+  bank_id?: string | null;
+  type_id?: string | null;
+  asset_id?: string | null;
   broker?: string | null;
   category?: string | null;
   investment_type?: string | null;
@@ -50,6 +54,26 @@ type RawInvestmentRow = {
   dividends_received?: number | string | null;
 };
 
+type BankRow = {
+  id: string;
+  name: string;
+  logo: string | null;
+};
+
+type InvestmentTypeRow = {
+  id: string;
+  name: string;
+  category: string;
+};
+
+type AssetRow = {
+  id: string;
+  name: string;
+  category: string | null;
+  logo: string | null;
+  type_id: string | null;
+};
+
 const SECTION_CLASS =
   "rounded-2xl border border-[#7C3AED40] bg-[linear-gradient(165deg,rgba(17,24,39,0.94),rgba(7,11,23,0.95))] shadow-[0_16px_42px_rgba(15,23,42,0.55)] backdrop-blur-xl";
 
@@ -66,24 +90,44 @@ const safeRatio = (numerator: number, denominator: number, fallback = 0) => {
 };
 
 const isMissingInvestmentsExtendedColumnError = (message?: string | null) =>
-  /could not find the '(operation|costs|category|asset_name|asset_logo_url|quantity|average_price|current_price|price_history|dividends_received)' column of 'investments' in the schema cache/i
+  /could not find the '(bank_id|type_id|asset_id|operation|costs|category|asset_name|asset_logo_url|quantity|average_price|current_price|price_history|dividends_received)' column of 'investments' in the schema cache/i
     .test(message ?? "");
 
 const normalizeCategory = (
   rawCategory: string | null | undefined,
+  typeCategoryKey: string | null | undefined,
   investmentType: string,
 ): InvestmentCategoryType => {
   if (rawCategory && INVESTMENT_CATEGORIES.includes(rawCategory as InvestmentCategoryType)) {
     return rawCategory as InvestmentCategoryType;
   }
+  if (rawCategory && !INVESTMENT_CATEGORIES.includes(rawCategory as InvestmentCategoryType)) {
+    return mapCategoryKeyToUiCategory(rawCategory);
+  }
+  if (typeCategoryKey) {
+    const byType = mapInvestmentTypeToCategory(investmentType);
+    if (byType !== "Outros") return byType;
+    return mapCategoryKeyToUiCategory(typeCategoryKey);
+  }
   return mapInvestmentTypeToCategory(investmentType);
 };
 
-const normalizeInvestment = (row: RawInvestmentRow): InvestmentRow | null => {
+const normalizeInvestment = (
+  row: RawInvestmentRow,
+  lookup?: {
+    banksById?: Map<string, BankRow>;
+    typesById?: Map<string, InvestmentTypeRow>;
+    assetsById?: Map<string, AssetRow>;
+  },
+): InvestmentRow | null => {
   if (!row.id || !row.user_id) return null;
 
-  const investmentType = (row.investment_type || "Outros").trim() || "Outros";
-  const category = normalizeCategory(row.category, investmentType);
+  const bankLookup = row.bank_id ? lookup?.banksById?.get(row.bank_id) : undefined;
+  const typeLookup = row.type_id ? lookup?.typesById?.get(row.type_id) : undefined;
+  const assetLookup = row.asset_id ? lookup?.assetsById?.get(row.asset_id) : undefined;
+
+  const investmentType = (row.investment_type || typeLookup?.name || "Outros").trim() || "Outros";
+  const category = normalizeCategory(row.category || assetLookup?.category, typeLookup?.category, investmentType);
   const annualRate = row.annual_rate === null || typeof row.annual_rate === "undefined"
     ? null
     : toNumber(row.annual_rate);
@@ -92,8 +136,8 @@ const normalizeInvestment = (row: RawInvestmentRow): InvestmentRow | null => {
   const dividendsReceived = Math.max(0, toNumber(row.dividends_received));
 
   const startDate = row.start_date || new Date().toISOString().slice(0, 10);
-  const broker = (row.broker || "Nao informado").trim() || "Nao informado";
-  const assetName = (row.asset_name || investmentType).trim() || investmentType;
+  const broker = (row.broker || bankLookup?.name || "Nao informado").trim() || "Nao informado";
+  const assetName = (row.asset_name || assetLookup?.name || investmentType).trim() || investmentType;
 
   let quantity = Math.abs(toNumber(row.quantity));
   let averagePrice = toNumber(row.average_price);
@@ -139,7 +183,7 @@ const normalizeInvestment = (row: RawInvestmentRow): InvestmentRow | null => {
     costs,
     dividends_received: dividendsReceived,
     asset_name: assetName,
-    asset_logo_url: row.asset_logo_url?.trim() || null,
+    asset_logo_url: row.asset_logo_url?.trim() || assetLookup?.logo || bankLookup?.logo || null,
     quantity: roundCurrency(quantity),
     average_price: roundCurrency(averagePrice),
     current_price: roundCurrency(currentPrice),
@@ -186,11 +230,18 @@ export default function InvestmentsPage() {
 
     setUserId(resolvedUserId);
 
-    const { data, error } = await supabase
-      .from("investments")
-      .select("*")
-      .eq("user_id", resolvedUserId)
-      .order("created_at", { ascending: false });
+    const [investmentsRes, banksRes, typesRes, assetsRes] = await Promise.all([
+      supabase
+        .from("investments")
+        .select("*")
+        .eq("user_id", resolvedUserId)
+        .order("created_at", { ascending: false }),
+      supabase.from("banks").select("id, name, logo"),
+      supabase.from("investment_types").select("id, name, category"),
+      supabase.from("assets").select("id, name, logo, category, type_id"),
+    ]);
+
+    const { data, error } = investmentsRes;
 
     if (error) {
       const baseMessage = /relation .*investments/i.test(error.message)
@@ -201,8 +252,24 @@ export default function InvestmentsPage() {
       return;
     }
 
+    const banksById = new Map<string, BankRow>(
+      (((banksRes.error ? [] : banksRes.data) || []) as BankRow[]).map((item) => [item.id, item]),
+    );
+    const typesById = new Map<string, InvestmentTypeRow>(
+      (((typesRes.error ? [] : typesRes.data) || []) as InvestmentTypeRow[]).map((item) => [item.id, item]),
+    );
+    const assetsById = new Map<string, AssetRow>(
+      (((assetsRes.error ? [] : assetsRes.data) || []) as AssetRow[]).map((item) => [item.id, item]),
+    );
+
     const normalized = ((data || []) as RawInvestmentRow[])
-      .map(normalizeInvestment)
+      .map((row) =>
+        normalizeInvestment(row, {
+          banksById,
+          typesById,
+          assetsById,
+        }),
+      )
       .filter((item): item is InvestmentRow => !!item);
 
     setInvestments(normalized);
@@ -252,17 +319,20 @@ export default function InvestmentsPage() {
       history: [],
       averagePrice: payload.unitPrice,
       currentPrice: payload.unitPrice,
-      seedRef: `${payload.assetName}-${payload.assetType}-${payload.side}`,
+      seedRef: `${payload.assetName}-${payload.typeName}-${payload.bankName}-${payload.side}`,
     });
 
     const fullInsertPayload = {
       user_id: resolvedUserId,
-      broker: "Manual",
+      bank_id: payload.bankId,
+      type_id: payload.typeId,
+      asset_id: payload.assetId,
+      broker: payload.bankName,
       operation: payload.side,
       costs: payload.costs,
       dividends_received: 0,
-      category: payload.assetType,
-      investment_type: payload.assetType,
+      category: mapCategoryKeyToUiCategory(payload.typeCategory),
+      investment_type: payload.typeName,
       asset_name: payload.assetName,
       asset_logo_url: payload.assetLogoUrl,
       quantity: payload.quantity,
@@ -283,8 +353,10 @@ export default function InvestmentsPage() {
       usedFallback = true;
       const fallbackInsert = await supabase.from("investments").insert({
         user_id: resolvedUserId,
-        broker: "Manual",
-        investment_type: payload.assetType,
+        broker: payload.bankName,
+        investment_type: payload.typeName,
+        asset_name: payload.assetName,
+        asset_logo_url: payload.assetLogoUrl,
         invested_amount: investedAmount,
         current_amount: currentAmount,
         annual_rate: null,

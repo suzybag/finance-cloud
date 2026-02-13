@@ -4,62 +4,34 @@
 import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import {
-  INVESTMENT_CATEGORIES,
+  INVESTMENT_TYPE_CATEGORY_KEYS,
   calculateTotal,
-  type InvestmentCategory,
+  mapCategoryKeyToLabel,
 } from "@/lib/calculateInvestment";
 import { brl, toNumber } from "@/lib/money";
+import { supabase } from "@/lib/supabaseClient";
 import { ToggleButton } from "@/components/investments/ToggleButton";
 
 type TradeSide = "compra" | "venda";
 
+type BankOption = {
+  id: string;
+  name: string;
+  logo: string | null;
+};
+
+type InvestmentTypeOption = {
+  id: string;
+  name: string;
+  category: string;
+};
+
 type AssetOption = {
-  value: string;
-  label: string;
-  logoUrl: string | null;
-};
-
-const CATEGORY_LABEL: Record<InvestmentCategory, string> = {
-  Criptomoedas: "Criptomoedas",
-  "Tesouro Direto": "Tesouro Direto",
-  Acoes: "Acoes",
-  FIIs: "FIIs",
-  "Renda Fixa": "Renda Fixa",
-  Outros: "Outros",
-};
-
-const ASSET_OPTIONS_BY_TYPE: Record<InvestmentCategory, AssetOption[]> = {
-  Criptomoedas: [
-    { value: "btc", label: "BTC - Bitcoin", logoUrl: "https://assets.coincap.io/assets/icons/btc@2x.png" },
-    { value: "eth", label: "ETH - Ethereum", logoUrl: "https://assets.coincap.io/assets/icons/eth@2x.png" },
-    { value: "sol", label: "SOL - Solana", logoUrl: "https://assets.coincap.io/assets/icons/sol@2x.png" },
-    { value: "xrp", label: "XRP - Ripple", logoUrl: "https://assets.coincap.io/assets/icons/xrp@2x.png" },
-  ],
-  "Tesouro Direto": [
-    { value: "selic2029", label: "Tesouro Selic 2029", logoUrl: null },
-    { value: "ipca2035", label: "Tesouro IPCA+ 2035", logoUrl: null },
-    { value: "prefixado2029", label: "Tesouro Prefixado 2029", logoUrl: null },
-  ],
-  Acoes: [
-    { value: "petr4", label: "PETR4 - Petrobras", logoUrl: "https://logo.clearbit.com/petrobras.com.br" },
-    { value: "vale3", label: "VALE3 - Vale", logoUrl: "https://logo.clearbit.com/vale.com" },
-    { value: "itub4", label: "ITUB4 - Itau", logoUrl: "https://logo.clearbit.com/itau.com.br" },
-    { value: "roxo34", label: "ROXO34 - Nubank", logoUrl: "https://logo.clearbit.com/nubank.com.br" },
-  ],
-  FIIs: [
-    { value: "hglg11", label: "HGLG11", logoUrl: null },
-    { value: "mxrf11", label: "MXRF11", logoUrl: null },
-    { value: "xplg11", label: "XPLG11", logoUrl: null },
-  ],
-  "Renda Fixa": [
-    { value: "cdb100", label: "CDB 100% CDI", logoUrl: null },
-    { value: "cdb110", label: "CDB 110% CDI", logoUrl: null },
-    { value: "lci", label: "LCI", logoUrl: null },
-    { value: "lca", label: "LCA", logoUrl: null },
-  ],
-  Outros: [
-    { value: "outro", label: "Outro ativo", logoUrl: null },
-  ],
+  id: string;
+  name: string;
+  logo: string | null;
+  category: string | null;
+  type_id: string | null;
 };
 
 const INPUT_CLASS =
@@ -77,11 +49,14 @@ const moneyMask = (value: string) => {
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
-const getDefaultAsset = (assetType: InvestmentCategory) => ASSET_OPTIONS_BY_TYPE[assetType][0];
-
 export type InvestmentLaunchPayload = {
   side: TradeSide;
-  assetType: InvestmentCategory;
+  bankId: string;
+  bankName: string;
+  typeId: string;
+  typeName: string;
+  typeCategory: string;
+  assetId: string | null;
   assetName: string;
   assetLogoUrl: string | null;
   tradeDate: string;
@@ -105,36 +80,134 @@ export function InvestmentModal({
   onSave,
 }: InvestmentModalProps) {
   const [side, setSide] = useState<TradeSide>("compra");
-  const [assetType, setAssetType] = useState<InvestmentCategory>("Criptomoedas");
-  const [assetValue, setAssetValue] = useState<string>(getDefaultAsset("Criptomoedas").value);
+  const [bankId, setBankId] = useState("");
+  const [typeId, setTypeId] = useState("");
+  const [assetId, setAssetId] = useState("");
   const [tradeDate, setTradeDate] = useState(todayIso);
   const [quantity, setQuantity] = useState("");
   const [unitPriceMasked, setUnitPriceMasked] = useState("");
   const [costsMasked, setCostsMasked] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [optionsError, setOptionsError] = useState<string | null>(null);
+  const [loadingOptions, setLoadingOptions] = useState(false);
+
+  const [banks, setBanks] = useState<BankOption[]>([]);
+  const [investmentTypes, setInvestmentTypes] = useState<InvestmentTypeOption[]>([]);
+  const [assets, setAssets] = useState<AssetOption[]>([]);
 
   useEffect(() => {
     if (!open) return;
     setSide("compra");
-    setAssetType("Criptomoedas");
-    setAssetValue(getDefaultAsset("Criptomoedas").value);
     setTradeDate(todayIso());
     setQuantity("");
     setUnitPriceMasked("");
     setCostsMasked("");
     setValidationError(null);
+    setOptionsError(null);
+
+    const loadOptions = async () => {
+      setLoadingOptions(true);
+
+      const [banksRes, typesRes, assetsRes] = await Promise.all([
+        supabase.from("banks").select("id, name, logo").order("name"),
+        supabase.from("investment_types").select("id, name, category").order("category").order("name"),
+        supabase.from("assets").select("id, name, logo, category, type_id").order("name"),
+      ]);
+
+      if (banksRes.error || typesRes.error || assetsRes.error) {
+        const baseMessage = banksRes.error?.message || typesRes.error?.message || assetsRes.error?.message || "erro desconhecido";
+        const guided = /relation .* (banks|investment_types|assets)/i.test(baseMessage)
+          ? "Tabelas de catalogo nao encontradas. Rode o supabase.sql atualizado."
+          : baseMessage;
+        setOptionsError(guided);
+        setBanks([]);
+        setInvestmentTypes([]);
+        setAssets([]);
+        setLoadingOptions(false);
+        return;
+      }
+
+      const loadedBanks = (banksRes.data as BankOption[]) || [];
+      const loadedTypes = (typesRes.data as InvestmentTypeOption[]) || [];
+      const loadedAssets = (assetsRes.data as AssetOption[]) || [];
+
+      setBanks(loadedBanks);
+      setInvestmentTypes(loadedTypes);
+      setAssets(loadedAssets);
+
+      setBankId(loadedBanks[0]?.id ?? "");
+      setTypeId(loadedTypes[0]?.id ?? "");
+      setAssetId("");
+      setLoadingOptions(false);
+    };
+
+    void loadOptions();
   }, [open]);
 
-  useEffect(() => {
-    const first = getDefaultAsset(assetType);
-    setAssetValue(first.value);
-  }, [assetType]);
-
-  const assetOptions = ASSET_OPTIONS_BY_TYPE[assetType];
-  const selectedAsset = useMemo(
-    () => assetOptions.find((option) => option.value === assetValue) || assetOptions[0],
-    [assetOptions, assetValue],
+  const selectedType = useMemo(
+    () => investmentTypes.find((item) => item.id === typeId) || null,
+    [investmentTypes, typeId],
   );
+
+  const filteredAssets = useMemo(() => {
+    if (!selectedType) return [] as AssetOption[];
+    const direct = assets.filter((item) => item.type_id === selectedType.id);
+    if (direct.length) return direct;
+    return assets.filter((item) => item.category?.toLowerCase() === selectedType.category.toLowerCase());
+  }, [assets, selectedType]);
+
+  useEffect(() => {
+    if (!selectedType) {
+      setAssetId("");
+      return;
+    }
+    if (!filteredAssets.length) {
+      setAssetId("");
+      return;
+    }
+    const exists = filteredAssets.some((item) => item.id === assetId);
+    if (!exists) {
+      setAssetId(filteredAssets[0].id);
+    }
+  }, [selectedType, filteredAssets, assetId]);
+
+  const selectedBank = useMemo(
+    () => banks.find((item) => item.id === bankId) || null,
+    [banks, bankId],
+  );
+
+  const selectedAsset = useMemo(
+    () => filteredAssets.find((item) => item.id === assetId) || null,
+    [filteredAssets, assetId],
+  );
+
+  const groupedTypes = useMemo(() => {
+    const fixedGroups = INVESTMENT_TYPE_CATEGORY_KEYS
+      .map((key) => ({
+        key,
+        label: mapCategoryKeyToLabel(key),
+        items: investmentTypes.filter((item) => item.category.toLowerCase() === key),
+      }))
+      .filter((group) => group.items.length > 0);
+
+    const known = new Set(INVESTMENT_TYPE_CATEGORY_KEYS.map((item) => item.toLowerCase()));
+    const extras = investmentTypes
+      .filter((item) => !known.has(item.category.toLowerCase()))
+      .reduce<Record<string, InvestmentTypeOption[]>>((acc, item) => {
+        const key = item.category || "outros";
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(item);
+        return acc;
+      }, {});
+
+    const extraGroups = Object.entries(extras).map(([key, items]) => ({
+      key,
+      label: mapCategoryKeyToLabel(key),
+      items,
+    }));
+
+    return [...fixedGroups, ...extraGroups];
+  }, [investmentTypes]);
 
   const quantityNumber = toNumber(quantity);
   const unitPriceNumber = toNumber(unitPriceMasked);
@@ -146,6 +219,14 @@ export function InvestmentModal({
   });
 
   const handleSave = async () => {
+    if (!bankId || !selectedBank) {
+      setValidationError("Selecione o banco/corretora.");
+      return;
+    }
+    if (!typeId || !selectedType) {
+      setValidationError("Selecione o tipo de investimento.");
+      return;
+    }
     if (quantityNumber <= 0) {
       setValidationError("Quantidade deve ser maior que zero.");
       return;
@@ -159,12 +240,20 @@ export function InvestmentModal({
       return;
     }
 
+    const assetName = selectedAsset?.name || selectedType.name;
+    const assetLogoUrl = selectedAsset?.logo || null;
+
     setValidationError(null);
     await onSave({
       side,
-      assetType,
-      assetName: selectedAsset.label,
-      assetLogoUrl: selectedAsset.logoUrl,
+      bankId: selectedBank.id,
+      bankName: selectedBank.name,
+      typeId: selectedType.id,
+      typeName: selectedType.name,
+      typeCategory: selectedType.category,
+      assetId: selectedAsset?.id || null,
+      assetName,
+      assetLogoUrl,
       tradeDate,
       quantity: quantityNumber,
       unitPrice: unitPriceNumber,
@@ -207,18 +296,47 @@ export function InvestmentModal({
             </div>
           </div>
 
+          {optionsError ? (
+            <div className="rounded-lg border border-rose-300/35 bg-rose-500/15 px-3 py-2 text-sm text-rose-100">
+              {optionsError}
+            </div>
+          ) : null}
+
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-slate-400">Tipo de ativo</span>
+              <span className="mb-1 block text-xs font-semibold text-slate-400">Banco / Corretora</span>
               <select
                 className={INPUT_CLASS}
-                value={assetType}
-                onChange={(event) => setAssetType(event.target.value as InvestmentCategory)}
+                value={bankId}
+                onChange={(event) => setBankId(event.target.value)}
+                disabled={loadingOptions || !!optionsError}
               >
-                {INVESTMENT_CATEGORIES.map((option) => (
-                  <option key={option} value={option}>
-                    {CATEGORY_LABEL[option]}
+                <option value="">Selecione</option>
+                {banks.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name}
                   </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-slate-400">Tipo de investimento</span>
+              <select
+                className={INPUT_CLASS}
+                value={typeId}
+                onChange={(event) => setTypeId(event.target.value)}
+                disabled={loadingOptions || !!optionsError}
+              >
+                <option value="">Selecione</option>
+                {groupedTypes.map((group) => (
+                  <optgroup key={group.key} label={group.label}>
+                    {group.items.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.name}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </label>
@@ -227,19 +345,28 @@ export function InvestmentModal({
               <span className="mb-1 block text-xs font-semibold text-slate-400">Ativo</span>
               <select
                 className={INPUT_CLASS}
-                value={assetValue}
-                onChange={(event) => setAssetValue(event.target.value)}
+                value={assetId}
+                onChange={(event) => setAssetId(event.target.value)}
+                disabled={loadingOptions || !!optionsError || !typeId}
               >
-                {assetOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
+                {!filteredAssets.length ? (
+                  <option value="">
+                    {selectedType ? selectedType.name : "Sem ativos cadastrados"}
                   </option>
-                ))}
+                ) : (
+                  filteredAssets.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.name}
+                    </option>
+                  ))
+                )}
               </select>
             </label>
 
             <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-slate-400">Data da compra</span>
+              <span className="mb-1 block text-xs font-semibold text-slate-400">
+                {side === "compra" ? "Data da compra" : "Data da venda"}
+              </span>
               <input
                 type="date"
                 className={INPUT_CLASS}
@@ -269,7 +396,7 @@ export function InvestmentModal({
               />
             </label>
 
-            <label className="block">
+            <label className="block md:col-span-2">
               <span className="mb-1 block text-xs font-semibold text-slate-400">Outros custos (opcional)</span>
               <input
                 className={INPUT_CLASS}
@@ -308,7 +435,7 @@ export function InvestmentModal({
             type="button"
             className="rounded-xl border border-violet-300/30 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(139,92,246,0.4)] transition hover:brightness-110 disabled:opacity-60"
             onClick={() => void handleSave()}
-            disabled={saving}
+            disabled={saving || loadingOptions || !!optionsError}
           >
             {saving ? "Salvando..." : "Adicionar Lancamento"}
           </button>
