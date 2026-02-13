@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
+import { useTheme } from "@/context/ThemeContext";
 import { supabase } from "@/lib/supabaseClient";
 
 type Profile = {
@@ -91,6 +92,8 @@ const Toggle = ({
 );
 
 export default function ProfilePage() {
+  const { setThemeMode, setBrightness, setContrast, setSaturation } = useTheme();
+
   const [profile, setProfile] = useState<Profile | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [userEmail, setUserEmail] = useState("");
@@ -482,6 +485,28 @@ export default function ProfilePage() {
     window.open(REVIEW_URL, "_blank", "noopener,noreferrer");
   };
 
+  const applySafeViewPreset = (preset: "off" | "safe" | "safe-plus") => {
+    if (preset === "off") {
+      setThemeMode("normal");
+      setBrightness(1);
+      setContrast(1);
+      setSaturation(1);
+      return;
+    }
+
+    setThemeMode("reading");
+    if (preset === "safe") {
+      setBrightness(0.94);
+      setContrast(0.86);
+      setSaturation(0.8);
+      return;
+    }
+
+    setBrightness(0.88);
+    setContrast(0.8);
+    setSaturation(0.68);
+  };
+
   return (
     <AppShell title="Configuracoes" subtitle="Gerencie suas preferencias e dados">
       <div className="mx-auto max-w-4xl space-y-5">
@@ -779,6 +804,35 @@ export default function ProfilePage() {
           <div className="mb-2 flex items-center gap-2 text-slate-100">
             <Bell className="h-4 w-4 text-violet-300" />
             <h2 className="text-lg font-bold">Preferencias</h2>
+          </div>
+
+          <div className="mt-3 rounded-xl border border-violet-300/15 bg-slate-900/35 p-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-300">
+              Modo de Vista Segura
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="rounded-lg border border-violet-300/20 bg-slate-950/40 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-900/65"
+                onClick={() => applySafeViewPreset("off")}
+              >
+                Vista normal
+              </button>
+              <button
+                type="button"
+                className="rounded-lg border border-violet-300/30 bg-violet-500/15 px-3 py-1.5 text-xs font-semibold text-violet-100 hover:bg-violet-500/25"
+                onClick={() => applySafeViewPreset("safe")}
+              >
+                Vista segura
+              </button>
+              <button
+                type="button"
+                className="rounded-lg border border-violet-300/35 bg-violet-500/20 px-3 py-1.5 text-xs font-semibold text-violet-100 hover:bg-violet-500/30"
+                onClick={() => applySafeViewPreset("safe-plus")}
+              >
+                Vista segura+
+              </button>
+            </div>
           </div>
 
           <div className="mt-4 mb-2">
