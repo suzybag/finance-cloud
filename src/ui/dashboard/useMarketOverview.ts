@@ -64,6 +64,7 @@ export const useMarketOverview = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const loadingRef = useRef(false);
+  const hasDataRef = useRef(false);
 
   const fetchMarket = useCallback(async (silent = false) => {
     if (loadingRef.current) return;
@@ -81,9 +82,19 @@ export const useMarketOverview = () => {
       }
       const payload = json as MarketOverviewPayload;
       setMarket(payload);
+      const hasPayloadData =
+        payload.indicators.dollar.price > 0 ||
+        payload.indicators.ibovespa.points > 0 ||
+        payload.indicators.cdi.rate > 0 ||
+        payload.cryptos.list.length > 0;
+      hasDataRef.current = hasPayloadData;
       setError(null);
     } catch {
-      setError("Erro ao atualizar dados. Tentando novamente.");
+      if (!hasDataRef.current) {
+        setError("Erro ao atualizar dados. Tentando novamente.");
+      } else {
+        setError(null);
+      }
     } finally {
       loadingRef.current = false;
       setLoading(false);

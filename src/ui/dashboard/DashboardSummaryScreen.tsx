@@ -238,19 +238,19 @@ export const DashboardSummaryScreen = () => {
                 title="Dolar"
                 value={brl(market.indicators.dollar.price)}
                 variation={market.indicators.dollar.changePct}
-                updatedAt={market.indicators.dollar.updatedAt || market.updatedAt}
+                updatedAt={market.updatedAt}
               />
               <MarketIndicatorCard
                 title="Ibovespa"
                 value={`${formatPoints(market.indicators.ibovespa.points)} pts`}
                 variation={market.indicators.ibovespa.changePct}
-                updatedAt={market.indicators.ibovespa.updatedAt || market.updatedAt}
+                updatedAt={market.updatedAt}
               />
               <MarketIndicatorCard
                 title="CDI (Ult. 12m)"
                 value={`${market.indicators.cdi.rate.toFixed(2).replace(".", ",")} %`}
                 variation={market.indicators.cdi.changePct}
-                updatedAt={market.indicators.cdi.updatedAt || market.updatedAt}
+                updatedAt={market.updatedAt}
               />
             </div>
 
