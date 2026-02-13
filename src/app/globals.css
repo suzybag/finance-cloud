@@ -2,9 +2,26 @@
 
 :root {
   color-scheme: dark;
-  --glass-bg: rgba(26, 18, 46, 0.72);
-  --glass-border: rgba(196, 181, 253, 0.24);
-  --glass-shadow: 0 22px 52px rgba(39, 13, 91, 0.42);
+  --bg-primary: #090616;
+  --bg-card: rgba(26, 18, 46, 0.72);
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --surface-border: rgba(196, 181, 253, 0.24);
+  --surface-shadow: 0 22px 52px rgba(39, 13, 91, 0.42);
+  --visual-filter: none;
+  --app-background:
+    radial-gradient(1200px 680px at 8% 0%, rgba(139, 92, 246, 0.36), transparent 56%),
+    radial-gradient(1000px 620px at 82% 8%, rgba(217, 70, 239, 0.3), transparent 58%),
+    radial-gradient(900px 640px at 46% 92%, rgba(79, 70, 229, 0.34), transparent 62%),
+    linear-gradient(130deg, #090616 0%, #170a2e 48%, #0d0922 100%);
+  --app-background-size: 170% 170%;
+  --app-background-animation: cosmicShift 46s ease-in-out infinite alternate;
+  --overlay-bg: rgba(2, 6, 23, 0.52);
+  --grid-opacity: 0.1;
+  --grid-blend: soft-light;
+  --glass-bg: var(--bg-card);
+  --glass-border: var(--surface-border);
+  --glass-shadow: var(--surface-shadow);
 }
 
 body {
@@ -20,15 +37,17 @@ body {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   font-kerning: normal;
-  background:
-    radial-gradient(1200px 680px at 8% 0%, rgba(139, 92, 246, 0.36), transparent 56%),
-    radial-gradient(1000px 620px at 82% 8%, rgba(217, 70, 239, 0.3), transparent 58%),
-    radial-gradient(900px 640px at 46% 92%, rgba(79, 70, 229, 0.34), transparent 62%),
-    linear-gradient(130deg, #090616 0%, #170a2e 48%, #0d0922 100%);
-  background-size: 170% 170%;
-  animation: cosmicShift 46s ease-in-out infinite alternate;
+  color: var(--text-primary);
+  background: var(--app-background);
+  background-size: var(--app-background-size);
+  animation: var(--app-background-animation);
+  filter: var(--visual-filter);
   min-height: 100vh;
   position: relative;
+  transition:
+    background 260ms ease,
+    filter 260ms ease,
+    color 220ms ease;
 }
 
 html,
@@ -67,7 +86,7 @@ body::before {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background: rgba(2, 6, 23, 0.52);
+  background: var(--overlay-bg);
   z-index: -2;
 }
 
@@ -76,11 +95,125 @@ body::after {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  opacity: 0.1;
+  opacity: var(--grid-opacity);
   background-image: radial-gradient(rgba(255, 255, 255, 0.55) 0.7px, transparent 0.7px);
   background-size: 3px 3px;
-  mix-blend-mode: soft-light;
+  mix-blend-mode: var(--grid-blend);
   z-index: -1;
+}
+
+body.mode-relax {
+  --bg-primary: #1e1f26;
+  --bg-card: rgba(34, 36, 44, 0.84);
+  --text-primary: #e6e6e6;
+  --text-secondary: #b5b5b5;
+  --surface-border: rgba(180, 186, 200, 0.2);
+  --surface-shadow: 0 12px 30px rgba(5, 8, 16, 0.24);
+  --visual-filter: brightness(0.92) contrast(0.95) saturate(0.9);
+  --app-background:
+    radial-gradient(1200px 680px at 10% 0%, rgba(89, 100, 127, 0.18), transparent 58%),
+    radial-gradient(980px 620px at 82% 10%, rgba(74, 82, 106, 0.16), transparent 60%),
+    linear-gradient(130deg, #1a1c24 0%, #1e1f26 56%, #171922 100%);
+  --overlay-bg: rgba(4, 8, 14, 0.42);
+  --grid-opacity: 0.05;
+  --grid-blend: normal;
+}
+
+body.mode-black {
+  --bg-primary: #000000;
+  --bg-card: #0a0a0a;
+  --text-primary: #ffffff;
+  --text-secondary: #a0a0a0;
+  --surface-border: #1f1f1f;
+  --surface-shadow: none;
+  --visual-filter: none;
+  --app-background: #000000;
+  --app-background-size: auto;
+  --app-background-animation: none;
+  --overlay-bg: rgba(0, 0, 0, 0.68);
+  --grid-opacity: 0.03;
+  --grid-blend: normal;
+}
+
+body.mode-relax :where([class*="text-white"], [class*="text-slate-100"], [class*="text-slate-200"], [class*="text-violet-100"], [class*="text-violet-50"]) {
+  color: var(--text-primary) !important;
+}
+
+body.mode-relax :where([class*="text-slate-300"], [class*="text-slate-400"], [class*="text-slate-500"], [class*="text-violet-200"], [class*="text-violet-300"], [class*="text-violet-100/"]) {
+  color: var(--text-secondary) !important;
+  opacity: 1;
+}
+
+body.mode-relax [class*="shadow-"] {
+  box-shadow: 0 10px 24px rgba(6, 10, 18, 0.22) !important;
+}
+
+body.mode-relax [class*="bg-gradient"],
+body.mode-relax [class*="from-violet"],
+body.mode-relax [class*="to-fuchsia"],
+body.mode-relax [class*="via-fuchsia"],
+body.mode-relax [class*="via-violet"] {
+  background-image: none !important;
+  background-color: var(--bg-card) !important;
+  filter: saturate(0.78) brightness(0.9);
+}
+
+body.mode-relax :where([class*="rounded"])[class*="border"] {
+  border-color: var(--surface-border) !important;
+}
+
+body.mode-relax :where([class*="bg-violet"], [class*="bg-fuchsia"]) {
+  background: var(--bg-card) !important;
+}
+
+body.mode-relax .ultra-shell-bg::before,
+body.mode-relax .cards-ultra-bg::before,
+body.mode-relax .investments-ultra-bg::before,
+body.mode-relax .notes-dark-bg::before,
+body.mode-relax .dashboard-cosmic::before {
+  background:
+    radial-gradient(780px 520px at 12% 6%, rgba(88, 98, 124, 0.16), transparent 64%),
+    radial-gradient(860px 560px at 90% 10%, rgba(75, 84, 108, 0.14), transparent 64%),
+    linear-gradient(148deg, rgba(24, 27, 36, 0.8), rgba(18, 20, 29, 0.88));
+}
+
+body.mode-black :where([class*="text-white"], [class*="text-slate-100"], [class*="text-slate-200"], [class*="text-violet-100"], [class*="text-violet-50"], [class*="text-violet-200"]) {
+  color: var(--text-primary) !important;
+}
+
+body.mode-black :where([class*="text-slate-300"], [class*="text-slate-400"], [class*="text-slate-500"], [class*="text-violet-300"], [class*="text-violet-100/"]) {
+  color: var(--text-secondary) !important;
+  opacity: 1;
+}
+
+body.mode-black [class*="bg-gradient"],
+body.mode-black [class*="from-violet"],
+body.mode-black [class*="to-fuchsia"],
+body.mode-black [class*="via-fuchsia"],
+body.mode-black [class*="via-violet"] {
+  background-image: none !important;
+}
+
+body.mode-black :where([class*="rounded"])[class*="border"] {
+  border-color: var(--surface-border) !important;
+  box-shadow: none !important;
+}
+
+body.mode-black :where([class*="bg-violet"], [class*="bg-slate"], [class*="bg-[#"], [class*="bg-black/"], [class*="bg-[linear-gradient"]) {
+  background: var(--bg-card) !important;
+}
+
+body.mode-black .glass-panel,
+body.mode-black .glass,
+body.mode-black .dashboard-cosmic,
+body.mode-black .ultra-shell-bg::before,
+body.mode-black .cards-ultra-bg::before,
+body.mode-black .investments-ultra-bg::before,
+body.mode-black .notes-dark-bg::before,
+body.mode-black .dashboard-cosmic::before,
+body.mode-black .dashboard-cosmic::after {
+  background: #050505 !important;
+  animation: none !important;
 }
 
 .glass-panel {

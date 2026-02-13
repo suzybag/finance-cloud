@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import { VisualModeProvider } from "@/contexts/VisualModeContext";
 import "./globals.css";
 
 const fontSans = Plus_Jakarta_Sans({
@@ -21,7 +22,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body className={`${fontSans.variable} antialiased`}>
-        {children}
+        <VisualModeProvider>{children}</VisualModeProvider>
       </body>
     </html>
   );

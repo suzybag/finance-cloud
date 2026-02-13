@@ -7,6 +7,7 @@ import {
   CalendarDays,
   Camera,
   Download,
+  Eye,
   FileText,
   Info,
   LifeBuoy,
@@ -20,6 +21,7 @@ import {
   User,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { useVisualMode } from "@/contexts/VisualModeContext";
 import { supabase } from "@/lib/supabaseClient";
 
 type Profile = {
@@ -28,7 +30,6 @@ type Profile = {
 };
 
 type PreferencesState = {
-  darkMode: boolean;
   notifications: boolean;
   currency: "BRL";
   monthStartDay: number;
@@ -56,7 +57,6 @@ const sectionClass =
 const lineClass = "flex items-center justify-between gap-3 border-t border-violet-200/10 py-4 first:border-t-0 first:pt-0";
 
 const defaultPreferences: PreferencesState = {
-  darkMode: true,
   notifications: true,
   currency: "BRL",
   monthStartDay: 1,
@@ -89,6 +89,8 @@ const Toggle = ({
 );
 
 export default function ProfilePage() {
+  const { visualMode, setVisualMode } = useVisualMode();
+
   const [profile, setProfile] = useState<Profile | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [userEmail, setUserEmail] = useState("");
@@ -750,16 +752,32 @@ export default function ProfilePage() {
 
           <div className={lineClass}>
             <div className="flex items-center gap-3">
-              <Moon className="h-4 w-4 text-slate-300" />
+              <Eye className="h-4 w-4 text-slate-300" />
               <div>
-                <p className="text-sm font-semibold text-slate-100">Modo escuro</p>
-                <p className="text-xs text-slate-400">Interface dark mode</p>
+                <p className="text-sm font-semibold text-slate-100">Relaxamento da visao</p>
+                <p className="text-xs text-slate-400">Menos contraste, menos saturacao e brilho suave</p>
               </div>
             </div>
             <Toggle
-              checked={preferences.darkMode}
+              checked={visualMode === "relax"}
               onToggle={() =>
-                setPreferences((prev) => ({ ...prev, darkMode: !prev.darkMode }))
+                setVisualMode(visualMode === "relax" ? "default" : "relax")
+              }
+            />
+          </div>
+
+          <div className={lineClass}>
+            <div className="flex items-center gap-3">
+              <Moon className="h-4 w-4 text-slate-300" />
+              <div>
+                <p className="text-sm font-semibold text-slate-100">Preto minimalista</p>
+                <p className="text-xs text-slate-400">Visual ultra clean com fundo preto total</p>
+              </div>
+            </div>
+            <Toggle
+              checked={visualMode === "black"}
+              onToggle={() =>
+                setVisualMode(visualMode === "black" ? "default" : "black")
               }
             />
           </div>
