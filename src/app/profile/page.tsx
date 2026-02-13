@@ -7,21 +7,19 @@ import {
   CalendarDays,
   Camera,
   Download,
-  Eye,
   FileText,
   Info,
   LifeBuoy,
   Lock,
   LogOut,
   Mail,
-  Moon,
   Shield,
   Star,
   Trash2,
   User,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
-import { useVisualMode } from "@/contexts/VisualModeContext";
+import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { supabase } from "@/lib/supabaseClient";
 
 type Profile = {
@@ -89,8 +87,6 @@ const Toggle = ({
 );
 
 export default function ProfilePage() {
-  const { visualMode, setVisualMode } = useVisualMode();
-
   const [profile, setProfile] = useState<Profile | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [userEmail, setUserEmail] = useState("");
@@ -750,36 +746,8 @@ export default function ProfilePage() {
             <h2 className="text-lg font-bold">Preferencias</h2>
           </div>
 
-          <div className={lineClass}>
-            <div className="flex items-center gap-3">
-              <Eye className="h-4 w-4 text-slate-300" />
-              <div>
-                <p className="text-sm font-semibold text-slate-100">Relaxamento da visao</p>
-                <p className="text-xs text-slate-400">Menos contraste, menos saturacao e brilho suave</p>
-              </div>
-            </div>
-            <Toggle
-              checked={visualMode === "relax"}
-              onToggle={() =>
-                setVisualMode(visualMode === "relax" ? "default" : "relax")
-              }
-            />
-          </div>
-
-          <div className={lineClass}>
-            <div className="flex items-center gap-3">
-              <Moon className="h-4 w-4 text-slate-300" />
-              <div>
-                <p className="text-sm font-semibold text-slate-100">Preto minimalista</p>
-                <p className="text-xs text-slate-400">Visual ultra clean com fundo preto total</p>
-              </div>
-            </div>
-            <Toggle
-              checked={visualMode === "black"}
-              onToggle={() =>
-                setVisualMode(visualMode === "black" ? "default" : "black")
-              }
-            />
+          <div className="mt-4 mb-2">
+            <ThemeSwitcher />
           </div>
 
           <div className={lineClass}>
