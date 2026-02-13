@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, Building2, ImageIcon, Trash2 } from "lucide-react";
+import { BarChart3, Building2, Trash2 } from "lucide-react";
 import { MiniChart } from "@/components/investments/MiniChart";
 import {
   calculateInvestmentStatus,
@@ -44,30 +44,60 @@ const statusStyles: Record<ReturnType<typeof calculateInvestmentStatus>, string>
   BARATO: "border-emerald-300/35 bg-emerald-500/15 text-emerald-200",
 };
 
+const resolveFallbackLogo = (item: InvestmentCardItem) => {
+  const key = `${item.category} ${item.investment_type} ${item.asset_name}`.toLowerCase();
+
+  if (key.includes("cripto") || key.includes("bitcoin") || key.includes("btc") || key.includes("eth")) {
+    return "/investments/crypto.svg";
+  }
+  if (
+    key.includes("acao") ||
+    key.includes("ações") ||
+    key.includes("renda_variavel") ||
+    key.includes("fii") ||
+    key.includes("etf")
+  ) {
+    return "/investments/equity.svg";
+  }
+  if (
+    key.includes("renda_fixa") ||
+    key.includes("cdb") ||
+    key.includes("lci") ||
+    key.includes("lca") ||
+    key.includes("tesouro") ||
+    key.includes("selic") ||
+    key.includes("ipca") ||
+    key.includes("poup") ||
+    key.includes("caixinha")
+  ) {
+    return "/investments/fixed.svg";
+  }
+  if (key.includes("ouro") || key.includes("commodities")) {
+    return "/investments/commodities.svg";
+  }
+
+  return "/investments/other.svg";
+};
+
 export function InvestmentCard({ item, deleting, onDelete }: InvestmentCardProps) {
   const status = calculateInvestmentStatus(item.average_price, item.current_price);
   const { difference, percent } = calculateReturn(item.invested_amount, item.current_amount);
   const positive = difference >= 0;
   const isBuy = item.operation === "compra";
+  const logoUrl = item.asset_logo_url || resolveFallbackLogo(item);
 
   return (
     <article className="group rounded-2xl border border-violet-300/25 bg-[linear-gradient(165deg,rgba(17,24,39,0.98),rgba(7,11,23,0.96))] p-4 shadow-[0_12px_34px_rgba(15,23,42,0.55)] transition-all duration-300 hover:-translate-y-0.5 hover:border-violet-300/45 hover:shadow-[0_18px_44px_rgba(124,58,237,0.28)]">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-violet-300/25 bg-[#0a0f1d]">
-            {item.asset_logo_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={item.asset_logo_url}
-                alt={item.asset_name}
-                className="h-full w-full object-cover"
-                loading="lazy"
-              />
-            ) : (
-              <div className="grid h-full w-full place-items-center text-slate-400">
-                <ImageIcon className="h-5 w-5" />
-              </div>
-            )}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={logoUrl}
+              alt={item.asset_name}
+              className="h-full w-full object-cover"
+              loading="lazy"
+            />
           </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
