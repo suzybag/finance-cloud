@@ -82,22 +82,22 @@ const MarketIndicatorCard = ({
 }) => {
   const positive = variation >= 0;
   return (
-    <article className="h-[122px] w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.12)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(15,23,42,0.16)] sm:w-[212px]">
+    <article className="h-[122px] w-full rounded-xl border border-white/10 bg-[#06080d] px-3.5 py-3 text-slate-100 shadow-[0_14px_30px_rgba(0,0,0,0.45)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(0,0,0,0.55)] sm:w-[212px]">
       <div className="flex items-start justify-between gap-3">
-        <p className="text-[15px] font-medium text-slate-700">{title}</p>
+        <p className="text-[15px] font-medium text-slate-300">{title}</p>
         <span
           className={`rounded-md px-2 py-0.5 text-[12px] font-semibold ${
-            positive ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"
+            positive ? "bg-emerald-500/20 text-emerald-300" : "bg-rose-500/20 text-rose-300"
           }`}
         >
           {formatSignedPercent(variation)}
         </span>
       </div>
-      <p className="mt-3 text-[28px] leading-none font-bold tracking-tight text-slate-900">
+      <p className="mt-3 text-[28px] leading-none font-bold tracking-tight text-white">
         {value}
       </p>
       <div className="mt-3 flex justify-end">
-        <ExternalLink className="h-3.5 w-3.5 text-slate-400" />
+        <ExternalLink className="h-3.5 w-3.5 text-slate-500" />
       </div>
     </article>
   );
