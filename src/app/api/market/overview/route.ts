@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { resolveCoinGeckoId } from "@/lib/coinGecko";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 type DollarApiResponse = {
   USDBRL?: {
     bid?: string;
@@ -68,6 +71,12 @@ type AssetRow = {
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+const NO_STORE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+  Pragma: "no-cache",
+  Expires: "0",
+  "Surrogate-Control": "no-store",
+};
 
 const toNumber = (value: unknown) => {
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
@@ -124,6 +133,12 @@ const fetchJson = async <T>(url: string): Promise<T> => {
     clearTimeout(timeoutId);
   }
 };
+
+const jsonNoStore = (body: unknown, init?: { status?: number }) =>
+  NextResponse.json(body, {
+    status: init?.status,
+    headers: NO_STORE_HEADERS,
+  });
 
 const getAuthToken = (request: Request) => {
   const authHeader = request.headers.get("authorization") || "";
@@ -311,12 +326,12 @@ export async function GET(request: Request) {
   const token = getAuthToken(request);
   const { client, error } = getClientForToken(token);
   if (!client || error) {
-    return NextResponse.json({ message: error || "Nao autorizado." }, { status: 401 });
+    return jsonNoStore({ message: error || "Nao autorizado." }, { status: 401 });
   }
 
   const { data: userData, error: userError } = await client.auth.getUser(token);
   if (userError || !userData.user) {
-    return NextResponse.json({ message: "Token invalido." }, { status: 401 });
+    return jsonNoStore({ message: "Token invalido." }, { status: 401 });
   }
 
   const userId = userData.user.id;
@@ -338,7 +353,7 @@ export async function GET(request: Request) {
   if (investmentsRes.error || typesRes.error || assetsRes.error) {
     const message =
       investmentsRes.error?.message || typesRes.error?.message || assetsRes.error?.message || "Falha ao carregar investimentos.";
-    return NextResponse.json({ message }, { status: 500 });
+    return jsonNoStore({ message }, { status: 500 });
   }
 
   const investments = (investmentsRes.data || []) as InvestmentRow[];
@@ -402,13 +417,13 @@ export async function GET(request: Request) {
     dollar.price > 0 || ibovespa.points > 0 || cdi.rate > 0 || cryptos.list.length > 0;
 
   if (!hasAnyData) {
-    return NextResponse.json(
+    return jsonNoStore(
       { message: "Nao foi possivel carregar dados de mercado agora." },
       { status: 503 },
     );
   }
 
-  return NextResponse.json({
+  return jsonNoStore({
     updatedAt: now,
     indicators: {
       dollar,

@@ -89,8 +89,8 @@ export const useMarketOverview = () => {
       }
       setMarket(json as MarketOverviewPayload);
       setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Falha ao carregar dados de mercado.");
+    } catch {
+      setError("Falha ao atualizar, tentando novamente...");
     } finally {
       loadingRef.current = false;
       setLoading(false);
@@ -99,7 +99,7 @@ export const useMarketOverview = () => {
 
   useEffect(() => {
     fetchMarket(false);
-    const interval = window.setInterval(() => fetchMarket(true), 20000);
+    const interval = window.setInterval(() => fetchMarket(true), 10000);
     return () => window.clearInterval(interval);
   }, [fetchMarket]);
 

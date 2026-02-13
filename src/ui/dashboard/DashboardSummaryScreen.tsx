@@ -71,18 +71,31 @@ const formatPoints = (value: number) =>
     maximumFractionDigits: 0,
   }).format(Number.isFinite(value) ? value : 0);
 
+const formatUpdatedTime = (value?: string) => {
+  if (!value) return "--:--:--";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "--:--:--";
+  return parsed.toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+};
+
 const MarketIndicatorCard = ({
   title,
   value,
   variation,
+  updatedAt,
 }: {
   title: string;
   value: string;
   variation: number;
+  updatedAt?: string;
 }) => {
   const positive = variation >= 0;
   return (
-    <article className="h-[122px] w-full rounded-xl border border-white/10 bg-[#06080d] px-3.5 py-3 text-slate-100 shadow-[0_14px_30px_rgba(0,0,0,0.45)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(0,0,0,0.55)] sm:w-[212px]">
+    <article className="h-[136px] w-full rounded-xl border border-white/10 bg-[#06080d] px-3.5 py-3 text-slate-100 shadow-[0_14px_30px_rgba(0,0,0,0.45)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(0,0,0,0.55)] sm:w-[212px]">
       <div className="flex items-start justify-between gap-3">
         <p className="text-[15px] font-medium text-slate-300">{title}</p>
         <span
@@ -96,7 +109,8 @@ const MarketIndicatorCard = ({
       <p className="mt-3 text-[28px] leading-none font-bold tracking-tight text-white">
         {value}
       </p>
-      <div className="mt-3 flex justify-end">
+      <div className="mt-2 flex items-end justify-between">
+        <p className="text-[11px] text-slate-500">Atualizado às {formatUpdatedTime(updatedAt)}</p>
         <ExternalLink className="h-3.5 w-3.5 text-slate-500" />
       </div>
     </article>
@@ -224,16 +238,19 @@ export const DashboardSummaryScreen = () => {
                 title="Dolar"
                 value={brl(market.indicators.dollar.price)}
                 variation={market.indicators.dollar.changePct}
+                updatedAt={market.indicators.dollar.updatedAt || market.updatedAt}
               />
               <MarketIndicatorCard
                 title="Ibovespa"
                 value={`${formatPoints(market.indicators.ibovespa.points)} pts`}
                 variation={market.indicators.ibovespa.changePct}
+                updatedAt={market.indicators.ibovespa.updatedAt || market.updatedAt}
               />
               <MarketIndicatorCard
                 title="CDI (Ult. 12m)"
                 value={`${market.indicators.cdi.rate.toFixed(2).replace(".", ",")} %`}
                 variation={market.indicators.cdi.changePct}
+                updatedAt={market.indicators.cdi.updatedAt || market.updatedAt}
               />
             </div>
 
