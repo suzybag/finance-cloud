@@ -81,6 +81,11 @@ const PRIMARY_BUTTON_CLASS =
   "inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 via-fuchsia-500 to-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(124,58,237,0.4)] transition hover:brightness-110";
 
 const roundCurrency = (value: number) => Math.round(value * 100) / 100;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const toUuidOrNull = (value: string | null | undefined) => {
+  if (!value) return null;
+  return UUID_PATTERN.test(value) ? value : null;
+};
 
 const safeRatio = (numerator: number, denominator: number, fallback = 0) => {
   if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator === 0) {
@@ -324,9 +329,9 @@ export default function InvestmentsPage() {
 
     const fullInsertPayload = {
       user_id: resolvedUserId,
-      bank_id: payload.bankId,
-      type_id: payload.typeId,
-      asset_id: payload.assetId,
+      bank_id: toUuidOrNull(payload.bankId),
+      type_id: toUuidOrNull(payload.typeId),
+      asset_id: toUuidOrNull(payload.assetId),
       broker: payload.bankName,
       operation: payload.side,
       costs: payload.costs,

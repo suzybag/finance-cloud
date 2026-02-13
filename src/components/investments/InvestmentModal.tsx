@@ -34,6 +34,77 @@ type AssetOption = {
   type_id: string | null;
 };
 
+const FALLBACK_BANKS: BankOption[] = [
+  { id: "local-bank-nubank", name: "Nubank", logo: null },
+  { id: "local-bank-inter", name: "Inter", logo: null },
+  { id: "local-bank-xp", name: "XP", logo: null },
+  { id: "local-bank-btg", name: "BTG", logo: null },
+  { id: "local-bank-rico", name: "Rico", logo: null },
+  { id: "local-bank-clear", name: "Clear", logo: null },
+  { id: "local-bank-c6", name: "C6", logo: null },
+  { id: "local-bank-caixa", name: "Caixa", logo: null },
+  { id: "local-bank-bradesco", name: "Bradesco", logo: null },
+  { id: "local-bank-itau", name: "Itau", logo: null },
+  { id: "local-bank-outros", name: "Outros", logo: null },
+];
+
+const FALLBACK_TYPES: InvestmentTypeOption[] = [
+  { id: "local-type-cdb100", name: "CDB 100% CDI", category: "renda_fixa" },
+  { id: "local-type-cdb110", name: "CDB 110% CDI", category: "renda_fixa" },
+  { id: "local-type-cdb115", name: "CDB 115% CDI", category: "renda_fixa" },
+  { id: "local-type-cdb120", name: "CDB 120% CDI", category: "renda_fixa" },
+  { id: "local-type-selic", name: "Tesouro Selic", category: "renda_fixa" },
+  { id: "local-type-ipca", name: "Tesouro IPCA+", category: "renda_fixa" },
+  { id: "local-type-caixinha", name: "Caixinha Nubank", category: "renda_fixa" },
+  { id: "local-type-poupanca", name: "Poupanca", category: "renda_fixa" },
+  { id: "local-type-ouro", name: "Ouro", category: "commodities" },
+  { id: "local-type-acoes", name: "Acoes", category: "renda_variavel" },
+  { id: "local-type-fiis", name: "FIIs", category: "renda_variavel" },
+  { id: "local-type-etfs", name: "ETFs", category: "renda_variavel" },
+  { id: "local-type-btc", name: "Bitcoin (BTC)", category: "cripto" },
+  { id: "local-type-eth", name: "Ethereum (ETH)", category: "cripto" },
+  { id: "local-type-xrp", name: "XRP", category: "cripto" },
+  { id: "local-type-usdc", name: "USDC", category: "cripto" },
+];
+
+const FALLBACK_ASSETS: AssetOption[] = [
+  {
+    id: "local-asset-btc",
+    name: "Bitcoin (BTC)",
+    logo: "https://assets.coincap.io/assets/icons/btc@2x.png",
+    category: "cripto",
+    type_id: "local-type-btc",
+  },
+  {
+    id: "local-asset-eth",
+    name: "Ethereum (ETH)",
+    logo: "https://assets.coincap.io/assets/icons/eth@2x.png",
+    category: "cripto",
+    type_id: "local-type-eth",
+  },
+  {
+    id: "local-asset-xrp",
+    name: "XRP",
+    logo: "https://assets.coincap.io/assets/icons/xrp@2x.png",
+    category: "cripto",
+    type_id: "local-type-xrp",
+  },
+  {
+    id: "local-asset-usdc",
+    name: "USDC",
+    logo: "https://assets.coincap.io/assets/icons/usdc@2x.png",
+    category: "cripto",
+    type_id: "local-type-usdc",
+  },
+  {
+    id: "local-asset-ouro",
+    name: "Ouro",
+    logo: null,
+    category: "commodities",
+    type_id: "local-type-ouro",
+  },
+];
+
 const INPUT_CLASS =
   "w-full rounded-xl border border-violet-300/25 bg-[#121827] px-3 py-2 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30";
 
@@ -48,12 +119,17 @@ const moneyMask = (value: string) => {
 };
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
+const isLocalOptionId = (value: string | null | undefined) => (value || "").startsWith("local-");
+const normalizeOptionId = (value: string | null | undefined) => {
+  if (!value) return null;
+  return isLocalOptionId(value) ? null : value;
+};
 
 export type InvestmentLaunchPayload = {
   side: TradeSide;
-  bankId: string;
+  bankId: string | null;
   bankName: string;
-  typeId: string;
+  typeId: string | null;
   typeName: string;
   typeCategory: string;
   assetId: string | null;
@@ -108,6 +184,16 @@ export function InvestmentModal({
     const loadOptions = async () => {
       setLoadingOptions(true);
 
+      const applyFallbackOptions = (message: string) => {
+        setOptionsError(message);
+        setBanks(FALLBACK_BANKS);
+        setInvestmentTypes(FALLBACK_TYPES);
+        setAssets(FALLBACK_ASSETS);
+        setBankId(FALLBACK_BANKS[0]?.id ?? "");
+        setTypeId(FALLBACK_TYPES[0]?.id ?? "");
+        setAssetId("");
+      };
+
       const [banksRes, typesRes, assetsRes] = await Promise.all([
         supabase.from("banks").select("id, name, logo").order("name"),
         supabase.from("investment_types").select("id, name, category").order("category").order("name"),
@@ -117,12 +203,9 @@ export function InvestmentModal({
       if (banksRes.error || typesRes.error || assetsRes.error) {
         const baseMessage = banksRes.error?.message || typesRes.error?.message || assetsRes.error?.message || "erro desconhecido";
         const guided = /relation .* (banks|investment_types|assets)/i.test(baseMessage)
-          ? "Tabelas de catalogo nao encontradas. Rode o supabase.sql atualizado."
-          : baseMessage;
-        setOptionsError(guided);
-        setBanks([]);
-        setInvestmentTypes([]);
-        setAssets([]);
+          ? "Tabelas de catalogo nao encontradas no Supabase. Usando lista local temporaria."
+          : `Falha ao carregar catalogos (${baseMessage}). Usando lista local temporaria.`;
+        applyFallbackOptions(guided);
         setLoadingOptions(false);
         return;
       }
@@ -131,12 +214,22 @@ export function InvestmentModal({
       const loadedTypes = (typesRes.data as InvestmentTypeOption[]) || [];
       const loadedAssets = (assetsRes.data as AssetOption[]) || [];
 
-      setBanks(loadedBanks);
-      setInvestmentTypes(loadedTypes);
-      setAssets(loadedAssets);
+      const resolvedBanks = loadedBanks.length ? loadedBanks : FALLBACK_BANKS;
+      const resolvedTypes = loadedTypes.length ? loadedTypes : FALLBACK_TYPES;
+      const resolvedAssets = loadedAssets.length ? loadedAssets : FALLBACK_ASSETS;
 
-      setBankId(loadedBanks[0]?.id ?? "");
-      setTypeId(loadedTypes[0]?.id ?? "");
+      setBanks(resolvedBanks);
+      setInvestmentTypes(resolvedTypes);
+      setAssets(resolvedAssets);
+
+      if (!loadedBanks.length || !loadedTypes.length) {
+        setOptionsError("Catalogo parcial no banco. Usando lista local complementar.");
+      } else {
+        setOptionsError(null);
+      }
+
+      setBankId(resolvedBanks[0]?.id ?? "");
+      setTypeId(resolvedTypes[0]?.id ?? "");
       setAssetId("");
       setLoadingOptions(false);
     };
@@ -246,12 +339,12 @@ export function InvestmentModal({
     setValidationError(null);
     await onSave({
       side,
-      bankId: selectedBank.id,
+      bankId: normalizeOptionId(selectedBank.id),
       bankName: selectedBank.name,
-      typeId: selectedType.id,
+      typeId: normalizeOptionId(selectedType.id),
       typeName: selectedType.name,
       typeCategory: selectedType.category,
-      assetId: selectedAsset?.id || null,
+      assetId: normalizeOptionId(selectedAsset?.id),
       assetName,
       assetLogoUrl,
       tradeDate,
@@ -309,7 +402,7 @@ export function InvestmentModal({
                 className={INPUT_CLASS}
                 value={bankId}
                 onChange={(event) => setBankId(event.target.value)}
-                disabled={loadingOptions || !!optionsError}
+                disabled={loadingOptions}
               >
                 <option value="">Selecione</option>
                 {banks.map((option) => (
@@ -326,7 +419,7 @@ export function InvestmentModal({
                 className={INPUT_CLASS}
                 value={typeId}
                 onChange={(event) => setTypeId(event.target.value)}
-                disabled={loadingOptions || !!optionsError}
+                disabled={loadingOptions}
               >
                 <option value="">Selecione</option>
                 {groupedTypes.map((group) => (
@@ -347,7 +440,7 @@ export function InvestmentModal({
                 className={INPUT_CLASS}
                 value={assetId}
                 onChange={(event) => setAssetId(event.target.value)}
-                disabled={loadingOptions || !!optionsError || !typeId}
+                disabled={loadingOptions || !typeId}
               >
                 {!filteredAssets.length ? (
                   <option value="">
@@ -435,7 +528,7 @@ export function InvestmentModal({
             type="button"
             className="rounded-xl border border-violet-300/30 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(139,92,246,0.4)] transition hover:brightness-110 disabled:opacity-60"
             onClick={() => void handleSave()}
-            disabled={saving || loadingOptions || !!optionsError}
+            disabled={saving || loadingOptions}
           >
             {saving ? "Salvando..." : "Adicionar Lancamento"}
           </button>
