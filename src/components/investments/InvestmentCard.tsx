@@ -15,6 +15,7 @@ export type InvestmentCardItem = {
   category: string;
   operation: "compra" | "venda";
   costs: number;
+  dividends_received: number;
   asset_name: string;
   asset_logo_url: string | null;
   quantity: number;

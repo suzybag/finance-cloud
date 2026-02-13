@@ -205,6 +205,12 @@ body::after {
   animation: investmentModalIn 220ms ease-out;
 }
 
+.investment-stat-enter {
+  opacity: 0;
+  transform: translateY(8px);
+  animation: investmentStatIn 280ms ease-out forwards;
+}
+
 .dash-flip-card {
   background-color: transparent;
   width: 220px;
@@ -440,6 +446,17 @@ body::after {
   100% {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes investmentStatIn {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

@@ -240,6 +240,7 @@ create table if not exists public.investments (
   quantity numeric not null default 1,
   average_price numeric not null default 0,
   current_price numeric not null default 0,
+  dividends_received numeric not null default 0,
   invested_amount numeric not null,
   current_amount numeric not null,
   price_history jsonb,
@@ -258,6 +259,7 @@ alter table public.investments add column if not exists asset_logo_url text;
 alter table public.investments add column if not exists quantity numeric not null default 1;
 alter table public.investments add column if not exists average_price numeric not null default 0;
 alter table public.investments add column if not exists current_price numeric not null default 0;
+alter table public.investments add column if not exists dividends_received numeric not null default 0;
 alter table public.investments add column if not exists invested_amount numeric not null default 0;
 alter table public.investments add column if not exists current_amount numeric not null default 0;
 alter table public.investments add column if not exists price_history jsonb;
@@ -298,6 +300,7 @@ end
 where coalesce(trim(operation), '') = '' or lower(coalesce(operation, '')) not in ('compra', 'venda');
 
 update public.investments set costs = 0 where costs is null or costs < 0;
+update public.investments set dividends_received = 0 where dividends_received is null or dividends_received < 0;
 
 update public.investments set quantity = 1 where quantity is null or quantity <= 0;
 update public.investments set average_price = 0 where average_price is null;

@@ -3,16 +3,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Activity,
-  CircleDollarSign,
   Loader2,
   Plus,
-  TrendingUp,
-  Wallet,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { InvestmentModal, type InvestmentLaunchPayload } from "@/components/investments/InvestmentModal";
 import { InvestmentCategory } from "@/components/investments/InvestmentCategory";
+import { InvestmentSummary } from "@/components/investments/InvestmentSummary";
 import { type InvestmentCardItem } from "@/components/investments/InvestmentCard";
 import {
   INVESTMENT_CATEGORIES,
@@ -21,7 +18,7 @@ import {
   resolvePriceHistory,
   type InvestmentCategory as InvestmentCategoryType,
 } from "@/lib/calculateInvestment";
-import { brl, formatPercent, toNumber } from "@/lib/money";
+import { toNumber } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
 
 type InvestmentRow = InvestmentCardItem & {
@@ -50,6 +47,7 @@ type RawInvestmentRow = {
   price_history?: unknown;
   operation?: string | null;
   costs?: number | string | null;
+  dividends_received?: number | string | null;
 };
 
 const SECTION_CLASS =
@@ -68,7 +66,7 @@ const safeRatio = (numerator: number, denominator: number, fallback = 0) => {
 };
 
 const isMissingInvestmentsExtendedColumnError = (message?: string | null) =>
-  /could not find the '(operation|costs|category|asset_name|asset_logo_url|quantity|average_price|current_price|price_history)' column of 'investments' in the schema cache/i
+  /could not find the '(operation|costs|category|asset_name|asset_logo_url|quantity|average_price|current_price|price_history|dividends_received)' column of 'investments' in the schema cache/i
     .test(message ?? "");
 
 const normalizeCategory = (
@@ -91,6 +89,7 @@ const normalizeInvestment = (row: RawInvestmentRow): InvestmentRow | null => {
     : toNumber(row.annual_rate);
   const operation = row.operation === "venda" ? "venda" : "compra";
   const costs = Math.max(0, toNumber(row.costs));
+  const dividendsReceived = Math.max(0, toNumber(row.dividends_received));
 
   const startDate = row.start_date || new Date().toISOString().slice(0, 10);
   const broker = (row.broker || "Nao informado").trim() || "Nao informado";
@@ -138,6 +137,7 @@ const normalizeInvestment = (row: RawInvestmentRow): InvestmentRow | null => {
     investment_type: investmentType,
     operation,
     costs,
+    dividends_received: dividendsReceived,
     asset_name: assetName,
     asset_logo_url: row.asset_logo_url?.trim() || null,
     quantity: roundCurrency(quantity),
@@ -215,6 +215,7 @@ export default function InvestmentsPage() {
           .update({
             operation: item.operation,
             costs: item.costs,
+            dividends_received: item.dividends_received,
             category: item.category,
             asset_name: item.asset_name,
             asset_logo_url: item.asset_logo_url,
@@ -259,6 +260,7 @@ export default function InvestmentsPage() {
       broker: "Manual",
       operation: payload.side,
       costs: payload.costs,
+      dividends_received: 0,
       category: payload.assetType,
       investment_type: payload.assetType,
       asset_name: payload.assetName,
@@ -326,26 +328,6 @@ export default function InvestmentsPage() {
     await loadInvestments();
   };
 
-  const summary = useMemo(() => {
-    const totalInvested = investments.reduce(
-      (sum, item) => sum + (item.operation === "venda" ? -item.invested_amount : item.invested_amount),
-      0,
-    );
-    const totalCurrent = investments.reduce(
-      (sum, item) => sum + (item.operation === "venda" ? -item.current_amount : item.current_amount),
-      0,
-    );
-    const profit = totalCurrent - totalInvested;
-    const profitability = totalInvested > 0 ? (profit / totalInvested) * 100 : 0;
-
-    return {
-      totalInvested: roundCurrency(totalInvested),
-      totalCurrent: roundCurrency(totalCurrent),
-      profit: roundCurrency(profit),
-      profitability,
-    };
-  }, [investments]);
-
   const groupedByCategory = useMemo(() => {
     const map = new Map<InvestmentCategoryType, InvestmentRow[]>();
     INVESTMENT_CATEGORIES.forEach((category) => map.set(category, []));
@@ -409,41 +391,7 @@ export default function InvestmentsPage() {
               </button>
             </div>
           </section>
-
-          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <div className={`${SECTION_CLASS} p-4`}>
-              <p className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.08em] text-slate-400">
-                <Wallet className="h-4 w-4 text-violet-300" />
-                Total investido
-              </p>
-              <p className="mt-2 text-2xl font-extrabold text-white">{brl(summary.totalInvested)}</p>
-            </div>
-            <div className={`${SECTION_CLASS} p-4`}>
-              <p className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.08em] text-slate-400">
-                <CircleDollarSign className="h-4 w-4 text-cyan-300" />
-                Total atual
-              </p>
-              <p className="mt-2 text-2xl font-extrabold text-cyan-200">{brl(summary.totalCurrent)}</p>
-            </div>
-            <div className={`${SECTION_CLASS} p-4`}>
-              <p className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.08em] text-slate-400">
-                <TrendingUp className="h-4 w-4 text-emerald-300" />
-                Rentabilidade total
-              </p>
-              <p className={`mt-2 text-2xl font-extrabold ${summary.profitability >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
-                {formatPercent(summary.profitability)}
-              </p>
-            </div>
-            <div className={`${SECTION_CLASS} p-4`}>
-              <p className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.08em] text-slate-400">
-                <Activity className="h-4 w-4 text-violet-300" />
-                Lucro / prejuizo
-              </p>
-              <p className={`mt-2 text-2xl font-extrabold ${summary.profit >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
-                {brl(summary.profit)}
-              </p>
-            </div>
-          </section>
+          <InvestmentSummary investments={investments} />
 
           <section className={`${SECTION_CLASS} p-4`}>
             <div className="space-y-3">
