@@ -4,11 +4,19 @@ import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { BankLogo } from "@/components/BankLogo";
 import { getBankIconPath } from "@/lib/bankIcons";
-import { brl } from "@/lib/money";
+import { brl, formatPercent } from "@/lib/money";
 import { computeAccountBalances, computeCardSummary } from "@/lib/finance";
 import { monthInputValue, normalizePeriod } from "@/core/finance/dashboardSummary";
 import { useDashboardSummary } from "./useDashboardSummary";
-import { ArrowDownRight, ArrowUpRight, Circle, RefreshCcw } from "lucide-react";
+import { useMarketOverview } from "./useMarketOverview";
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  ChevronRight,
+  Circle,
+  ExternalLink,
+  RefreshCcw,
+} from "lucide-react";
 
 const IconFallback = ({ label }: { label: string }) => (
   <div className="grid h-8 w-8 place-items-center rounded-lg bg-slate-800 text-xs font-bold text-slate-200">
@@ -52,6 +60,82 @@ const MetricCard = ({
   </div>
 );
 
+const formatSignedPercent = (value: number) => {
+  if (!Number.isFinite(value) || value === 0) return "0,0%";
+  const prefix = value > 0 ? "+" : "-";
+  return `${prefix}${formatPercent(Math.abs(value))}`;
+};
+
+const formatPoints = (value: number) =>
+  new Intl.NumberFormat("pt-BR", {
+    maximumFractionDigits: 0,
+  }).format(Number.isFinite(value) ? value : 0);
+
+const MarketIndicatorCard = ({
+  title,
+  value,
+  variation,
+}: {
+  title: string;
+  value: string;
+  variation: number;
+}) => {
+  const positive = variation >= 0;
+  return (
+    <article className="min-h-[148px] rounded-2xl border border-slate-200 bg-white p-5 text-slate-900 shadow-[0_16px_40px_rgba(15,23,42,0.2)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_50px_rgba(15,23,42,0.25)]">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm font-medium text-slate-600">{title}</p>
+        <span
+          className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${
+            positive ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"
+          }`}
+        >
+          {formatSignedPercent(variation)}
+        </span>
+      </div>
+      <p className="mt-5 text-3xl font-bold tracking-tight text-slate-900">{value}</p>
+      <div className="mt-4 flex justify-end">
+        <ExternalLink className="h-4 w-4 text-slate-400" />
+      </div>
+    </article>
+  );
+};
+
+const CryptoSparkline = ({ values, positive }: { values: number[]; positive: boolean }) => {
+  const safe = values.filter((value) => Number.isFinite(value));
+  if (safe.length < 2) {
+    return <div className="h-full w-full rounded bg-slate-100" />;
+  }
+
+  const min = Math.min(...safe);
+  const max = Math.max(...safe);
+  const range = max - min || 1;
+  const width = 100;
+  const height = 30;
+
+  const points = safe
+    .map((value, index) => {
+      const x = (index / (safe.length - 1)) * width;
+      const normalized = (value - min) / range;
+      const y = height - normalized * (height - 4) - 2;
+      return `${x.toFixed(2)},${y.toFixed(2)}`;
+    })
+    .join(" ");
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full" aria-hidden="true">
+      <polyline
+        points={points}
+        fill="none"
+        stroke={positive ? "#16a34a" : "#dc2626"}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+};
+
 export const DashboardSummaryScreen = () => {
   const {
     loading,
@@ -64,6 +148,7 @@ export const DashboardSummaryScreen = () => {
     setPeriod,
     refresh,
   } = useDashboardSummary();
+  const { market, loading: loadingMarket, error: marketError, refreshMarket } = useMarketOverview();
 
   const accountBalances = computeAccountBalances(accounts, transactions);
   const visibleAccounts = accounts.filter((account) => !account.archived);
@@ -73,6 +158,17 @@ export const DashboardSummaryScreen = () => {
   const monthName = new Date(`${periodLabel}-01T00:00:00`).toLocaleDateString("pt-BR", {
     month: "long",
   });
+  const marketTimeLabel = market.updatedAt
+    ? new Date(market.updatedAt).toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "--:--";
+
+  const handleRefreshAll = () => {
+    refresh();
+    refreshMarket();
+  };
 
   const actions = (
     <div className="flex items-center gap-2">
@@ -86,7 +182,7 @@ export const DashboardSummaryScreen = () => {
       <button
         type="button"
         className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2 text-xs font-semibold text-slate-100 transition hover:bg-slate-900/55"
-        onClick={refresh}
+        onClick={handleRefreshAll}
       >
         <RefreshCcw className="h-3.5 w-3.5" />
         Atualizar
@@ -120,6 +216,113 @@ export const DashboardSummaryScreen = () => {
         <div className="glass-panel p-6 text-slate-300">Carregando...</div>
       ) : (
         <div className="space-y-8">
+          <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+            <div className="grid gap-4 md:grid-cols-3">
+              <MarketIndicatorCard
+                title="Dolar"
+                value={brl(market.indicators.dollar.price)}
+                variation={market.indicators.dollar.changePct}
+              />
+              <MarketIndicatorCard
+                title="Ibovespa"
+                value={`${formatPoints(market.indicators.ibovespa.points)} pts`}
+                variation={market.indicators.ibovespa.changePct}
+              />
+              <MarketIndicatorCard
+                title="CDI (Ult. 12m)"
+                value={`${market.indicators.cdi.rate.toFixed(2).replace(".", ",")} %`}
+                variation={market.indicators.cdi.changePct}
+              />
+            </div>
+
+            <aside className="rounded-3xl border border-slate-200 bg-white p-5 text-slate-900 shadow-[0_16px_40px_rgba(15,23,42,0.2)]">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex -space-x-2">
+                    {market.cryptos.list.slice(0, 2).map((coin) => (
+                      <div
+                        key={coin.id}
+                        className="h-10 w-10 rounded-full border-2 border-white bg-slate-100 p-1 shadow-sm"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={coin.image}
+                          alt={coin.name}
+                          className="h-full w-full rounded-full object-cover"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  {market.cryptos.list.length > 2 ? (
+                    <span className="text-sm font-semibold text-slate-500">
+                      +{market.cryptos.list.length - 2}
+                    </span>
+                  ) : null}
+                </div>
+                <Link
+                  href="/investments"
+                  className="grid h-8 w-8 place-items-center rounded-full border border-slate-200 text-slate-500 hover:bg-slate-100"
+                  aria-label="Abrir investimentos"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+              </div>
+
+              <p className="mt-4 text-3xl font-semibold tracking-tight">Total em criptos</p>
+              <p className="mt-1 text-4xl font-bold tracking-tight">
+                {brl(market.cryptos.summary.basketTotal)}
+              </p>
+              <p className="mt-2 text-sm text-slate-500">
+                <span
+                  className={
+                    market.cryptos.summary.basketChangeValue >= 0
+                      ? "font-semibold text-emerald-600"
+                      : "font-semibold text-rose-600"
+                  }
+                >
+                  {market.cryptos.summary.basketChangeValue >= 0 ? "↑ " : "↓ "}
+                  {brl(Math.abs(market.cryptos.summary.basketChangeValue))}
+                </span>{" "}
+                de rendimento (24h)
+              </p>
+
+              <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+                {market.cryptos.list.slice(0, 5).map((coin) => {
+                  const positive = coin.changePct24h >= 0;
+                  return (
+                    <div
+                      key={coin.id}
+                      className="min-w-[145px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2"
+                    >
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-semibold text-slate-700">{coin.symbol}</span>
+                        <span className={positive ? "text-emerald-600" : "text-rose-600"}>
+                          {formatSignedPercent(coin.changePct24h)}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">
+                        {brl(coin.currentPrice)}
+                      </p>
+                      <div className="mt-2 h-8">
+                        <CryptoSparkline values={coin.sparkline} positive={positive} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <p className="mt-3 text-[11px] text-slate-500">
+                {loadingMarket ? "Atualizando mercado..." : `Atualizado as ${marketTimeLabel}`}
+              </p>
+            </aside>
+          </section>
+
+          {marketError ? (
+            <div className="rounded-xl border border-amber-300/60 bg-amber-100 px-4 py-3 text-sm text-amber-800">
+              {marketError}
+            </div>
+          ) : null}
+
           <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-slate-950/60 px-6 py-6 shadow-lg shadow-black/50 sm:px-8 sm:py-8">
             <div className="absolute inset-0">
               <video
