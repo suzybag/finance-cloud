@@ -81,12 +81,40 @@ export const useMarketOverview = () => {
         throw new Error(json?.message || "Erro ao atualizar dados. Tentando novamente.");
       }
       const payload = json as MarketOverviewPayload;
-      setMarket(payload);
-      const hasPayloadData =
-        payload.indicators.dollar.price > 0 ||
-        payload.indicators.ibovespa.points > 0 ||
-        payload.indicators.cdi.rate > 0 ||
-        payload.cryptos.list.length > 0;
+      const warnings = new Set(payload.warnings ?? []);
+      let hasPayloadData = false;
+
+      setMarket((prev) => {
+        const next: MarketOverviewPayload = {
+          ...payload,
+          indicators: {
+            ...payload.indicators,
+          },
+          cryptos: payload.cryptos,
+        };
+
+        if (warnings.has("dolar") && prev.indicators.dollar.price > 0) {
+          next.indicators.dollar = prev.indicators.dollar;
+        }
+        if (warnings.has("ibovespa") && prev.indicators.ibovespa.points > 0) {
+          next.indicators.ibovespa = prev.indicators.ibovespa;
+        }
+        if (warnings.has("cdi") && prev.indicators.cdi.rate > 0) {
+          next.indicators.cdi = prev.indicators.cdi;
+        }
+        if (warnings.has("criptos") && prev.cryptos.list.length > 0) {
+          next.cryptos = prev.cryptos;
+        }
+
+        hasPayloadData =
+          next.indicators.dollar.price > 0 ||
+          next.indicators.ibovespa.points > 0 ||
+          next.indicators.cdi.rate > 0 ||
+          next.cryptos.list.length > 0;
+
+        return next;
+      });
+
       hasDataRef.current = hasPayloadData;
       setError(null);
     } catch {
