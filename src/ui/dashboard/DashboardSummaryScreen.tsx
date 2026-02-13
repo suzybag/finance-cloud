@@ -82,20 +82,22 @@ const MarketIndicatorCard = ({
 }) => {
   const positive = variation >= 0;
   return (
-    <article className="min-h-[148px] rounded-2xl border border-slate-200 bg-white p-5 text-slate-900 shadow-[0_16px_40px_rgba(15,23,42,0.2)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_50px_rgba(15,23,42,0.25)]">
+    <article className="h-[122px] w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.12)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(15,23,42,0.16)] sm:w-[212px]">
       <div className="flex items-start justify-between gap-3">
-        <p className="text-sm font-medium text-slate-600">{title}</p>
+        <p className="text-[15px] font-medium text-slate-700">{title}</p>
         <span
-          className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${
+          className={`rounded-md px-2 py-0.5 text-[12px] font-semibold ${
             positive ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"
           }`}
         >
           {formatSignedPercent(variation)}
         </span>
       </div>
-      <p className="mt-5 text-3xl font-bold tracking-tight text-slate-900">{value}</p>
-      <div className="mt-4 flex justify-end">
-        <ExternalLink className="h-4 w-4 text-slate-400" />
+      <p className="mt-3 text-[28px] leading-none font-bold tracking-tight text-slate-900">
+        {value}
+      </p>
+      <div className="mt-3 flex justify-end">
+        <ExternalLink className="h-3.5 w-3.5 text-slate-400" />
       </div>
     </article>
   );
@@ -104,7 +106,7 @@ const MarketIndicatorCard = ({
 const CryptoSparkline = ({ values, positive }: { values: number[]; positive: boolean }) => {
   const safe = values.filter((value) => Number.isFinite(value));
   if (safe.length < 2) {
-    return <div className="h-full w-full rounded bg-slate-100" />;
+    return <div className="h-full w-full rounded bg-slate-800/80" />;
   }
 
   const min = Math.min(...safe);
@@ -215,9 +217,9 @@ export const DashboardSummaryScreen = () => {
       {loading ? (
         <div className="glass-panel p-6 text-slate-300">Carregando...</div>
       ) : (
-        <div className="space-y-8">
-          <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-            <div className="grid gap-4 md:grid-cols-3">
+        <div className="space-y-6">
+          <section className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_320px]">
+            <div className="flex flex-wrap gap-3">
               <MarketIndicatorCard
                 title="Dolar"
                 value={brl(market.indicators.dollar.price)}
@@ -235,14 +237,14 @@ export const DashboardSummaryScreen = () => {
               />
             </div>
 
-            <aside className="rounded-3xl border border-slate-200 bg-white p-5 text-slate-900 shadow-[0_16px_40px_rgba(15,23,42,0.2)]">
+            <aside className="rounded-3xl border border-white/10 bg-[#06080d] p-4 text-slate-100 shadow-[0_18px_36px_rgba(0,0,0,0.5)]">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="flex -space-x-2">
                     {market.cryptos.list.slice(0, 2).map((coin) => (
                       <div
                         key={coin.id}
-                        className="h-10 w-10 rounded-full border-2 border-white bg-slate-100 p-1 shadow-sm"
+                        className="h-10 w-10 rounded-full border-2 border-[#0c1017] bg-[#111722] p-1 shadow-sm"
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
@@ -254,33 +256,33 @@ export const DashboardSummaryScreen = () => {
                     ))}
                   </div>
                   {market.cryptos.list.length > 2 ? (
-                    <span className="text-sm font-semibold text-slate-500">
+                    <span className="text-sm font-semibold text-slate-400">
                       +{market.cryptos.list.length - 2}
                     </span>
                   ) : null}
                 </div>
                 <Link
                   href="/investments"
-                  className="grid h-8 w-8 place-items-center rounded-full border border-slate-200 text-slate-500 hover:bg-slate-100"
+                  className="grid h-8 w-8 place-items-center rounded-full border border-white/15 bg-black/40 text-slate-300 hover:bg-white/10"
                   aria-label="Abrir investimentos"
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Link>
               </div>
 
-              <p className="mt-4 text-3xl font-semibold tracking-tight">Total em criptos</p>
-              <p className="mt-1 text-4xl font-bold tracking-tight">
+              <p className="mt-4 text-3xl font-semibold tracking-tight text-white">Total em criptos</p>
+              <p className="mt-1 text-4xl font-bold tracking-tight text-white">
                 {brl(market.cryptos.summary.basketTotal)}
               </p>
-              <p className="mt-2 text-sm text-slate-500">
+              <p className="mt-2 text-sm text-slate-400">
                 <span
                   className={
                     market.cryptos.summary.basketChangeValue >= 0
-                      ? "font-semibold text-emerald-600"
-                      : "font-semibold text-rose-600"
+                      ? "font-semibold text-emerald-400"
+                      : "font-semibold text-rose-400"
                   }
                 >
-                  {market.cryptos.summary.basketChangeValue >= 0 ? "↑ " : "↓ "}
+                  {market.cryptos.summary.basketChangeValue >= 0 ? "+ " : "- "}
                   {brl(Math.abs(market.cryptos.summary.basketChangeValue))}
                 </span>{" "}
                 de rendimento (24h)
@@ -292,15 +294,15 @@ export const DashboardSummaryScreen = () => {
                   return (
                     <div
                       key={coin.id}
-                      className="min-w-[145px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2"
+                      className="min-w-[140px] rounded-xl border border-white/10 bg-[#0e141d] px-3 py-2"
                     >
                       <div className="flex items-center justify-between text-[11px]">
-                        <span className="font-semibold text-slate-700">{coin.symbol}</span>
-                        <span className={positive ? "text-emerald-600" : "text-rose-600"}>
+                        <span className="font-semibold text-slate-300">{coin.symbol}</span>
+                        <span className={positive ? "text-emerald-400" : "text-rose-400"}>
                           {formatSignedPercent(coin.changePct24h)}
                         </span>
                       </div>
-                      <p className="mt-1 text-sm font-semibold text-slate-900">
+                      <p className="mt-1 text-sm font-semibold text-slate-200">
                         {brl(coin.currentPrice)}
                       </p>
                       <div className="mt-2 h-8">
@@ -311,7 +313,7 @@ export const DashboardSummaryScreen = () => {
                 })}
               </div>
 
-              <p className="mt-3 text-[11px] text-slate-500">
+              <p className="mt-3 text-[11px] text-slate-400">
                 {loadingMarket ? "Atualizando mercado..." : `Atualizado as ${marketTimeLabel}`}
               </p>
             </aside>
