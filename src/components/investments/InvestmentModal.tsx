@@ -156,8 +156,8 @@ export function InvestmentModal({
   onSave,
 }: InvestmentModalProps) {
   const [side, setSide] = useState<TradeSide>("compra");
-  const [bankId, setBankId] = useState("");
-  const [typeId, setTypeId] = useState("");
+  const [bankId, setBankId] = useState(FALLBACK_BANKS[0]?.id ?? "");
+  const [typeId, setTypeId] = useState(FALLBACK_TYPES[0]?.id ?? "");
   const [assetId, setAssetId] = useState("");
   const [tradeDate, setTradeDate] = useState(todayIso);
   const [quantity, setQuantity] = useState("");
@@ -167,9 +167,9 @@ export function InvestmentModal({
   const [optionsError, setOptionsError] = useState<string | null>(null);
   const [loadingOptions, setLoadingOptions] = useState(false);
 
-  const [banks, setBanks] = useState<BankOption[]>([]);
-  const [investmentTypes, setInvestmentTypes] = useState<InvestmentTypeOption[]>([]);
-  const [assets, setAssets] = useState<AssetOption[]>([]);
+  const [banks, setBanks] = useState<BankOption[]>(FALLBACK_BANKS);
+  const [investmentTypes, setInvestmentTypes] = useState<InvestmentTypeOption[]>(FALLBACK_TYPES);
+  const [assets, setAssets] = useState<AssetOption[]>(FALLBACK_ASSETS);
 
   useEffect(() => {
     if (!open) return;
@@ -180,6 +180,9 @@ export function InvestmentModal({
     setCostsMasked("");
     setValidationError(null);
     setOptionsError(null);
+    setBankId(FALLBACK_BANKS[0]?.id ?? "");
+    setTypeId(FALLBACK_TYPES[0]?.id ?? "");
+    setAssetId("");
 
     const loadOptions = async () => {
       setLoadingOptions(true);
@@ -528,7 +531,7 @@ export function InvestmentModal({
             type="button"
             className="rounded-xl border border-violet-300/30 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(139,92,246,0.4)] transition hover:brightness-110 disabled:opacity-60"
             onClick={() => void handleSave()}
-            disabled={saving || loadingOptions}
+            disabled={saving}
           >
             {saving ? "Salvando..." : "Adicionar Lancamento"}
           </button>
