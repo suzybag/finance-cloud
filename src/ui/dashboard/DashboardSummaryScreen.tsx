@@ -518,7 +518,7 @@ export const DashboardSummaryScreen = () => {
                           <span>Limite: {brl(card.limit_total)}</span>
                           <span>Fatura: {brl(summaryCard.currentTotal)}</span>
                           <span>
-                            Fecha dia {card.closing_day} · Vence dia {card.due_day}
+                            Fecha dia {card.closing_day} - Vence dia {card.due_day}
                           </span>
                         </div>
                       </div>

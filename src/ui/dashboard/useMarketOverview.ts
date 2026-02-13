@@ -81,11 +81,7 @@ export const useMarketOverview = () => {
       }
       const payload = json as MarketOverviewPayload;
       setMarket(payload);
-      if (Array.isArray(payload.warnings) && payload.warnings.length > 0) {
-        setError("Erro ao atualizar dados. Tentando novamente.");
-      } else {
-        setError(null);
-      }
+      setError(null);
     } catch {
       setError("Erro ao atualizar dados. Tentando novamente.");
     } finally {

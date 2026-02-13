@@ -50,9 +50,21 @@ type CoinGeckoSimpleResponse = {
   };
 };
 
-type CoinGeckoChartResponse = {
-  prices?: Array<[number, number]>;
+type CoinCapAssetsResponse = {
+  data?: Array<{
+    id?: string;
+    symbol?: string;
+    priceUsd?: string;
+    changePercent24Hr?: string;
+  }>;
 };
+
+type BinanceTickerResponse = {
+  lastPrice?: string;
+  priceChangePercent?: string;
+};
+
+type BinanceKlineRow = [number, string, string, string, string, string, number];
 
 type CryptoItem = {
   id: string;
@@ -66,7 +78,7 @@ type CryptoItem = {
 };
 
 const NO_STORE_HEADERS = {
-  "Cache-Control": "no-store, no-cache, must-revalidate",
+  "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
   Pragma: "no-cache",
   Expires: "0",
 };
@@ -109,6 +121,14 @@ const sampleSeries = (values: number[], points = 18) => {
     const sourceIndex = Math.round(index * step);
     return filtered[sourceIndex] ?? filtered[filtered.length - 1];
   });
+};
+
+const buildSyntheticSparkline = (price: number, changePct: number) => {
+  if (!Number.isFinite(price) || price <= 0) return [];
+  const factor = 1 + changePct / 100;
+  const base = factor > 0 ? price / factor : price;
+  const mid = (base + price) / 2;
+  return [base, base * 1.002, mid * 0.999, mid * 1.001, price];
 };
 
 const fetchJson = async <T>(url: string): Promise<T> => {
@@ -228,12 +248,12 @@ const fetchCdi = async () => {
   };
 };
 
-const fetchCoinSparkline = async (id: "bitcoin" | "ethereum") => {
+const fetchCoinSparkline = async (symbol: "BTCBRL" | "ETHBRL") => {
   try {
-    const data = await fetchJson<CoinGeckoChartResponse>(
-      `https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=brl&days=1&interval=hourly`,
+    const data = await fetchJson<BinanceKlineRow[]>(
+      `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1h&limit=24`,
     );
-    const values = (data.prices || []).map((item) => Number(item[1]));
+    const values = (data || []).map((item) => toNumber(item[4]));
     return sampleSeries(values);
   } catch {
     return [] as number[];
@@ -241,25 +261,88 @@ const fetchCoinSparkline = async (id: "bitcoin" | "ethereum") => {
 };
 
 const fetchCryptos = async () => {
-  const data = await fetchJson<CoinGeckoSimpleResponse>(
-    "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=brl&include_24hr_change=true",
-  );
+  let btcPrice = 0;
+  let ethPrice = 0;
+  let btcChange = 0;
+  let ethChange = 0;
 
-  const btcPrice = toNumber(data.bitcoin?.brl);
-  const ethPrice = toNumber(data.ethereum?.brl);
-  const btcChange = toNumber(data.bitcoin?.brl_24h_change);
-  const ethChange = toNumber(data.ethereum?.brl_24h_change);
-
-  if (btcPrice <= 0 && ethPrice <= 0) {
-    throw new Error("Falha ao atualizar criptomoedas.");
+  try {
+    const data = await fetchJson<CoinGeckoSimpleResponse>(
+      "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=brl&include_24hr_change=true",
+    );
+    btcPrice = toNumber(data.bitcoin?.brl);
+    ethPrice = toNumber(data.ethereum?.brl);
+    btcChange = toNumber(data.bitcoin?.brl_24h_change);
+    ethChange = toNumber(data.ethereum?.brl_24h_change);
+  } catch {
+    // fallback below
   }
 
-  const [btcSpark, ethSpark] = await Promise.all([
-    fetchCoinSparkline("bitcoin"),
-    fetchCoinSparkline("ethereum"),
+  if (btcPrice <= 0 || ethPrice <= 0) {
+    try {
+      const [coinCapData, usdBrlData] = await Promise.all([
+        fetchJson<CoinCapAssetsResponse>("https://api.coincap.io/v2/assets?ids=bitcoin,ethereum"),
+        fetchJson<AwesomeDollarResponse>("https://economia.awesomeapi.com.br/json/last/USD-BRL"),
+      ]);
+      const usdBrl = toNumber(usdBrlData.USDBRL?.bid);
+      if (usdBrl > 0) {
+        const btcCoinCap = (coinCapData.data || []).find((asset) => asset.id === "bitcoin");
+        const ethCoinCap = (coinCapData.data || []).find((asset) => asset.id === "ethereum");
+
+        if (btcPrice <= 0) {
+          btcPrice = toNumber(btcCoinCap?.priceUsd) * usdBrl;
+        }
+        if (ethPrice <= 0) {
+          ethPrice = toNumber(ethCoinCap?.priceUsd) * usdBrl;
+        }
+        if ((!Number.isFinite(btcChange) || btcChange === 0) && btcCoinCap?.changePercent24Hr) {
+          btcChange = toNumber(btcCoinCap.changePercent24Hr);
+        }
+        if ((!Number.isFinite(ethChange) || ethChange === 0) && ethCoinCap?.changePercent24Hr) {
+          ethChange = toNumber(ethCoinCap.changePercent24Hr);
+        }
+      }
+    } catch {
+      // fallback below
+    }
+  }
+
+  if (btcPrice <= 0 || ethPrice <= 0) {
+    const [btcTickerResult, ethTickerResult] = await Promise.allSettled([
+      fetchJson<BinanceTickerResponse>("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCBRL"),
+      fetchJson<BinanceTickerResponse>("https://api.binance.com/api/v3/ticker/24hr?symbol=ETHBRL"),
+    ]);
+
+    const btcTicker =
+      btcTickerResult.status === "fulfilled" ? btcTickerResult.value : ({} as BinanceTickerResponse);
+    const ethTicker =
+      ethTickerResult.status === "fulfilled" ? ethTickerResult.value : ({} as BinanceTickerResponse);
+
+    if (btcPrice <= 0) {
+      btcPrice = toNumber(btcTicker.lastPrice);
+    }
+    if (ethPrice <= 0) {
+      ethPrice = toNumber(ethTicker.lastPrice);
+    }
+    if ((!Number.isFinite(btcChange) || btcChange === 0) && btcTicker.priceChangePercent) {
+      btcChange = toNumber(btcTicker.priceChangePercent);
+    }
+    if ((!Number.isFinite(ethChange) || ethChange === 0) && ethTicker.priceChangePercent) {
+      ethChange = toNumber(ethTicker.priceChangePercent);
+    }
+  }
+
+  if (btcPrice <= 0 && ethPrice <= 0) throw new Error("Falha ao atualizar criptomoedas.");
+
+  const [btcSparkRaw, ethSparkRaw] = await Promise.all([
+    fetchCoinSparkline("BTCBRL"),
+    fetchCoinSparkline("ETHBRL"),
   ]);
 
   const now = new Date().toISOString();
+  const btcSpark = btcSparkRaw.length ? btcSparkRaw : buildSyntheticSparkline(btcPrice, btcChange);
+  const ethSpark = ethSparkRaw.length ? ethSparkRaw : buildSyntheticSparkline(ethPrice, ethChange);
+
   const list: CryptoItem[] = [
     {
       id: "bitcoin",
