@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
 
 export type MarketOverviewPayload = {
   updatedAt: string;
@@ -30,8 +29,8 @@ export type MarketOverviewPayload = {
       image: string;
       currentPrice: number;
       changePct24h: number;
-      changeValue24h: number;
       sparkline: number[];
+      updatedAt: string;
     }>;
     summary: {
       basketTotal: number;
@@ -39,6 +38,7 @@ export type MarketOverviewPayload = {
       basketChangePct: number;
     };
   };
+  warnings?: string[];
 };
 
 const EMPTY_MARKET: MarketOverviewPayload = {
@@ -56,6 +56,7 @@ const EMPTY_MARKET: MarketOverviewPayload = {
       basketChangePct: 0,
     },
   },
+  warnings: [],
 };
 
 export const useMarketOverview = () => {
@@ -70,27 +71,23 @@ export const useMarketOverview = () => {
 
     try {
       if (!silent) setLoading(true);
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      if (!token) {
-        throw new Error("Sessao expirada. Faca login novamente.");
-      }
-
       const response = await fetch("/api/market/overview", {
         method: "GET",
         cache: "no-store",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       });
       const json = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(json?.message || "Falha ao carregar dados de mercado.");
+        throw new Error(json?.message || "Erro ao atualizar dados. Tentando novamente.");
       }
-      setMarket(json as MarketOverviewPayload);
-      setError(null);
+      const payload = json as MarketOverviewPayload;
+      setMarket(payload);
+      if (Array.isArray(payload.warnings) && payload.warnings.length > 0) {
+        setError("Erro ao atualizar dados. Tentando novamente.");
+      } else {
+        setError(null);
+      }
     } catch {
-      setError("Falha ao atualizar, tentando novamente...");
+      setError("Erro ao atualizar dados. Tentando novamente.");
     } finally {
       loadingRef.current = false;
       setLoading(false);

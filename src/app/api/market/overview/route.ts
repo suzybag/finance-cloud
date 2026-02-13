@@ -1,18 +1,26 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { resolveCoinGeckoId } from "@/lib/coinGecko";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-type DollarApiResponse = {
+type AwesomeDollarResponse = {
   USDBRL?: {
     bid?: string;
     pctChange?: string;
-    create_date?: string;
     timestamp?: string;
   };
 };
+
+type AwesomeIbovRow = {
+  bid?: string;
+  value?: string;
+  points?: string;
+  pctChange?: string;
+  varBid?: string;
+  timestamp?: string;
+};
+
+type AwesomeIbovResponse = Record<string, AwesomeIbovRow>;
 
 type YahooChartResponse = {
   chart?: {
@@ -31,52 +39,43 @@ type BcbCdiRow = {
   valor?: string;
 };
 
-type CoinGeckoMarketRow = {
-  id?: string;
-  symbol?: string;
-  name?: string;
-  image?: string;
-  current_price?: number;
-  price_change_24h?: number;
-  price_change_percentage_24h?: number;
-  sparkline_in_7d?: {
-    price?: number[];
+type CoinGeckoSimpleResponse = {
+  bitcoin?: {
+    brl?: number;
+    brl_24h_change?: number;
+  };
+  ethereum?: {
+    brl?: number;
+    brl_24h_change?: number;
   };
 };
 
-type InvestmentRow = {
-  id: string;
-  user_id: string;
-  type_id: string | null;
-  asset_id: string | null;
-  investment_type: string | null;
-  category: string | null;
-  asset_name: string | null;
+type CoinGeckoChartResponse = {
+  prices?: Array<[number, number]>;
 };
 
-type InvestmentTypeRow = {
+type CryptoItem = {
   id: string;
+  symbol: string;
   name: string;
-  category: string;
-  symbol: string | null;
+  image: string;
+  currentPrice: number;
+  changePct24h: number;
+  sparkline: number[];
+  updatedAt: string;
 };
 
-type AssetRow = {
-  id: string;
-  name: string;
-  category: string | null;
-  symbol: string | null;
-};
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 const NO_STORE_HEADERS = {
-  "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+  "Cache-Control": "no-store, no-cache, must-revalidate",
   Pragma: "no-cache",
   Expires: "0",
-  "Surrogate-Control": "no-store",
 };
+
+const jsonNoStore = (body: unknown, init?: { status?: number }) =>
+  NextResponse.json(body, {
+    status: init?.status,
+    headers: NO_STORE_HEADERS,
+  });
 
 const toNumber = (value: unknown) => {
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
@@ -93,16 +92,6 @@ const toNumber = (value: unknown) => {
   return 0;
 };
 
-const sampleSeries = (values: number[], points = 18) => {
-  const filtered = values.filter((value) => Number.isFinite(value));
-  if (filtered.length <= points) return filtered;
-  const step = (filtered.length - 1) / (points - 1);
-  return Array.from({ length: points }, (_value, index) => {
-    const sourceIndex = Math.round(index * step);
-    return filtered[sourceIndex] ?? filtered[filtered.length - 1];
-  });
-};
-
 const parseBcbDate = (value?: string) => {
   if (!value) return null;
   const [day, month, year] = value.split("/");
@@ -112,10 +101,19 @@ const parseBcbDate = (value?: string) => {
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 };
 
+const sampleSeries = (values: number[], points = 18) => {
+  const filtered = values.filter((value) => Number.isFinite(value) && value > 0);
+  if (filtered.length <= points) return filtered;
+  const step = (filtered.length - 1) / (points - 1);
+  return Array.from({ length: points }, (_value, index) => {
+    const sourceIndex = Math.round(index * step);
+    return filtered[sourceIndex] ?? filtered[filtered.length - 1];
+  });
+};
+
 const fetchJson = async <T>(url: string): Promise<T> => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10000);
-
   try {
     const response = await fetch(url, {
       method: "GET",
@@ -125,72 +123,44 @@ const fetchJson = async <T>(url: string): Promise<T> => {
         Accept: "application/json",
       },
     });
-    if (!response.ok) {
-      throw new Error(`${url} -> ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`${url} -> ${response.status}`);
     return (await response.json()) as T;
   } finally {
     clearTimeout(timeoutId);
   }
 };
 
-const jsonNoStore = (body: unknown, init?: { status?: number }) =>
-  NextResponse.json(body, {
-    status: init?.status,
-    headers: NO_STORE_HEADERS,
-  });
-
-const getAuthToken = (request: Request) => {
-  const authHeader = request.headers.get("authorization") || "";
-  return authHeader.replace("Bearer ", "").trim();
-};
-
-const getClientForToken = (token: string) => {
-  if (!supabaseUrl) {
-    return { client: null, error: "NEXT_PUBLIC_SUPABASE_URL nao configurada." };
-  }
-  if (!token) {
-    return { client: null, error: "Token ausente." };
-  }
-
-  const keyToUse = serviceRole || supabaseAnonKey;
-  if (!keyToUse) {
-    return { client: null, error: "SUPABASE_SERVICE_ROLE_KEY ou NEXT_PUBLIC_SUPABASE_ANON_KEY nao configurada." };
-  }
-
-  const client = createClient(supabaseUrl, keyToUse, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-  });
-
-  return { client, error: null };
-};
-
-const resolveRowCoinId = (
-  row: InvestmentRow,
-  typesById: Map<string, InvestmentTypeRow>,
-  assetsById: Map<string, AssetRow>,
-) => {
-  const type = row.type_id ? typesById.get(row.type_id) : undefined;
-  const asset = row.asset_id ? assetsById.get(row.asset_id) : undefined;
-  return resolveCoinGeckoId({
-    symbol: asset?.symbol || type?.symbol,
-    name: asset?.name || row.asset_name || type?.name || row.investment_type,
-    category: asset?.category || type?.category || row.category,
-  });
-};
-
 const fetchDollar = async () => {
-  try {
-    const data = await fetchJson<DollarApiResponse>(
-      "https://economia.awesomeapi.com.br/json/last/USD-BRL",
-    );
-    const row = data.USDBRL;
-    const price = toNumber(row?.bid);
-    const changePct = toNumber(row?.pctChange);
+  const data = await fetchJson<AwesomeDollarResponse>(
+    "https://economia.awesomeapi.com.br/json/last/USD-BRL",
+  );
+  const row = data.USDBRL;
+  const price = toNumber(row?.bid);
+  const changePct = toNumber(row?.pctChange);
+  if (price <= 0) {
+    throw new Error("Falha ao atualizar dolar.");
+  }
+  return {
+    price,
+    changePct,
+    updatedAt:
+      row?.timestamp && Number.isFinite(Number(row.timestamp))
+        ? new Date(Number(row.timestamp) * 1000).toISOString()
+        : new Date().toISOString(),
+  };
+};
 
-    if (price > 0) {
+const fetchIbovespa = async () => {
+  try {
+    const data = await fetchJson<AwesomeIbovResponse>(
+      "https://economia.awesomeapi.com.br/json/last/IBOV",
+    );
+    const row = Object.values(data || {})[0];
+    const points = toNumber(row?.bid ?? row?.value ?? row?.points);
+    const changePct = toNumber(row?.pctChange ?? row?.varBid);
+    if (points > 0) {
       return {
-        price,
+        points,
         changePct,
         updatedAt:
           row?.timestamp && Number.isFinite(Number(row.timestamp))
@@ -199,37 +169,18 @@ const fetchDollar = async () => {
       };
     }
   } catch {
-    // fallback below
+    // Fallback Yahoo because AwesomeAPI IBOV endpoint is unstable/404.
   }
 
   const yahoo = await fetchJson<YahooChartResponse>(
-    "https://query1.finance.yahoo.com/v8/finance/chart/USDBRL=X?range=2d&interval=1d",
-  );
-  const meta = yahoo.chart?.result?.[0]?.meta;
-  const price = toNumber(meta?.regularMarketPrice);
-  const previous = toNumber(meta?.chartPreviousClose);
-  const changePct = previous > 0 ? ((price - previous) / previous) * 100 : 0;
-
-  return {
-    price,
-    changePct,
-    updatedAt: meta?.regularMarketTime
-      ? new Date(meta.regularMarketTime * 1000).toISOString()
-      : new Date().toISOString(),
-  };
-};
-
-const fetchIbovespa = async () => {
-  const data = await fetchJson<YahooChartResponse>(
     "https://query1.finance.yahoo.com/v8/finance/chart/%5EBVSP?range=2d&interval=1d",
   );
-  const meta = data.chart?.result?.[0]?.meta;
-  const price = toNumber(meta?.regularMarketPrice);
+  const meta = yahoo.chart?.result?.[0]?.meta;
+  const points = toNumber(meta?.regularMarketPrice);
   const previous = toNumber(meta?.chartPreviousClose);
-  const changePct = previous > 0 ? ((price - previous) / previous) * 100 : 0;
-
+  const changePct = previous > 0 ? ((points - previous) / previous) * 100 : 0;
   return {
-    points: price,
+    points,
     changePct,
     updatedAt: meta?.regularMarketTime
       ? new Date(meta.regularMarketTime * 1000).toISOString()
@@ -241,18 +192,13 @@ const fetchCdi = async () => {
   const rows = await fetchJson<BcbCdiRow[]>(
     "https://api.bcb.gov.br/dados/serie/bcdata.sgs.4389/dados/ultimos/5?formato=json",
   );
-
   const parsed = rows
-    .map((row) => ({
-      rate: toNumber(row.valor),
-      date: parseBcbDate(row.data),
-    }))
+    .map((row) => ({ rate: toNumber(row.valor), date: parseBcbDate(row.data) }))
     .filter((row) => row.rate > 0 && row.date)
     .sort((a, b) => String(a.date).localeCompare(String(b.date)));
 
   const latest = parsed[parsed.length - 1];
   const previous = parsed[parsed.length - 2] ?? latest;
-
   const rate = latest?.rate ?? 0;
   const previousRate = previous?.rate ?? rate;
   const changePct = previousRate > 0 ? ((rate - previousRate) / previousRate) * 100 : 0;
@@ -264,155 +210,136 @@ const fetchCdi = async () => {
   };
 };
 
-const fetchCryptos = async (coinIds: string[]) => {
-  if (!coinIds.length) {
-    return {
-      list: [] as Array<{
-        id: string;
-        symbol: string;
-        name: string;
-        image: string;
-        currentPrice: number;
-        changePct24h: number;
-        changeValue24h: number;
-        sparkline: number[];
-      }>,
-      summary: {
-        basketTotal: 0,
-        basketChangeValue: 0,
-        basketChangePct: 0,
-      },
-    };
+const fetchCoinSparkline = async (id: "bitcoin" | "ethereum") => {
+  try {
+    const data = await fetchJson<CoinGeckoChartResponse>(
+      `https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=brl&days=1&interval=hourly`,
+    );
+    const values = (data.prices || []).map((item) => Number(item[1]));
+    return sampleSeries(values);
+  } catch {
+    return [] as number[];
+  }
+};
+
+const fetchCryptos = async () => {
+  const data = await fetchJson<CoinGeckoSimpleResponse>(
+    "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=brl&include_24hr_change=true",
+  );
+
+  const btcPrice = toNumber(data.bitcoin?.brl);
+  const ethPrice = toNumber(data.ethereum?.brl);
+  const btcChange = toNumber(data.bitcoin?.brl_24h_change);
+  const ethChange = toNumber(data.ethereum?.brl_24h_change);
+
+  if (btcPrice <= 0 && ethPrice <= 0) {
+    throw new Error("Falha ao atualizar criptomoedas.");
   }
 
-  const url =
-    "https://api.coingecko.com/api/v3/coins/markets" +
-    `?vs_currency=brl&ids=${encodeURIComponent(coinIds.join(","))}` +
-    "&price_change_percentage=24h&sparkline=true&per_page=10&page=1";
+  const [btcSpark, ethSpark] = await Promise.all([
+    fetchCoinSparkline("bitcoin"),
+    fetchCoinSparkline("ethereum"),
+  ]);
 
-  const rows = await fetchJson<CoinGeckoMarketRow[]>(url);
-  const cryptos = rows
-    .map((row) => ({
-      id: row.id || "",
-      symbol: (row.symbol || "").toUpperCase(),
-      name: row.name || "",
-      image: row.image || "",
-      currentPrice: toNumber(row.current_price),
-      changePct24h: toNumber(row.price_change_percentage_24h),
-      changeValue24h: toNumber(row.price_change_24h),
-      sparkline: sampleSeries(row.sparkline_in_7d?.price || []),
-    }))
-    .filter((row) => row.id && row.currentPrice > 0)
-    .slice(0, 12);
+  const now = new Date().toISOString();
+  const list: CryptoItem[] = [
+    {
+      id: "bitcoin",
+      symbol: "BTC",
+      name: "Bitcoin",
+      image: "https://assets.coingecko.com/coins/images/1/large/bitcoin.png",
+      currentPrice: btcPrice,
+      changePct24h: btcChange,
+      sparkline: btcSpark,
+      updatedAt: now,
+    },
+    {
+      id: "ethereum",
+      symbol: "ETH",
+      name: "Ethereum",
+      image: "https://assets.coingecko.com/coins/images/279/large/ethereum.png",
+      currentPrice: ethPrice,
+      changePct24h: ethChange,
+      sparkline: ethSpark,
+      updatedAt: now,
+    },
+  ].filter((coin) => coin.currentPrice > 0);
 
-  const basketCurrent = cryptos.reduce((sum, coin) => sum + coin.currentPrice, 0);
-  const basketPrevious = cryptos.reduce(
-    (sum, coin) => sum + Math.max(coin.currentPrice - coin.changeValue24h, 0),
-    0,
-  );
-  const basketChangeValue = basketCurrent - basketPrevious;
+  const basketTotal = list.reduce((sum, coin) => sum + coin.currentPrice, 0);
+  const basketPrevious = list.reduce((sum, coin) => {
+    const ratio = 1 + coin.changePct24h / 100;
+    const previous = ratio > 0 ? coin.currentPrice / ratio : coin.currentPrice;
+    return sum + previous;
+  }, 0);
+  const basketChangeValue = basketTotal - basketPrevious;
   const basketChangePct = basketPrevious > 0 ? (basketChangeValue / basketPrevious) * 100 : 0;
 
   return {
-    list: cryptos,
+    list,
     summary: {
-      basketTotal: basketCurrent,
+      basketTotal,
       basketChangeValue,
       basketChangePct,
     },
   };
 };
 
-export async function GET(request: Request) {
-  let coinIds: string[] = [];
-  const token = getAuthToken(request);
-  const { client } = getClientForToken(token);
-
-  if (client && token) {
-    const { data: userData, error: userError } = await client.auth.getUser(token);
-    if (!userError && userData.user) {
-      const userId = userData.user.id;
-      const [investmentsRes, typesRes, assetsRes] = await Promise.all([
-        client
-          .from("investments")
-          .select("id, user_id, type_id, asset_id, investment_type, category, asset_name")
-          .eq("user_id", userId)
-          .gt("current_amount", 0),
-        client
-          .from("investment_types")
-          .select("id, name, category, symbol"),
-        client
-          .from("assets")
-          .select("id, name, category, symbol"),
-      ]);
-
-      if (!investmentsRes.error && !typesRes.error && !assetsRes.error) {
-        const investments = (investmentsRes.data || []) as InvestmentRow[];
-        const typesById = new Map<string, InvestmentTypeRow>(
-          (((typesRes.data || []) as InvestmentTypeRow[]).map((item) => [item.id, item])),
-        );
-        const assetsById = new Map<string, AssetRow>(
-          (((assetsRes.data || []) as AssetRow[]).map((item) => [item.id, item])),
-        );
-
-        coinIds = Array.from(
-          new Set(
-            investments
-              .map((row) => resolveRowCoinId(row, typesById, assetsById))
-              .filter((coinId): coinId is string => !!coinId),
-          ),
-        );
-      }
-    }
-  }
-
+export async function GET() {
   const now = new Date().toISOString();
+  const warnings: string[] = [];
+
   const [dollarResult, ibovespaResult, cdiResult, cryptoResult] = await Promise.allSettled([
     fetchDollar(),
     fetchIbovespa(),
     fetchCdi(),
-    fetchCryptos(coinIds),
+    fetchCryptos(),
   ]);
 
   const dollar =
     dollarResult.status === "fulfilled"
       ? dollarResult.value
-      : { price: 0, changePct: 0, updatedAt: now };
+      : (() => {
+          warnings.push("dolar");
+          return { price: 0, changePct: 0, updatedAt: now };
+        })();
+
   const ibovespa =
     ibovespaResult.status === "fulfilled"
       ? ibovespaResult.value
-      : { points: 0, changePct: 0, updatedAt: now };
+      : (() => {
+          warnings.push("ibovespa");
+          return { points: 0, changePct: 0, updatedAt: now };
+        })();
+
   const cdi =
     cdiResult.status === "fulfilled"
       ? cdiResult.value
-      : { rate: 0, changePct: 0, updatedAt: now };
+      : (() => {
+          warnings.push("cdi");
+          return { rate: 0, changePct: 0, updatedAt: now };
+        })();
+
   const cryptos =
     cryptoResult.status === "fulfilled"
       ? cryptoResult.value
-      : {
-          list: [] as Array<{
-            id: string;
-            symbol: string;
-            name: string;
-            image: string;
-            currentPrice: number;
-            changePct24h: number;
-            changeValue24h: number;
-            sparkline: number[];
-          }>,
-          summary: {
-            basketTotal: 0,
-            basketChangeValue: 0,
-            basketChangePct: 0,
-          },
-        };
+      : (() => {
+          warnings.push("criptos");
+          return {
+            list: [] as CryptoItem[],
+            summary: {
+              basketTotal: 0,
+              basketChangeValue: 0,
+              basketChangePct: 0,
+            },
+          };
+        })();
 
   const hasAnyData =
     dollar.price > 0 || ibovespa.points > 0 || cdi.rate > 0 || cryptos.list.length > 0;
 
   if (!hasAnyData) {
     return jsonNoStore(
-      { message: "Nao foi possivel carregar dados de mercado agora." },
+      { message: "Erro ao atualizar dados. Tentando novamente." },
       { status: 503 },
     );
   }
@@ -420,19 +347,11 @@ export async function GET(request: Request) {
   return jsonNoStore({
     updatedAt: now,
     indicators: {
-      dollar: {
-        ...dollar,
-        updatedAt: now,
-      },
-      ibovespa: {
-        ...ibovespa,
-        updatedAt: now,
-      },
-      cdi: {
-        ...cdi,
-        updatedAt: now,
-      },
+      dollar,
+      ibovespa,
+      cdi,
     },
     cryptos,
+    warnings,
   });
 }
