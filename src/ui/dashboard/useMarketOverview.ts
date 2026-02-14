@@ -59,6 +59,8 @@ const EMPTY_MARKET: MarketOverviewPayload = {
   warnings: [],
 };
 
+const MARKET_POLL_INTERVAL_MS = 2000;
+
 export const useMarketOverview = () => {
   const [market, setMarket] = useState<MarketOverviewPayload>(EMPTY_MARKET);
   const [loading, setLoading] = useState(true);
@@ -131,7 +133,7 @@ export const useMarketOverview = () => {
 
   useEffect(() => {
     fetchMarket(false);
-    const interval = window.setInterval(() => fetchMarket(true), 10000);
+    const interval = window.setInterval(() => fetchMarket(true), MARKET_POLL_INTERVAL_MS);
     return () => window.clearInterval(interval);
   }, [fetchMarket]);
 
