@@ -63,19 +63,21 @@ const EMPTY_MARKET: MarketOverviewPayload = {
   warnings: [],
 };
 
-const MARKET_POLL_INTERVAL_MS = 2000;
+const MARKET_POLL_INTERVAL_MS = 1000;
 
 type InvestmentPositionRow = {
   category?: string | null;
   investment_type?: string | null;
   asset_name?: string | null;
   quantity?: number | string | null;
+  current_amount?: number | string | null;
   operation?: string | null;
 };
 
 type CryptoPosition = {
   coinId: string;
   quantity: number;
+  notionalBrl: number;
 };
 
 const toNumber = (value: unknown) => {
@@ -93,12 +95,12 @@ const loadCryptoPositions = async (): Promise<CryptoPosition[]> => {
 
   const { data, error } = await supabase
     .from("investments")
-    .select("category, investment_type, asset_name, quantity, operation")
+    .select("category, investment_type, asset_name, quantity, current_amount, operation")
     .eq("user_id", userId);
 
   if (error) return [];
 
-  const grouped = new Map<string, number>();
+  const grouped = new Map<string, { quantity: number; notionalBrl: number }>();
   ((data || []) as InvestmentPositionRow[]).forEach((row) => {
     const inferredCoinId = resolveCoinGeckoId({
       symbol: row.asset_name || row.investment_type,
@@ -115,12 +117,21 @@ const loadCryptoPositions = async (): Promise<CryptoPosition[]> => {
     const quantity = Math.abs(toNumber(row.quantity));
     if (quantity <= 0) return;
     const signal = row.operation === "venda" ? -1 : 1;
-    grouped.set(inferredCoinId, (grouped.get(inferredCoinId) || 0) + quantity * signal);
+    const currentAmount = Math.max(0, toNumber(row.current_amount));
+    const prev = grouped.get(inferredCoinId) || { quantity: 0, notionalBrl: 0 };
+    grouped.set(inferredCoinId, {
+      quantity: prev.quantity + quantity * signal,
+      notionalBrl: prev.notionalBrl + currentAmount * signal,
+    });
   });
 
   return Array.from(grouped.entries())
-    .filter(([, quantity]) => quantity > 0)
-    .map(([coinId, quantity]) => ({ coinId, quantity }));
+    .filter(([, data]) => data.quantity > 0)
+    .map(([coinId, data]) => ({
+      coinId,
+      quantity: data.quantity,
+      notionalBrl: Math.max(0, data.notionalBrl),
+    }));
 };
 
 export const useMarketOverview = () => {
@@ -139,7 +150,9 @@ export const useMarketOverview = () => {
       if (!silent) setLoading(true);
       const params = new URLSearchParams();
       if (positions.length) {
-        const encoded = positions.map((item) => `${item.coinId}:${item.quantity}`).join(",");
+        const encoded = positions
+          .map((item) => `${item.coinId}:${item.quantity}:${item.notionalBrl}`)
+          .join(",");
         params.set("positions", encoded);
       }
       params.set("_ts", String(Date.now()));

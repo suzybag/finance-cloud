@@ -149,6 +149,7 @@ const normalizeInvestment = (
   let currentPrice = toNumber(row.current_price);
   let investedAmount = toNumber(row.invested_amount);
   let currentAmount = toNumber(row.current_amount);
+  const assetKey = `${assetName} ${investmentType}`.toLowerCase();
 
   if (quantity <= 0) {
     quantity = investedAmount > 0 && averagePrice > 0
@@ -174,6 +175,23 @@ const normalizeInvestment = (
 
   if (averagePrice <= 0) averagePrice = currentPrice > 0 ? currentPrice : 1;
   if (currentPrice <= 0) currentPrice = averagePrice;
+
+  // Fix legacy BTC entries where "1.000" was interpreted as 1000 and "7.000" as 7.
+  if ((assetKey.includes("bitcoin") || assetKey.includes("btc")) && investedAmount > 0) {
+    const looksScaled = quantity >= 100 && averagePrice > 0 && averagePrice < 1000;
+    if (looksScaled) {
+      const fixedQuantity = quantity / 1000;
+      const fixedAveragePrice = averagePrice * 1000;
+      const fixedCurrentPrice = Math.max(currentPrice * 1000, fixedAveragePrice);
+      const fixedTotal = fixedQuantity * fixedAveragePrice;
+      const ratio = Math.abs(fixedTotal - investedAmount) / investedAmount;
+      if (ratio <= 0.05) {
+        quantity = fixedQuantity;
+        averagePrice = fixedAveragePrice;
+        currentPrice = fixedCurrentPrice;
+      }
+    }
+  }
 
   investedAmount = roundCurrency((quantity * averagePrice) + costs);
   currentAmount = roundCurrency(quantity * currentPrice);

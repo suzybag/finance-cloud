@@ -673,6 +673,57 @@ create table if not exists public.transactions (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.financial_planning (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  goal_name text not null,
+  goal_amount numeric not null default 0,
+  current_amount numeric not null default 0,
+  months int not null default 1,
+  is_completed boolean not null default false,
+  completed_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.financial_planning add column if not exists goal_name text not null default '';
+alter table public.financial_planning add column if not exists goal_amount numeric not null default 0;
+alter table public.financial_planning add column if not exists current_amount numeric not null default 0;
+alter table public.financial_planning add column if not exists months int not null default 1;
+alter table public.financial_planning add column if not exists is_completed boolean not null default false;
+alter table public.financial_planning add column if not exists completed_at timestamptz;
+alter table public.financial_planning add column if not exists created_at timestamptz not null default now();
+alter table public.financial_planning add column if not exists updated_at timestamptz not null default now();
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'financial_planning_months_positive'
+      and conrelid = 'public.financial_planning'::regclass
+  ) then
+    alter table public.financial_planning
+    add constraint financial_planning_months_positive check (months > 0);
+  end if;
+end
+$$;
+
+create or replace function public.set_financial_planning_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end
+$$;
+
+drop trigger if exists trg_financial_planning_set_updated_at on public.financial_planning;
+create trigger trg_financial_planning_set_updated_at
+before update on public.financial_planning
+for each row execute function public.set_financial_planning_updated_at();
+
 alter table public.transactions add column if not exists transaction_type text;
 
 update public.transactions
@@ -756,6 +807,7 @@ alter table public.investment_types enable row level security;
 alter table public.assets enable row level security;
 alter table public.investments enable row level security;
 alter table public.transactions enable row level security;
+alter table public.financial_planning enable row level security;
 alter table public.alerts enable row level security;
 alter table public.whatsapp_messages enable row level security;
 
@@ -869,6 +921,17 @@ begin
 
   if not exists (
     select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'financial_planning' and policyname = 'financial_planning_crud_own'
+  ) then
+    create policy financial_planning_crud_own
+    on public.financial_planning
+    for all
+    using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
     where schemaname = 'public' and tablename = 'alerts' and policyname = 'alerts_crud_own'
   ) then
     create policy alerts_crud_own
@@ -901,6 +964,8 @@ create index if not exists idx_investments_bank_id on public.investments(bank_id
 create index if not exists idx_investments_type_id on public.investments(type_id);
 create index if not exists idx_investments_asset_id on public.investments(asset_id);
 create index if not exists idx_tx_user_date on public.transactions(user_id, occurred_at desc);
+create index if not exists idx_financial_planning_user_created on public.financial_planning(user_id, created_at desc);
+create index if not exists idx_financial_planning_user_completed on public.financial_planning(user_id, is_completed, created_at desc);
 create index if not exists idx_alerts_user_date on public.alerts(user_id, created_at desc);
 create index if not exists idx_whatsapp_user_date on public.whatsapp_messages(user_id, created_at desc);
 

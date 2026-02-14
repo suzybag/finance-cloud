@@ -99,6 +99,7 @@ type CryptoItem = {
 type CryptoPosition = {
   coinId: string;
   quantity: number;
+  notionalBrl: number;
 };
 
 const NO_STORE_HEADERS = {
@@ -166,16 +167,25 @@ const parseCryptoPositions = (request: Request) => {
   const raw = url.searchParams.get("positions");
   if (!raw) return [] as CryptoPosition[];
 
-  const grouped = new Map<string, number>();
+  const grouped = new Map<string, { quantity: number; notionalBrl: number }>();
   raw.split(",").forEach((item) => {
-    const [coinRaw, quantityRaw] = item.split(":");
+    const [coinRaw, quantityRaw, notionalRaw] = item.split(":");
     const coinId = normalizeCoinId(coinRaw || "");
     const quantity = toNumber(quantityRaw);
+    const notionalBrl = Math.max(0, toNumber(notionalRaw));
     if (!coinId || !Number.isFinite(quantity) || quantity <= 0) return;
-    grouped.set(coinId, (grouped.get(coinId) || 0) + quantity);
+    const current = grouped.get(coinId) || { quantity: 0, notionalBrl: 0 };
+    grouped.set(coinId, {
+      quantity: current.quantity + quantity,
+      notionalBrl: current.notionalBrl + notionalBrl,
+    });
   });
 
-  return Array.from(grouped.entries()).map(([coinId, quantity]) => ({ coinId, quantity }));
+  return Array.from(grouped.entries()).map(([coinId, data]) => ({
+    coinId,
+    quantity: data.quantity,
+    notionalBrl: data.notionalBrl,
+  }));
 };
 
 const fetchJson = async <T>(url: string): Promise<T> => {
@@ -222,6 +232,17 @@ const fetchYahooQuote = async (symbol: string) => {
 };
 
 const fetchDollar = async () => {
+  const binanceFallback = async () => {
+    const ticker = await fetchJson<BinanceTickerResponse>(
+      "https://api.binance.com/api/v3/ticker/24hr?symbol=USDTBRL",
+    );
+    return {
+      price: toNumber(ticker.lastPrice),
+      changePct: toNumber(ticker.priceChangePercent),
+      updatedAt: new Date().toISOString(),
+    };
+  };
+
   try {
     const data = await fetchJson<AwesomeDollarResponse>(
       "https://economia.awesomeapi.com.br/json/last/USD-BRL",
@@ -230,13 +251,23 @@ const fetchDollar = async () => {
     const price = toNumber(row?.bid);
     const changePct = toNumber(row?.pctChange);
     if (price > 0) {
+      const sourceUpdatedAt =
+        row?.timestamp && Number.isFinite(Number(row.timestamp))
+          ? new Date(Number(row.timestamp) * 1000).toISOString()
+          : new Date().toISOString();
+      const staleMs = Date.now() - new Date(sourceUpdatedAt).getTime();
+      if (staleMs > 1000 * 60 * 45) {
+        try {
+          const live = await binanceFallback();
+          if (live.price > 0) return live;
+        } catch {
+          // keep awesome value when Binance is unavailable
+        }
+      }
       return {
         price,
         changePct,
-        updatedAt:
-          row?.timestamp && Number.isFinite(Number(row.timestamp))
-            ? new Date(Number(row.timestamp) * 1000).toISOString()
-            : new Date().toISOString(),
+        updatedAt: sourceUpdatedAt,
       };
     }
   } catch {
@@ -247,6 +278,15 @@ const fetchDollar = async () => {
     const quote = await fetchYahooQuote("USDBRL=X");
     if (quote.price > 0) {
       return quote;
+    }
+  } catch {
+    // fallback below
+  }
+
+  try {
+    const live = await binanceFallback();
+    if (live.price > 0) {
+      return live;
     }
   } catch {
     // fallback below
@@ -480,14 +520,21 @@ const fetchCryptos = async (positions: CryptoPosition[]) => {
         ? sparkRaw
         : buildSyntheticSparkline(currentPrice, changePct24h);
 
+      const rawValue = currentPrice * position.quantity;
+      const fallbackNotional = position.notionalBrl > 0 ? position.notionalBrl : 0;
+      // Dashboard should never explode when legacy quantity is inconsistent.
+      // If we already have the user's saved notional value, trust it as source of truth.
+      const resolvedPositionValue = fallbackNotional > 0 ? fallbackNotional : rawValue;
+      const resolvedQuantity = resolvedPositionValue > 0 ? resolvedPositionValue / currentPrice : 0;
+
       return {
         id: position.coinId,
         symbol: (market.symbol || position.coinId.slice(0, 3)).toUpperCase(),
         name: market.name || position.coinId,
         image: market.image || "",
-        quantity: position.quantity,
+        quantity: resolvedQuantity,
         currentPrice,
-        positionValue: currentPrice * position.quantity,
+        positionValue: resolvedPositionValue,
         changePct24h,
         sparkline,
         updatedAt: now,

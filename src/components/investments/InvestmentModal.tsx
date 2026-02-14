@@ -118,6 +118,30 @@ const moneyMask = (value: string) => {
   });
 };
 
+const parseQuantityInput = (value: string) => {
+  const raw = (value || "").trim().replace(/\s/g, "");
+  if (!raw) return 0;
+
+  const hasComma = raw.includes(",");
+  const hasDot = raw.includes(".");
+
+  let normalized = raw;
+  if (hasComma && hasDot) {
+    const lastComma = raw.lastIndexOf(",");
+    const lastDot = raw.lastIndexOf(".");
+    const decimalSep = lastComma > lastDot ? "," : ".";
+    const thousandSep = decimalSep === "," ? "." : ",";
+    normalized = raw.split(thousandSep).join("").replace(decimalSep, ".");
+  } else if (hasComma) {
+    normalized = raw.replace(/\./g, "").replace(",", ".");
+  } else if (hasDot) {
+    normalized = raw.replace(",", ".");
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const isLocalOptionId = (value: string | null | undefined) => (value || "").startsWith("local-");
 const normalizeOptionId = (value: string | null | undefined) => {
@@ -305,7 +329,7 @@ export function InvestmentModal({
     return [...fixedGroups, ...extraGroups];
   }, [investmentTypes]);
 
-  const quantityNumber = toNumber(quantity);
+  const quantityNumber = parseQuantityInput(quantity);
   const unitPriceNumber = toNumber(unitPriceMasked);
   const costsNumber = toNumber(costsMasked);
   const totalValue = calculateTotal({
