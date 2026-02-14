@@ -516,7 +516,9 @@ export default function AccountsPage() {
                     isDefault={isDefault}
                     bankLabel={bankLabel}
                     softButtonClassName={ULTRA_SOFT_BTN_CLASS}
-                    onRefresh={loadData}
+                    onRefresh={() => {
+                      void loadData();
+                    }}
                     onOpenExtract={openExtractStub}
                     onOpenAdjust={openAdjustModal}
                     onPrepareTransfer={(selectedAccount) => {

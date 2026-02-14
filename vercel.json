@@ -2,11 +2,15 @@
   "crons": [
     {
       "path": "/api/alerts-smart/run",
-      "schedule": "*/5 * * * *"
+      "schedule": "5 9 * * *"
     },
     {
       "path": "/api/investments/refresh-prices",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/reports/monthly/run",
+      "schedule": "10 9 1 * *"
     }
   ]
 }

@@ -63,9 +63,14 @@ Acesse `http://localhost:3000`.
 - `GET/POST /api/whatsapp/webhook` -> webhook para mensagens
 - `POST /api/whatsapp/send` -> stub para envio
 - `GET/POST /api/alerts-smart/run` -> rotina cron de alertas inteligentes por email
+- `GET /api/reports/monthly/summary?month=YYYY-MM` -> resumo mensal de gastos
+- `GET /api/reports/monthly/excel?month=YYYY-MM` -> exporta planilha Excel mensal
+- `POST /api/reports/monthly/email` -> envia relatorio mensal por email com anexo .xlsx
+- `GET/POST /api/reports/monthly/run` -> rotina cron mensal de envio de relatorios
 
 ## Observacoes
 - Alertas inteligentes por email usam cron na Vercel (`/api/alerts-smart/run`) e cooldown de 1h.
+- Relatorio mensal automatico roda no cron da Vercel (`/api/reports/monthly/run`) no dia 1.
 - Importacao CSV usa dedupe simples (data + descricao + valor + conta + tipo).
 - Compras no cartao sao transacoes com `card_id`.
 - Pagamento de fatura cria transacao `card_payment` na conta bancaria.

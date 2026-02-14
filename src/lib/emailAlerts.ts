@@ -3,6 +3,11 @@ type SendEmailInput = {
   subject: string;
   html: string;
   text: string;
+  attachments?: Array<{
+    filename: string;
+    content: string; // base64
+    contentType?: string;
+  }>;
 };
 
 type SendEmailResult = {
@@ -50,6 +55,10 @@ const sendViaResend = async (input: SendEmailInput): Promise<SendEmailResult> =>
       subject: input.subject,
       html: input.html,
       text: input.text,
+      attachments: (input.attachments || []).map((attachment) => ({
+        filename: attachment.filename,
+        content: attachment.content,
+      })),
     }),
   });
 
@@ -92,6 +101,10 @@ const sendViaBrevo = async (input: SendEmailInput): Promise<SendEmailResult> => 
       subject: input.subject,
       htmlContent: input.html,
       textContent: input.text,
+      attachment: (input.attachments || []).map((attachment) => ({
+        name: attachment.filename,
+        content: attachment.content,
+      })),
     }),
   });
 

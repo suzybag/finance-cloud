@@ -845,6 +845,60 @@ create trigger trg_email_alert_rules_set_updated_at
 before update on public.email_alert_rules
 for each row execute function public.set_email_alert_rules_updated_at();
 
+create table if not exists public.monthly_report_deliveries (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  reference_month date not null,
+  recipient_email text,
+  total_amount numeric not null default 0,
+  status text not null default 'pending',
+  details text,
+  sent_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id, reference_month)
+);
+
+alter table public.monthly_report_deliveries add column if not exists user_id uuid;
+alter table public.monthly_report_deliveries add column if not exists reference_month date;
+alter table public.monthly_report_deliveries add column if not exists recipient_email text;
+alter table public.monthly_report_deliveries add column if not exists total_amount numeric not null default 0;
+alter table public.monthly_report_deliveries add column if not exists status text not null default 'pending';
+alter table public.monthly_report_deliveries add column if not exists details text;
+alter table public.monthly_report_deliveries add column if not exists sent_at timestamptz;
+alter table public.monthly_report_deliveries add column if not exists created_at timestamptz not null default now();
+alter table public.monthly_report_deliveries add column if not exists updated_at timestamptz not null default now();
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'monthly_report_deliveries_status_check'
+      and conrelid = 'public.monthly_report_deliveries'::regclass
+  ) then
+    alter table public.monthly_report_deliveries
+    add constraint monthly_report_deliveries_status_check
+    check (status in ('pending', 'sent', 'error', 'skipped'));
+  end if;
+end
+$$;
+
+create or replace function public.set_monthly_report_deliveries_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end
+$$;
+
+drop trigger if exists trg_monthly_report_deliveries_set_updated_at on public.monthly_report_deliveries;
+create trigger trg_monthly_report_deliveries_set_updated_at
+before update on public.monthly_report_deliveries
+for each row execute function public.set_monthly_report_deliveries_updated_at();
+
 alter table public.transactions add column if not exists transaction_type text;
 
 update public.transactions
@@ -930,6 +984,7 @@ alter table public.investments enable row level security;
 alter table public.transactions enable row level security;
 alter table public.financial_planning enable row level security;
 alter table public.email_alert_rules enable row level security;
+alter table public.monthly_report_deliveries enable row level security;
 alter table public.alerts enable row level security;
 alter table public.whatsapp_messages enable row level security;
 
@@ -1065,6 +1120,17 @@ begin
 
   if not exists (
     select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'monthly_report_deliveries' and policyname = 'monthly_report_deliveries_crud_own'
+  ) then
+    create policy monthly_report_deliveries_crud_own
+    on public.monthly_report_deliveries
+    for all
+    using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
     where schemaname = 'public' and tablename = 'alerts' and policyname = 'alerts_crud_own'
   ) then
     create policy alerts_crud_own
@@ -1101,6 +1167,7 @@ create index if not exists idx_financial_planning_user_created on public.financi
 create index if not exists idx_financial_planning_user_completed on public.financial_planning(user_id, is_completed, created_at desc);
 create index if not exists idx_email_alert_rules_user_active on public.email_alert_rules(user_id, ativo_boolean, tipo_alerta);
 create index if not exists idx_email_alert_rules_last_triggered on public.email_alert_rules(last_triggered_at);
+create index if not exists idx_monthly_report_deliveries_user_month on public.monthly_report_deliveries(user_id, reference_month desc);
 create index if not exists idx_alerts_user_date on public.alerts(user_id, created_at desc);
 create index if not exists idx_whatsapp_user_date on public.whatsapp_messages(user_id, created_at desc);
 
