@@ -36,6 +36,13 @@ type GoalFormState = {
   months: string;
 };
 
+type ProgressMode = "add_value" | "pay_months";
+
+type ProgressFormState = {
+  amountMasked: string;
+  monthsPaid: string;
+};
+
 type GoalMetrics = {
   valueRestante: number;
   valueMonthlyNeeded: number;
@@ -49,6 +56,11 @@ const EMPTY_FORM: GoalFormState = {
   goalAmountMasked: "",
   currentAmountMasked: "",
   months: "12",
+};
+
+const EMPTY_PROGRESS_FORM: ProgressFormState = {
+  amountMasked: "",
+  monthsPaid: "1",
 };
 
 const INPUT_CLASS =
@@ -167,6 +179,9 @@ export default function PlanningPage() {
   const [form, setForm] = useState<GoalFormState>(EMPTY_FORM);
   const [editingGoal, setEditingGoal] = useState<PlanningGoalRow | null>(null);
   const [editForm, setEditForm] = useState<GoalFormState>(EMPTY_FORM);
+  const [progressGoal, setProgressGoal] = useState<PlanningGoalRow | null>(null);
+  const [progressMode, setProgressMode] = useState<ProgressMode | null>(null);
+  const [progressForm, setProgressForm] = useState<ProgressFormState>(EMPTY_PROGRESS_FORM);
 
   const createSectionRef = useRef<HTMLDivElement | null>(null);
 
@@ -277,6 +292,21 @@ export default function PlanningPage() {
     setEditForm(EMPTY_FORM);
   };
 
+  const openProgressModal = (goal: PlanningGoalRow, mode: ProgressMode) => {
+    setProgressGoal(goal);
+    setProgressMode(mode);
+    setProgressForm({
+      amountMasked: "",
+      monthsPaid: "1",
+    });
+  };
+
+  const closeProgressModal = () => {
+    setProgressGoal(null);
+    setProgressMode(null);
+    setProgressForm(EMPTY_PROGRESS_FORM);
+  };
+
   const handleCreateGoal = async () => {
     if (!userId) return;
     const parsed = parseGoalForm(form);
@@ -360,6 +390,63 @@ export default function PlanningPage() {
 
     closeEditModal();
     setFeedback("Meta atualizada.");
+    await loadGoals();
+  };
+
+  const handleApplyProgress = async () => {
+    if (!userId || !progressGoal || !progressMode) return;
+
+    const addAmount = Math.max(0, toNumber(progressForm.amountMasked));
+    if (addAmount <= 0) {
+      setFeedback("Informe um valor maior que zero para adicionar.");
+      return;
+    }
+
+    const paidMonths = progressMode === "pay_months"
+      ? Math.max(1, Math.round(toNumber(progressForm.monthsPaid) || 0))
+      : 0;
+
+    if (progressMode === "pay_months" && paidMonths <= 0) {
+      setFeedback("Informe quantos meses voce ja conseguiu pagar.");
+      return;
+    }
+
+    setSaving(true);
+    setFeedback(null);
+
+    const nextCurrent = roundCurrency(progressGoal.current_amount + addAmount);
+    const nextMonths = progressMode === "pay_months"
+      ? Math.max(1, progressGoal.months - paidMonths)
+      : progressGoal.months;
+    const isCompleted = nextCurrent >= progressGoal.goal_amount;
+    const completedAt = isCompleted
+      ? progressGoal.completed_at || new Date().toISOString()
+      : null;
+
+    const { error } = await supabase
+      .from("financial_planning")
+      .update({
+        current_amount: nextCurrent,
+        months: nextMonths,
+        is_completed: isCompleted,
+        completed_at: completedAt,
+      })
+      .eq("id", progressGoal.id)
+      .eq("user_id", userId);
+
+    setSaving(false);
+
+    if (error) {
+      setFeedback(`Nao foi possivel atualizar progresso: ${error.message}`);
+      return;
+    }
+
+    closeProgressModal();
+    setFeedback(
+      progressMode === "pay_months"
+        ? `Progresso registrado: +${brl(addAmount)} e ${paidMonths} mes(es) abatido(s).`
+        : `Valor abatido com sucesso: +${brl(addAmount)}.`,
+    );
     await loadGoals();
   };
 
@@ -621,7 +708,24 @@ export default function PlanningPage() {
                         </td>
                         <td className="px-3 py-3">{formatDate(goal.metrics.forecastDate)}</td>
                         <td className="rounded-r-xl px-3 py-3">
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                className="inline-flex items-center gap-1 rounded-lg border border-cyan-300/25 bg-cyan-500/10 px-2 py-1 text-xs text-cyan-100 hover:bg-cyan-500/20"
+                                onClick={() => openProgressModal(goal, "add_value")}
+                              >
+                                + Valor
+                              </button>
+                              <button
+                                type="button"
+                                className="inline-flex items-center gap-1 rounded-lg border border-sky-300/25 bg-sky-500/10 px-2 py-1 text-xs text-sky-100 hover:bg-sky-500/20"
+                                onClick={() => openProgressModal(goal, "pay_months")}
+                              >
+                                + Mes(es)
+                              </button>
+                            </div>
+                            <div className="flex items-center gap-2">
                             <button
                               type="button"
                               className="inline-flex items-center gap-1 rounded-lg border border-violet-300/25 bg-violet-500/15 px-2 py-1 text-xs text-violet-100 hover:bg-violet-500/25"
@@ -638,6 +742,7 @@ export default function PlanningPage() {
                               <Trash2 className="h-3.5 w-3.5" />
                               Excluir
                             </button>
+                            </div>
                           </div>
                         </td>
                       </tr>
@@ -696,6 +801,93 @@ export default function PlanningPage() {
           </section>
         </div>
       )}
+
+      {progressGoal && progressMode ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#07030f]/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-xl rounded-2xl border border-cyan-300/30 bg-[linear-gradient(160deg,rgba(18,28,52,0.96),rgba(11,14,28,0.96))] p-5 shadow-[0_28px_70px_rgba(21,94,117,0.4)]">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-xl font-extrabold text-white">
+                {progressMode === "pay_months" ? "Registrar meses pagos" : "Abater valor na meta"}
+              </h3>
+              <button
+                type="button"
+                className="rounded-lg border border-cyan-300/30 px-2 py-1 text-xs text-cyan-100 hover:bg-cyan-500/20"
+                onClick={closeProgressModal}
+                disabled={saving}
+              >
+                Fechar
+              </button>
+            </div>
+
+            <div className="mb-3 rounded-xl border border-cyan-300/20 bg-black/30 p-3 text-xs text-cyan-100/85">
+              <p className="font-semibold text-cyan-100">{progressGoal.goal_name}</p>
+              <p className="mt-1">Guardado atual: {brl(progressGoal.current_amount)}</p>
+              <p>Meta total: {brl(progressGoal.goal_amount)}</p>
+              <p>Meses restantes: {progressGoal.months}</p>
+            </div>
+
+            <div className="grid gap-3">
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold text-cyan-100/80">
+                  Quanto voce conseguiu guardar agora (R$)
+                </span>
+                <input
+                  className={INPUT_CLASS}
+                  inputMode="decimal"
+                  placeholder="0,00"
+                  value={progressForm.amountMasked}
+                  onChange={(event) =>
+                    setProgressForm((prev) => ({
+                      ...prev,
+                      amountMasked: moneyMask(event.target.value),
+                    }))
+                  }
+                />
+              </label>
+
+              {progressMode === "pay_months" ? (
+                <label className="block">
+                  <span className="mb-1 block text-xs font-semibold text-cyan-100/80">
+                    Quantos meses voce ja conseguiu pagar
+                  </span>
+                  <input
+                    className={INPUT_CLASS}
+                    type="number"
+                    min={1}
+                    value={progressForm.monthsPaid}
+                    onChange={(event) =>
+                      setProgressForm((prev) => ({
+                        ...prev,
+                        monthsPaid: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+              ) : null}
+            </div>
+
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                className="rounded-xl border border-cyan-300/30 bg-cyan-950/40 px-4 py-2 text-sm font-semibold text-cyan-100 hover:bg-cyan-900/40"
+                onClick={closeProgressModal}
+                disabled={saving}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-sky-500 px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(14,165,233,0.4)] transition hover:brightness-110 disabled:opacity-60"
+                onClick={() => void handleApplyProgress()}
+                disabled={saving}
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                {progressMode === "pay_months" ? "Salvar progresso de meses" : "Abater valor"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {editingGoal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#07030f]/80 p-4 backdrop-blur-sm">
