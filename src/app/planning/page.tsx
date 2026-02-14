@@ -23,6 +23,7 @@ type PlanningGoalRow = {
   goal_amount: number;
   current_amount: number;
   months: number;
+  months_paid: number;
   is_completed: boolean;
   completed_at: string | null;
   created_at: string;
@@ -109,6 +110,7 @@ const normalizeGoalRow = (row: Partial<PlanningGoalRow>): PlanningGoalRow => ({
   goal_amount: Math.max(0, toNumber(row.goal_amount)),
   current_amount: Math.max(0, toNumber(row.current_amount)),
   months: toSafeMonths(row.months),
+  months_paid: Math.max(0, Math.round(toNumber(row.months_paid))),
   is_completed: Boolean(row.is_completed),
   completed_at: row.completed_at || null,
   created_at: row.created_at || new Date().toISOString(),
@@ -330,6 +332,7 @@ export default function PlanningPage() {
       goal_amount: roundCurrency(parsed.goalAmount),
       current_amount: roundCurrency(parsed.currentAmount),
       months: parsed.months,
+      months_paid: 0,
       is_completed: isCompleted,
       completed_at: isCompleted ? new Date().toISOString() : null,
     };
@@ -414,10 +417,22 @@ export default function PlanningPage() {
     setSaving(true);
     setFeedback(null);
 
-    const nextCurrent = roundCurrency(progressGoal.current_amount + addAmount);
+    const remainingBefore = Math.max(0, progressGoal.goal_amount - progressGoal.current_amount);
+    const monthlySuggested =
+      progressGoal.months > 0 ? remainingBefore / progressGoal.months : remainingBefore;
+    const autoAmountByMonths = progressMode === "pay_months" && addAmount <= 0
+      ? monthlySuggested * paidMonths
+      : 0;
+    const effectiveAddAmount = addAmount > 0 ? addAmount : autoAmountByMonths;
+    const appliedAmount = Math.min(remainingBefore, effectiveAddAmount);
+
+    const nextCurrent = roundCurrency(progressGoal.current_amount + appliedAmount);
     const nextMonths = progressMode === "pay_months"
       ? Math.max(1, progressGoal.months - paidMonths)
       : progressGoal.months;
+    const nextMonthsPaid = progressMode === "pay_months"
+      ? progressGoal.months_paid + paidMonths
+      : progressGoal.months_paid;
     const isCompleted = nextCurrent >= progressGoal.goal_amount;
     const completedAt = isCompleted
       ? progressGoal.completed_at || new Date().toISOString()
@@ -428,6 +443,7 @@ export default function PlanningPage() {
       .update({
         current_amount: nextCurrent,
         months: nextMonths,
+        months_paid: nextMonthsPaid,
         is_completed: isCompleted,
         completed_at: completedAt,
       })
@@ -444,12 +460,12 @@ export default function PlanningPage() {
     closeProgressModal();
     if (progressMode === "pay_months") {
       setFeedback(
-        addAmount > 0
-          ? `Progresso registrado: +${brl(addAmount)} e ${paidMonths} mes(es) abatido(s).`
+        appliedAmount > 0
+          ? `Progresso registrado: +${brl(appliedAmount)} e ${paidMonths} mes(es) abatido(s).`
           : `Progresso registrado: ${paidMonths} mes(es) abatido(s).`,
       );
     } else {
-      setFeedback(`Valor abatido com sucesso: +${brl(addAmount)}.`);
+      setFeedback(`Valor abatido com sucesso: +${brl(appliedAmount)}.`);
     }
     await loadGoals();
   };
@@ -730,22 +746,22 @@ export default function PlanningPage() {
                               </button>
                             </div>
                             <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              className="inline-flex items-center gap-1 rounded-lg border border-violet-300/25 bg-violet-500/15 px-2 py-1 text-xs text-violet-100 hover:bg-violet-500/25"
-                              onClick={() => openEditModal(goal)}
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                              Editar
-                            </button>
-                            <button
-                              type="button"
-                              className="inline-flex items-center gap-1 rounded-lg border border-rose-300/25 bg-rose-500/10 px-2 py-1 text-xs text-rose-100 hover:bg-rose-500/20"
-                              onClick={() => void handleDeleteGoal(goal)}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                              Excluir
-                            </button>
+                              <button
+                                type="button"
+                                className="inline-flex items-center gap-1 rounded-lg border border-violet-300/25 bg-violet-500/15 px-2 py-1 text-xs text-violet-100 hover:bg-violet-500/25"
+                                onClick={() => openEditModal(goal)}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                                Editar
+                              </button>
+                              <button
+                                type="button"
+                                className="inline-flex items-center gap-1 rounded-lg border border-rose-300/25 bg-rose-500/10 px-2 py-1 text-xs text-rose-100 hover:bg-rose-500/20"
+                                onClick={() => void handleDeleteGoal(goal)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                Excluir
+                              </button>
                             </div>
                           </div>
                         </td>
@@ -798,6 +814,9 @@ export default function PlanningPage() {
                         <p className="font-semibold text-white">{brl(goal.current_amount)}</p>
                       </div>
                     </div>
+                    <p className="mt-2 text-xs text-emerald-100/85">
+                      Meses pagos: <span className="font-semibold">{goal.months_paid}</span>
+                    </p>
                   </article>
                 ))}
               </div>

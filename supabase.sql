@@ -680,6 +680,7 @@ create table if not exists public.financial_planning (
   goal_amount numeric not null default 0,
   current_amount numeric not null default 0,
   months int not null default 1,
+  months_paid int not null default 0,
   is_completed boolean not null default false,
   completed_at timestamptz,
   created_at timestamptz not null default now(),
@@ -690,6 +691,7 @@ alter table public.financial_planning add column if not exists goal_name text no
 alter table public.financial_planning add column if not exists goal_amount numeric not null default 0;
 alter table public.financial_planning add column if not exists current_amount numeric not null default 0;
 alter table public.financial_planning add column if not exists months int not null default 1;
+alter table public.financial_planning add column if not exists months_paid int not null default 0;
 alter table public.financial_planning add column if not exists is_completed boolean not null default false;
 alter table public.financial_planning add column if not exists completed_at timestamptz;
 alter table public.financial_planning add column if not exists created_at timestamptz not null default now();
@@ -705,6 +707,16 @@ begin
   ) then
     alter table public.financial_planning
     add constraint financial_planning_months_positive check (months > 0);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'financial_planning_months_paid_non_negative'
+      and conrelid = 'public.financial_planning'::regclass
+  ) then
+    alter table public.financial_planning
+    add constraint financial_planning_months_paid_non_negative check (months_paid >= 0);
   end if;
 end
 $$;
