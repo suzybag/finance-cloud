@@ -2,7 +2,18 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Archive, Calendar, CreditCard, Pencil, Trash2 } from "lucide-react";
+import {
+  Archive,
+  Calendar,
+  CreditCard,
+  Pencil,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
+  TriangleAlert,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { BankLogo } from "@/components/BankLogo";
 import { Bank3DCardVisual, StyledBankKey } from "@/components/Bank3DCardVisual";
@@ -11,6 +22,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { getBankIconPath, resolveBankKey } from "@/lib/bankIcons";
 import { brl, toNumber } from "@/lib/money";
 import { Account, Card, Transaction, computeCardSummary } from "@/lib/finance";
+import { useBankRelationship } from "@/ui/dashboard/useBankRelationship";
 
 const BANK_ISSUER_OPTIONS = [
   "Nubank Ultravioleta",
@@ -110,6 +122,30 @@ const isValidCycleDay = (value: number) =>
 const isMissingCardsStyleColumnError = (message?: string | null) =>
   /could not find the '(color|note)' column of 'cards' in the schema cache/i.test(message ?? "");
 
+const riskBadgeClass = (level: "excelente" | "bom" | "atencao" | "alto_risco") => {
+  if (level === "excelente") return "border-emerald-400/40 bg-emerald-500/15 text-emerald-200";
+  if (level === "bom") return "border-cyan-400/40 bg-cyan-500/15 text-cyan-200";
+  if (level === "atencao") return "border-amber-400/40 bg-amber-500/15 text-amber-200";
+  return "border-rose-400/40 bg-rose-500/15 text-rose-200";
+};
+
+const pillarMeta: Array<{
+  key: "punctuality" | "limitUsage" | "investments" | "history" | "spendingControl";
+  label: string;
+}> = [
+  { key: "punctuality", label: "Pontualidade" },
+  { key: "limitUsage", label: "Uso do limite" },
+  { key: "investments", label: "Investimentos" },
+  { key: "history", label: "Historico financeiro" },
+  { key: "spendingControl", label: "Controle de gastos" },
+];
+
+const formatShortDate = (value: string) => {
+  const parsed = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+};
+
 export default function CardsPage() {
   const [cards, setCards] = useState<Card[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -136,44 +172,59 @@ export default function CardsPage() {
   const [paymentCard, setPaymentCard] = useState("");
   const [paymentAccount, setPaymentAccount] = useState("");
   const [paymentAmount, setPaymentAmount] = useState("");
+  const {
+    loading: relationshipLoading,
+    running: relationshipRunning,
+    error: relationshipError,
+    warnings: relationshipWarnings,
+    summary: relationshipSummary,
+    history: relationshipHistory,
+    refresh: refreshRelationship,
+    runAssessment,
+  } = useBankRelationship();
 
   const loadData = async (resolvedUserId?: string | null) => {
-    setLoading(true);
-    const effectiveUserId = resolvedUserId || (await ensureUserId());
-    if (!effectiveUserId) {
+    try {
+      setLoading(true);
+      const effectiveUserId = resolvedUserId || (await ensureUserId());
+      if (!effectiveUserId) {
+        setLoading(false);
+        return;
+      }
+
+      const [cardsRes, txRes, accountsRes] = await Promise.all([
+        supabase
+          .from("cards")
+          .select("*")
+          .eq("user_id", effectiveUserId)
+          .order("created_at"),
+        supabase
+          .from("transactions")
+          .select("*")
+          .eq("user_id", effectiveUserId)
+          .order("occurred_at", { ascending: false })
+          .limit(500),
+        supabase
+          .from("accounts")
+          .select("*")
+          .eq("user_id", effectiveUserId)
+          .order("created_at"),
+      ]);
+
+      if (cardsRes.error || txRes.error || accountsRes.error) {
+        setFeedback(cardsRes.error?.message || txRes.error?.message || accountsRes.error?.message || "Falha ao carregar dados.");
+        setLoading(false);
+        return;
+      }
+
+      setCards((cardsRes.data as Card[]) || []);
+      setTransactions((txRes.data as Transaction[]) || []);
+      setAccounts((accountsRes.data as Account[]) || []);
       setLoading(false);
-      return;
-    }
-
-    const [cardsRes, txRes, accountsRes] = await Promise.all([
-      supabase
-        .from("cards")
-        .select("*")
-        .eq("user_id", effectiveUserId)
-        .order("created_at"),
-      supabase
-        .from("transactions")
-        .select("*")
-        .eq("user_id", effectiveUserId)
-        .order("occurred_at", { ascending: false })
-        .limit(500),
-      supabase
-        .from("accounts")
-        .select("*")
-        .eq("user_id", effectiveUserId)
-        .order("created_at"),
-    ]);
-
-    if (cardsRes.error || txRes.error || accountsRes.error) {
-      setFeedback(cardsRes.error?.message || txRes.error?.message || accountsRes.error?.message || "Falha ao carregar dados.");
+    } catch (error) {
       setLoading(false);
-      return;
+      setFeedback(`Falha inesperada ao carregar cartoes: ${error instanceof Error ? error.message : "erro desconhecido"}`);
     }
-
-    setCards((cardsRes.data as Card[]) || []);
-    setTransactions((txRes.data as Transaction[]) || []);
-    setAccounts((accountsRes.data as Account[]) || []);
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -228,128 +279,143 @@ export default function CardsPage() {
   };
 
   const handleCreate = async () => {
-    if (!name.trim()) return;
-    setSaving(true);
-    setFeedback(null);
-    const resolvedUserId = await ensureUserId();
-    if (!resolvedUserId) {
+    try {
+      if (!name.trim()) return;
+      setSaving(true);
+      setFeedback(null);
+      const resolvedUserId = await ensureUserId();
+      if (!resolvedUserId) {
+        setSaving(false);
+        return;
+      }
+
+      const closingDayValue = Number(closingDay);
+      const dueDayValue = Number(dueDay);
+      if (!isValidCycleDay(closingDayValue) || !isValidCycleDay(dueDayValue)) {
+        setSaving(false);
+        setFeedback("Fechamento e vencimento devem estar entre 1 e 31.");
+        return;
+      }
+
+      const issuerToSave = resolveIssuerLabel(issuer, name);
+      const basePayload = {
+        user_id: resolvedUserId,
+        name: name.trim(),
+        issuer: issuerToSave || null,
+        limit_total: toNumber(limitTotal),
+        closing_day: closingDayValue,
+        due_day: dueDayValue,
+      };
+      const styledPayload = {
+        ...basePayload,
+        color: cardColor,
+        note: cardNote.trim() ? cardNote.trim() : null,
+      };
+
+      let usedFallback = !supportsCardStyleFields;
+      const createRes = supportsCardStyleFields
+        ? await supabase.from("cards").insert(styledPayload)
+        : await supabase.from("cards").insert(basePayload);
+
+      let error = createRes.error;
+      if (error && supportsCardStyleFields && isMissingCardsStyleColumnError(error.message)) {
+        setSupportsCardStyleFields(false);
+        usedFallback = true;
+        const retryRes = await supabase.from("cards").insert(basePayload);
+        error = retryRes.error;
+      }
+
+      if (error) {
+        setSaving(false);
+        setFeedback(`Nao foi possivel criar: ${error.message}`);
+        return;
+      }
+
       setSaving(false);
-      return;
-    }
-
-    const closingDayValue = Number(closingDay);
-    const dueDayValue = Number(dueDay);
-    if (!isValidCycleDay(closingDayValue) || !isValidCycleDay(dueDayValue)) {
+      setIsFormOpen(false);
+      setFeedback(
+        usedFallback
+          ? "Cartao criado. Cor e observacao ficam indisponiveis ate atualizar o banco."
+          : "Cartao criado com sucesso.",
+      );
+      resetForm();
+      await loadData(resolvedUserId);
+    } catch (error) {
       setSaving(false);
-      setFeedback("Fechamento e vencimento devem estar entre 1 e 31.");
-      return;
+      setFeedback(`Falha inesperada ao criar cartao: ${error instanceof Error ? error.message : "erro desconhecido"}`);
     }
-
-    const issuerToSave = resolveIssuerLabel(issuer, name);
-    const basePayload = {
-      user_id: resolvedUserId,
-      name: name.trim(),
-      issuer: issuerToSave || null,
-      limit_total: toNumber(limitTotal),
-      closing_day: closingDayValue,
-      due_day: dueDayValue,
-    };
-    const styledPayload = {
-      ...basePayload,
-      color: cardColor,
-      note: cardNote.trim() ? cardNote.trim() : null,
-    };
-
-    let usedFallback = !supportsCardStyleFields;
-    const createRes = supportsCardStyleFields
-      ? await supabase.from("cards").insert(styledPayload)
-      : await supabase.from("cards").insert(basePayload);
-
-    let error = createRes.error;
-    if (error && supportsCardStyleFields && isMissingCardsStyleColumnError(error.message)) {
-      setSupportsCardStyleFields(false);
-      usedFallback = true;
-      const retryRes = await supabase.from("cards").insert(basePayload);
-      error = retryRes.error;
-    }
-
-    if (error) {
-      setSaving(false);
-      setFeedback(`Nao foi possivel criar: ${error.message}`);
-      return;
-    }
-
-    setSaving(false);
-    setIsFormOpen(false);
-    setFeedback(
-      usedFallback
-        ? "Cartao criado. Cor e observacao ficam indisponiveis ate atualizar o banco."
-        : "Cartao criado com sucesso.",
-    );
-    resetForm();
-    await loadData(resolvedUserId);
   };
 
   const handleArchive = async (card: Card) => {
-    setFeedback(null);
-    const resolvedUserId = await ensureUserId();
-    if (!resolvedUserId) return;
+    try {
+      setFeedback(null);
+      const resolvedUserId = await ensureUserId();
+      if (!resolvedUserId) return;
 
-    setBusyCardId(card.id);
-    const { data, error } = await supabase
-      .from("cards")
-      .update({ archived: !card.archived })
-      .eq("id", card.id)
-      .eq("user_id", resolvedUserId)
-      .select("id")
-      .maybeSingle();
-    setBusyCardId(null);
-    if (error) {
-      setFeedback(`Nao foi possivel alterar arquivo: ${error.message}`);
-      return;
+      setBusyCardId(card.id);
+      const { data, error } = await supabase
+        .from("cards")
+        .update({ archived: !card.archived })
+        .eq("id", card.id)
+        .eq("user_id", resolvedUserId)
+        .select("id")
+        .maybeSingle();
+      setBusyCardId(null);
+      if (error) {
+        setFeedback(`Nao foi possivel alterar arquivo: ${error.message}`);
+        return;
+      }
+      if (!data) {
+        setFeedback("Cartao nao encontrado para arquivar.");
+        return;
+      }
+      await loadData(resolvedUserId);
+    } catch (error) {
+      setBusyCardId(null);
+      setFeedback(`Falha inesperada ao arquivar cartao: ${error instanceof Error ? error.message : "erro desconhecido"}`);
     }
-    if (!data) {
-      setFeedback("Cartao nao encontrado para arquivar.");
-      return;
-    }
-    await loadData(resolvedUserId);
   };
 
   const handleDelete = async (card: Card) => {
-    setFeedback(null);
-    const ok = window.confirm(
-      `Excluir o cartao "${card.name}"? Essa acao nao pode ser desfeita.`,
-    );
-    if (!ok) return;
-    const resolvedUserId = await ensureUserId();
-    if (!resolvedUserId) return;
+    try {
+      setFeedback(null);
+      const ok = window.confirm(
+        `Excluir o cartao "${card.name}"? Essa acao nao pode ser desfeita.`,
+      );
+      if (!ok) return;
+      const resolvedUserId = await ensureUserId();
+      if (!resolvedUserId) return;
 
-    setBusyCardId(card.id);
-    const { data, error } = await supabase
-      .from("cards")
-      .delete()
-      .eq("id", card.id)
-      .eq("user_id", resolvedUserId)
-      .select("id")
-      .maybeSingle();
-    setBusyCardId(null);
+      setBusyCardId(card.id);
+      const { data, error } = await supabase
+        .from("cards")
+        .delete()
+        .eq("id", card.id)
+        .eq("user_id", resolvedUserId)
+        .select("id")
+        .maybeSingle();
+      setBusyCardId(null);
 
-    if (error) {
-      setFeedback(`Nao foi possivel excluir: ${error.message}`);
-      return;
+      if (error) {
+        setFeedback(`Nao foi possivel excluir: ${error.message}`);
+        return;
+      }
+      if (!data) {
+        setFeedback("Cartao nao encontrado para exclusao.");
+        return;
+      }
+
+      if (editId === card.id) {
+        resetForm();
+        setIsFormOpen(false);
+      }
+
+      setFeedback("Cartao excluido com sucesso.");
+      await loadData(resolvedUserId);
+    } catch (error) {
+      setBusyCardId(null);
+      setFeedback(`Falha inesperada ao excluir cartao: ${error instanceof Error ? error.message : "erro desconhecido"}`);
     }
-    if (!data) {
-      setFeedback("Cartao nao encontrado para exclusao.");
-      return;
-    }
-
-    if (editId === card.id) {
-      resetForm();
-      setIsFormOpen(false);
-    }
-
-    setFeedback("Cartao excluido com sucesso.");
-    await loadData(resolvedUserId);
   };
 
   const handleEdit = (card: Card) => {
@@ -365,147 +431,160 @@ export default function CardsPage() {
   };
 
   const handleSaveEdit = async () => {
-    if (!editId || !name.trim()) return;
-    const resolvedUserId = await ensureUserId();
-    if (!resolvedUserId) return;
+    try {
+      if (!editId || !name.trim()) return;
+      const resolvedUserId = await ensureUserId();
+      if (!resolvedUserId) return;
 
-    setSaving(true);
-    setFeedback(null);
+      setSaving(true);
+      setFeedback(null);
 
-    const closingDayValue = Number(closingDay);
-    const dueDayValue = Number(dueDay);
-    if (!isValidCycleDay(closingDayValue) || !isValidCycleDay(dueDayValue)) {
+      const closingDayValue = Number(closingDay);
+      const dueDayValue = Number(dueDay);
+      if (!isValidCycleDay(closingDayValue) || !isValidCycleDay(dueDayValue)) {
+        setSaving(false);
+        setFeedback("Fechamento e vencimento devem estar entre 1 e 31.");
+        return;
+      }
+
+      const issuerToSave = resolveIssuerLabel(issuer, name);
+      const basePayload = {
+        name: name.trim(),
+        issuer: issuerToSave || null,
+        limit_total: toNumber(limitTotal),
+        closing_day: closingDayValue,
+        due_day: dueDayValue,
+      };
+      const styledPayload = {
+        ...basePayload,
+        color: cardColor,
+        note: cardNote.trim() ? cardNote.trim() : null,
+      };
+
+      let usedFallback = !supportsCardStyleFields;
+      const saveRes = supportsCardStyleFields
+        ? await supabase
+          .from("cards")
+          .update(styledPayload)
+          .eq("id", editId)
+          .eq("user_id", resolvedUserId)
+          .select("id")
+        : await supabase
+          .from("cards")
+          .update(basePayload)
+          .eq("id", editId)
+          .eq("user_id", resolvedUserId)
+          .select("id");
+
+      let error = saveRes.error;
+      let updatedRows = (saveRes.data ?? []).length;
+      if (error && supportsCardStyleFields && isMissingCardsStyleColumnError(error.message)) {
+        setSupportsCardStyleFields(false);
+        usedFallback = true;
+        const retryRes = await supabase
+          .from("cards")
+          .update(basePayload)
+          .eq("id", editId)
+          .eq("user_id", resolvedUserId)
+          .select("id");
+        error = retryRes.error;
+        updatedRows = (retryRes.data ?? []).length;
+      }
+
+      if (error) {
+        setSaving(false);
+        setFeedback(`Nao foi possivel salvar: ${error.message}`);
+        return;
+      }
+      if (!updatedRows) {
+        setSaving(false);
+        setFeedback("Cartao nao encontrado para edicao.");
+        return;
+      }
+
       setSaving(false);
-      setFeedback("Fechamento e vencimento devem estar entre 1 e 31.");
-      return;
-    }
-
-    const issuerToSave = resolveIssuerLabel(issuer, name);
-    const basePayload = {
-      name: name.trim(),
-      issuer: issuerToSave || null,
-      limit_total: toNumber(limitTotal),
-      closing_day: closingDayValue,
-      due_day: dueDayValue,
-    };
-    const styledPayload = {
-      ...basePayload,
-      color: cardColor,
-      note: cardNote.trim() ? cardNote.trim() : null,
-    };
-
-    let usedFallback = !supportsCardStyleFields;
-    const saveRes = supportsCardStyleFields
-      ? await supabase
-        .from("cards")
-        .update(styledPayload)
-        .eq("id", editId)
-        .eq("user_id", resolvedUserId)
-        .select("id")
-      : await supabase
-        .from("cards")
-        .update(basePayload)
-        .eq("id", editId)
-        .eq("user_id", resolvedUserId)
-        .select("id");
-
-    let error = saveRes.error;
-    let updatedRows = (saveRes.data ?? []).length;
-    if (error && supportsCardStyleFields && isMissingCardsStyleColumnError(error.message)) {
-      setSupportsCardStyleFields(false);
-      usedFallback = true;
-      const retryRes = await supabase
-        .from("cards")
-        .update(basePayload)
-        .eq("id", editId)
-        .eq("user_id", resolvedUserId)
-        .select("id");
-      error = retryRes.error;
-      updatedRows = (retryRes.data ?? []).length;
-    }
-
-    if (error) {
+      setIsFormOpen(false);
+      setFeedback(
+        usedFallback
+          ? "Cartao atualizado. Cor e observacao ficam indisponiveis ate atualizar o banco."
+          : "Cartao atualizado com sucesso.",
+      );
+      resetForm();
+      await loadData(resolvedUserId);
+    } catch (error) {
       setSaving(false);
-      setFeedback(`Nao foi possivel salvar: ${error.message}`);
-      return;
+      setFeedback(`Falha inesperada ao editar cartao: ${error instanceof Error ? error.message : "erro desconhecido"}`);
     }
-    if (!updatedRows) {
-      setSaving(false);
-      setFeedback("Cartao nao encontrado para edicao.");
-      return;
-    }
-
-    setSaving(false);
-    setIsFormOpen(false);
-    setFeedback(
-      usedFallback
-        ? "Cartao atualizado. Cor e observacao ficam indisponiveis ate atualizar o banco."
-        : "Cartao atualizado com sucesso.",
-    );
-    resetForm();
-    await loadData(resolvedUserId);
   };
 
   const handleSetBank = async (card: Card) => {
-    const resolvedUserId = await ensureUserId();
-    if (!resolvedUserId) return;
+    try {
+      const resolvedUserId = await ensureUserId();
+      if (!resolvedUserId) return;
 
-    const current = resolveIssuerLabel(card.issuer, card.name) || "";
-    const next = window.prompt(
-      `Informe o banco (${BANK_ISSUER_OPTIONS.join(", ")}):`,
-      current,
-    );
-    if (!next) return;
+      const current = resolveIssuerLabel(card.issuer, card.name) || "";
+      const next = window.prompt(
+        `Informe o banco (${BANK_ISSUER_OPTIONS.join(", ")}):`,
+        current,
+      );
+      if (!next) return;
 
-    const normalized = resolveIssuerLabel(next, card.name);
-    if (!normalized) return;
+      const normalized = resolveIssuerLabel(next, card.name);
+      if (!normalized) return;
 
-    const { data, error } = await supabase
-      .from("cards")
-      .update({ issuer: normalized })
-      .eq("id", card.id)
-      .eq("user_id", resolvedUserId)
-      .select("id")
-      .maybeSingle();
-    if (error) {
-      setFeedback(`Nao foi possivel definir banco: ${error.message}`);
-      return;
+      const { data, error } = await supabase
+        .from("cards")
+        .update({ issuer: normalized })
+        .eq("id", card.id)
+        .eq("user_id", resolvedUserId)
+        .select("id")
+        .maybeSingle();
+      if (error) {
+        setFeedback(`Nao foi possivel definir banco: ${error.message}`);
+        return;
+      }
+      if (!data) {
+        setFeedback("Cartao nao encontrado para definir banco.");
+        return;
+      }
+
+      await loadData(resolvedUserId);
+    } catch (error) {
+      setFeedback(`Falha inesperada ao definir banco: ${error instanceof Error ? error.message : "erro desconhecido"}`);
     }
-    if (!data) {
-      setFeedback("Cartao nao encontrado para definir banco.");
-      return;
-    }
-
-    await loadData(resolvedUserId);
   };
 
   const handlePayment = async () => {
-    if (!paymentCard || !paymentAccount || !paymentAmount.trim()) {
-      setFeedback("Selecione cartao, conta e valor do pagamento.");
-      return;
-    }
-    setFeedback(null);
-    const resolvedUserId = await ensureUserId();
-    if (!resolvedUserId) return;
+    try {
+      if (!paymentCard || !paymentAccount || !paymentAmount.trim()) {
+        setFeedback("Selecione cartao, conta e valor do pagamento.");
+        return;
+      }
+      setFeedback(null);
+      const resolvedUserId = await ensureUserId();
+      if (!resolvedUserId) return;
 
-    const { error } = await supabase.from("transactions").insert({
-      user_id: resolvedUserId,
-      type: "card_payment",
-      description: "Pagamento de fatura",
-      category: "Cartao",
-      amount: toNumber(paymentAmount),
-      account_id: paymentAccount,
-      card_id: paymentCard,
-      occurred_at: new Date().toISOString().slice(0, 10),
-    });
-    if (error) {
-      setFeedback(`Nao foi possivel registrar pagamento: ${error.message}`);
-      return;
-    }
+      const { error } = await supabase.from("transactions").insert({
+        user_id: resolvedUserId,
+        type: "card_payment",
+        description: "Pagamento de fatura",
+        category: "Cartao",
+        amount: toNumber(paymentAmount),
+        account_id: paymentAccount,
+        card_id: paymentCard,
+        occurred_at: new Date().toISOString().slice(0, 10),
+      });
+      if (error) {
+        setFeedback(`Nao foi possivel registrar pagamento: ${error.message}`);
+        return;
+      }
 
-    setPaymentAmount("");
-    setFeedback("Pagamento registrado com sucesso.");
-    await loadData(resolvedUserId);
+      setPaymentAmount("");
+      setFeedback("Pagamento registrado com sucesso.");
+      await loadData(resolvedUserId);
+    } catch (error) {
+      setFeedback(`Falha inesperada ao registrar pagamento: ${error instanceof Error ? error.message : "erro desconhecido"}`);
+    }
   };
 
   const cardSummaries = useMemo(
@@ -533,6 +612,220 @@ export default function CardsPage() {
               {feedback}
             </div>
           ) : null}
+
+          {relationshipWarnings.length ? (
+            <div className="rounded-xl border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+              {relationshipWarnings.join(" | ")}
+            </div>
+          ) : null}
+
+          <section className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+            <article className={`${ULTRA_SECTION_CLASS} p-5`}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="inline-flex items-center gap-2 text-lg font-bold text-white">
+                    <ShieldCheck className="h-5 w-5 text-cyan-300" />
+                    Score Relacionamento Bancario
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    Saude financeira para melhorar score e confianca de credito.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="rounded-lg border border-white/15 bg-black/30 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-black/45"
+                  onClick={() => void refreshRelationship()}
+                >
+                  Atualizar
+                </button>
+              </div>
+
+              {relationshipLoading ? (
+                <div className="mt-4 rounded-xl border border-white/10 bg-black/25 px-3 py-3 text-sm text-slate-300">
+                  Carregando score bancario...
+                </div>
+              ) : relationshipError ? (
+                <div className="mt-4 rounded-xl border border-rose-400/40 bg-rose-500/10 px-3 py-3 text-sm text-rose-100">
+                  {relationshipError}
+                </div>
+              ) : relationshipSummary ? (
+                <>
+                  <div className="mt-4 flex flex-wrap items-end gap-4">
+                    <div className="flex items-end gap-2">
+                      <p className="text-5xl font-black text-white">{relationshipSummary.score}</p>
+                      <p className="pb-1 text-sm text-slate-400">/100</p>
+                    </div>
+                    <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${riskBadgeClass(relationshipSummary.riskLevel)}`}>
+                      {relationshipSummary.riskLabel}
+                    </span>
+                    <span className="text-xs text-slate-400">
+                      {relationshipSummary.deltaScore === null
+                        ? "Sem base anterior"
+                        : `Variacao: ${relationshipSummary.deltaScore > 0 ? "+" : ""}${relationshipSummary.deltaScore} ponto(s)`}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 space-y-2">
+                    {pillarMeta.map((pillar) => {
+                      const score = relationshipSummary.pillars[pillar.key];
+                      return (
+                        <div key={pillar.key}>
+                          <div className="mb-1 flex items-center justify-between text-xs">
+                            <span className="text-slate-300">{pillar.label}</span>
+                            <span className="font-semibold text-slate-100">{score}</span>
+                          </div>
+                          <div className="h-2 rounded-full bg-slate-900">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-violet-500"
+                              style={{ width: `${score}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                    <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Uso de limite</p>
+                      <p className="text-sm font-semibold text-slate-100">
+                        {relationshipSummary.indicators.cardLimitUtilizationPct.toFixed(1).replace(".", ",")}%
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Pontualidade</p>
+                      <p className="text-sm font-semibold text-slate-100">
+                        {relationshipSummary.indicators.onTimePaymentRate.toFixed(1).replace(".", ",")}%
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Investimentos ativos</p>
+                      <p className="text-sm font-semibold text-slate-100">
+                        {relationshipSummary.indicators.activeInvestments}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Poupanca no mes</p>
+                      <p className="text-sm font-semibold text-slate-100">
+                        {relationshipSummary.indicators.savingsRatePct === null
+                          ? "-"
+                          : `${relationshipSummary.indicators.savingsRatePct.toFixed(1).replace(".", ",")}%`}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-xl border border-white/10 bg-black/25 px-3 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Historico recente</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {relationshipHistory.slice(0, 8).map((item) => (
+                        <div key={`${item.reference_date}-${item.score}`} className="rounded-lg border border-white/10 bg-slate-900/50 px-2 py-1 text-xs text-slate-200">
+                          {formatShortDate(item.reference_date)}: <span className="font-semibold">{item.score}</span>
+                        </div>
+                      ))}
+                      {!relationshipHistory.length ? (
+                        <span className="text-xs text-slate-400">Sem historico ainda.</span>
+                      ) : null}
+                    </div>
+                  </div>
+                </>
+              ) : null}
+            </article>
+
+            <article className={`${ULTRA_SECTION_CLASS} p-5`}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="inline-flex items-center gap-2 text-lg font-bold text-white">
+                    <Sparkles className="h-5 w-5 text-violet-300" />
+                    Alertas e Recomendacoes
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    Acoes praticas para melhorar score bancario e evitar riscos.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 rounded-lg border border-violet-400/30 bg-violet-500/15 px-3 py-1.5 text-xs font-semibold text-violet-100 hover:bg-violet-500/25 disabled:opacity-60"
+                  onClick={() => void runAssessment()}
+                  disabled={relationshipRunning || relationshipLoading}
+                >
+                  {relationshipRunning ? "Recalculando..." : "Recalcular"}
+                </button>
+              </div>
+
+              {relationshipSummary?.riskAlerts.length ? (
+                <div className="mt-4 space-y-2">
+                  {relationshipSummary.riskAlerts.slice(0, 4).map((risk) => (
+                    <div
+                      key={`${risk.code}-${risk.title}`}
+                      className={`rounded-xl border px-3 py-2 ${
+                        risk.severity === "critical"
+                          ? "border-rose-400/40 bg-rose-500/10 text-rose-100"
+                          : "border-amber-400/40 bg-amber-500/10 text-amber-100"
+                      }`}
+                    >
+                      <p className="inline-flex items-center gap-2 text-sm font-semibold">
+                        <TriangleAlert className="h-4 w-4" />
+                        {risk.title}
+                      </p>
+                      <p className="mt-1 text-xs">{risk.body}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-3 text-sm text-emerald-100">
+                  Nenhum risco critico detectado no momento.
+                </div>
+              )}
+
+              <div className="mt-4 space-y-2">
+                {(relationshipSummary?.recommendations || []).slice(0, 4).map((tip) => (
+                  <div key={`tip-${tip.slice(0, 24)}`} className="rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-3 py-2 text-sm text-cyan-100">
+                    {tip}
+                  </div>
+                ))}
+                {(relationshipSummary?.aiRecommendations || []).slice(0, 3).map((tip) => (
+                  <div key={`ai-${tip.slice(0, 24)}`} className="rounded-xl border border-violet-400/30 bg-violet-500/10 px-3 py-2 text-sm text-violet-100">
+                    {tip}
+                  </div>
+                ))}
+              </div>
+
+              {relationshipSummary ? (
+                <div className="mt-4 grid gap-2 sm:grid-cols-2 text-xs">
+                  <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-slate-300">
+                    <p className="text-slate-400">Despesa atual</p>
+                    <p className="font-semibold text-slate-100">{brl(relationshipSummary.indicators.expenseCurrentMonth)}</p>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-slate-300">
+                    <p className="text-slate-400">Receita atual</p>
+                    <p className="font-semibold text-slate-100">{brl(relationshipSummary.indicators.incomeCurrentMonth)}</p>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-slate-300">
+                    <p className="text-slate-400">Delta de gastos</p>
+                    <p className="font-semibold text-slate-100">
+                      {relationshipSummary.indicators.expenseDeltaPct === null
+                        ? "-"
+                        : `${relationshipSummary.indicators.expenseDeltaPct > 0 ? "+" : ""}${relationshipSummary.indicators.expenseDeltaPct.toFixed(1).replace(".", ",")}%`}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-slate-300">
+                    <p className="text-slate-400">Status do score</p>
+                    <p className="inline-flex items-center gap-1 font-semibold text-slate-100">
+                      {relationshipSummary.deltaScore !== null && relationshipSummary.deltaScore < 0 ? (
+                        <TrendingDown className="h-3.5 w-3.5 text-rose-300" />
+                      ) : (
+                        <TrendingUp className="h-3.5 w-3.5 text-emerald-300" />
+                      )}
+                      {relationshipSummary.deltaScore === null
+                        ? "Sem comparacao"
+                        : `${relationshipSummary.deltaScore > 0 ? "+" : ""}${relationshipSummary.deltaScore}`}
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+            </article>
+          </section>
+
           <section className={`${ULTRA_SECTION_CLASS} p-6`}>
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
@@ -542,6 +835,7 @@ export default function CardsPage() {
                 </p>
               </div>
               <button
+                type="button"
                 className={PRIMARY_BUTTON_CLASS}
                 onClick={openCreateModal}
               >
@@ -831,6 +1125,7 @@ export default function CardsPage() {
                       <div className="flex gap-2">
                         {!hasBankLogo ? (
                           <button
+                            type="button"
                             className="rounded-xl border border-white/10 bg-slate-900/50 px-3 py-2 text-xs font-semibold hover:bg-slate-900/70"
                             onClick={() => handleSetBank(card)}
                           >
@@ -838,6 +1133,7 @@ export default function CardsPage() {
                           </button>
                         ) : null}
                         <button
+                          type="button"
                           className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-slate-900/50 hover:bg-slate-900/70"
                           onClick={() => handleEdit(card)}
                           disabled={busyCardId === card.id}
@@ -846,6 +1142,7 @@ export default function CardsPage() {
                           <Pencil className="h-4 w-4" />
                         </button>
                         <button
+                          type="button"
                           className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-slate-900/50 hover:bg-slate-900/70"
                           onClick={() => handleArchive(card)}
                           disabled={busyCardId === card.id}
@@ -854,6 +1151,7 @@ export default function CardsPage() {
                           <Archive className="h-4 w-4" />
                         </button>
                         <button
+                          type="button"
                           className="flex h-9 w-9 items-center justify-center rounded-xl border border-rose-400/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 disabled:opacity-60"
                           onClick={() => handleDelete(card)}
                           disabled={busyCardId === card.id}
@@ -909,6 +1207,7 @@ export default function CardsPage() {
               />
             </div>
             <button
+              type="button"
               className={`mt-4 ${PRIMARY_BUTTON_CLASS}`}
               onClick={handlePayment}
             >

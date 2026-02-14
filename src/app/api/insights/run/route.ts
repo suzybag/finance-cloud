@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminClient, getUserFromRequest } from "@/lib/apiAuth";
+import { getUserFromRequest } from "@/lib/apiAuth";
 import {
   ensureAutomationSettings,
   fetchDollarBid,
@@ -21,21 +21,13 @@ const mapTableHint = (message?: string | null) => {
 };
 
 async function runInsights(req: NextRequest) {
-  const { user, error } = await getUserFromRequest(req);
-  if (!user || error) {
+  const { user, client, error } = await getUserFromRequest(req);
+  if (!user || !client || error) {
     return NextResponse.json({ ok: false, message: error || "Nao autorizado." }, { status: 401 });
   }
 
-  const admin = getAdminClient();
-  if (!admin) {
-    return NextResponse.json(
-      { ok: false, message: "Configure NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY." },
-      { status: 500 },
-    );
-  }
-
   try {
-    const settingsRow = await ensureAutomationSettings(admin, user.id);
+    const settingsRow = await ensureAutomationSettings(client, user.id);
     const settings = normalizeAutomationSettings(settingsRow);
 
     let dollarBid = 0;
@@ -46,14 +38,14 @@ async function runInsights(req: NextRequest) {
     }
 
     const result = await runUserAutomation({
-      admin,
+      admin: client,
       userId: user.id,
       userEmail: user.email || "",
       settings,
       dollarBid,
     });
 
-    await admin
+    await client
       .from("automations")
       .update({
         last_run_at: new Date().toISOString(),

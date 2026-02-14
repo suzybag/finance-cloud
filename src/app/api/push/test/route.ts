@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminClient, getUserFromRequest } from "@/lib/apiAuth";
+import { getUserFromRequest } from "@/lib/apiAuth";
 import { hasPushConfig, sendPushToUser } from "@/lib/pushServer";
 
 export const runtime = "nodejs";
@@ -14,8 +14,8 @@ type PushTestBody = {
 };
 
 export async function POST(req: NextRequest) {
-  const { user, error } = await getUserFromRequest(req);
-  if (!user || error) {
+  const { user, client, error } = await getUserFromRequest(req);
+  if (!user || !client || error) {
     return NextResponse.json({ ok: false, message: error || "Nao autorizado." }, { status: 401 });
   }
 
@@ -26,14 +26,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const admin = getAdminClient();
-  if (!admin) {
-    return NextResponse.json(
-      { ok: false, message: "Configure NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY." },
-      { status: 500 },
-    );
-  }
-
   const body = (await req.json().catch(() => ({}))) as PushTestBody;
   const title = (body.title || "").trim() || "Finance Cloud";
   const message = (body.body || "").trim() || "Push ativo: suas notificacoes estao funcionando.";
@@ -41,7 +33,7 @@ export async function POST(req: NextRequest) {
   const tag = (body.tag || "").trim() || "push-test";
 
   const result = await sendPushToUser({
-    admin,
+    admin: client,
     userId: user.id,
     payload: {
       title,

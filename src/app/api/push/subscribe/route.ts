@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminClient, getUserFromRequest } from "@/lib/apiAuth";
+import { getUserFromRequest } from "@/lib/apiAuth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -79,8 +79,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { user, error } = await getUserFromRequest(req);
-  if (!user || error) {
+  const { user, client, error } = await getUserFromRequest(req);
+  if (!user || !client || error) {
     return NextResponse.json({ ok: false, message: error || "Nao autorizado." }, { status: 401 });
   }
 
@@ -93,15 +93,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const admin = getAdminClient();
-  if (!admin) {
-    return NextResponse.json(
-      { ok: false, message: "Configure NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY." },
-      { status: 500 },
-    );
-  }
-
-  const { data, error: upsertError } = await admin
+  const { data, error: upsertError } = await client
     .from("subscriptions")
     .upsert(
       {

@@ -20,6 +20,40 @@ const ULTRA_INPUT_CLASS =
 const ULTRA_SOFT_BTN_CLASS =
   "rounded-xl border border-violet-300/20 bg-violet-950/35 px-3 py-2 text-xs text-violet-100 hover:bg-violet-900/35 transition";
 
+const downloadTextFile = (filename: string, content: string, mime = "text/plain;charset=utf-8") => {
+  const blob = new Blob([content], { type: mime });
+  const url = window.URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  window.URL.revokeObjectURL(url);
+};
+
+const escapeCsvCell = (value: string | number) => {
+  const raw = String(value ?? "");
+  const escaped = raw.replace(/"/g, "\"\"");
+  return `"${escaped}"`;
+};
+
+const formatTxDate = (value: string) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("pt-BR");
+};
+
+const computeAccountTxSignedAmount = (accountId: string, tx: Transaction) => {
+  const amount = toNumber(tx.amount);
+  if (tx.type === "income" && tx.account_id === accountId) return amount;
+  if ((tx.type === "expense" || tx.type === "card_payment") && tx.account_id === accountId) return -amount;
+  if (tx.type === "adjustment" && tx.account_id === accountId) return amount;
+  if (tx.type === "transfer") {
+    if (tx.account_id === accountId) return -amount;
+    if (tx.to_account_id === accountId) return amount;
+  }
+  return 0;
+};
+
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -70,40 +104,45 @@ export default function AccountsPage() {
   };
 
   const loadData = async (resolvedUserId?: string | null) => {
-    setLoading(true);
-    const effectiveUserId = resolvedUserId || (await ensureUserId());
-    if (!effectiveUserId) {
+    try {
+      setLoading(true);
+      const effectiveUserId = resolvedUserId || (await ensureUserId());
+      if (!effectiveUserId) {
+        setLoading(false);
+        return;
+      }
+
+      const [accountsRes, txRes] = await Promise.all([
+        supabase
+          .from("accounts")
+          .select("*")
+          .eq("user_id", effectiveUserId)
+          .order("created_at"),
+        supabase
+          .from("transactions")
+          .select("*")
+          .eq("user_id", effectiveUserId)
+          .order("occurred_at", { ascending: false })
+          .limit(800),
+      ]);
+
+      if (accountsRes.error || txRes.error) {
+        setFeedback(
+          accountsRes.error?.message
+            || txRes.error?.message
+            || "Falha ao carregar dados.",
+        );
+        setLoading(false);
+        return;
+      }
+
+      setAccounts((accountsRes.data as Account[]) || []);
+      setTransactions((txRes.data as Transaction[]) || []);
       setLoading(false);
-      return;
-    }
-
-    const [accountsRes, txRes] = await Promise.all([
-      supabase
-        .from("accounts")
-        .select("*")
-        .eq("user_id", effectiveUserId)
-        .order("created_at"),
-      supabase
-        .from("transactions")
-        .select("*")
-        .eq("user_id", effectiveUserId)
-        .order("occurred_at", { ascending: false })
-        .limit(800),
-    ]);
-
-    if (accountsRes.error || txRes.error) {
-      setFeedback(
-        accountsRes.error?.message
-          || txRes.error?.message
-          || "Falha ao carregar dados.",
-      );
+    } catch (error) {
       setLoading(false);
-      return;
+      setFeedback(`Falha inesperada ao carregar contas: ${error instanceof Error ? error.message : "erro desconhecido"}`);
     }
-
-    setAccounts((accountsRes.data as Account[]) || []);
-    setTransactions((txRes.data as Transaction[]) || []);
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -130,31 +169,35 @@ export default function AccountsPage() {
   );
 
   const handleCreate = async () => {
-    if (!name.trim()) {
-      setFeedback("Informe o nome da conta.");
-      return;
-    }
+    try {
+      if (!name.trim()) {
+        setFeedback("Informe o nome da conta.");
+        return;
+      }
 
-    const resolvedUserId = await ensureUserId();
-    if (!resolvedUserId) return;
+      const resolvedUserId = await ensureUserId();
+      if (!resolvedUserId) return;
 
-    setFeedback(null);
-    const { error } = await supabase.from("accounts").insert({
-      user_id: resolvedUserId,
-      name: name.trim(),
-      institution: institution.trim() || null,
-      opening_balance: toNumber(openingBalance),
-      currency: "BRL",
-    });
-    if (error) {
-      setFeedback(`Nao foi possivel criar a conta: ${error.message}`);
-      return;
+      setFeedback(null);
+      const { error } = await supabase.from("accounts").insert({
+        user_id: resolvedUserId,
+        name: name.trim(),
+        institution: institution.trim() || null,
+        opening_balance: toNumber(openingBalance),
+        currency: "BRL",
+      });
+      if (error) {
+        setFeedback(`Nao foi possivel criar a conta: ${error.message}`);
+        return;
+      }
+      setName("");
+      setInstitution("");
+      setOpeningBalance("");
+      setFeedback("Conta criada com sucesso.");
+      await loadData(resolvedUserId);
+    } catch (error) {
+      setFeedback(`Falha inesperada ao criar conta: ${error instanceof Error ? error.message : "erro desconhecido"}`);
     }
-    setName("");
-    setInstitution("");
-    setOpeningBalance("");
-    setFeedback("Conta criada com sucesso.");
-    loadData();
   };
 
   const closeModal = () => {
@@ -186,171 +229,235 @@ export default function AccountsPage() {
   };
 
   const handleSaveRename = async () => {
-    if (!modalAccount || !modalName.trim()) return;
-    const resolvedUserId = await ensureUserId();
-    if (!resolvedUserId) return;
+    try {
+      if (!modalAccount || !modalName.trim()) return;
+      const resolvedUserId = await ensureUserId();
+      if (!resolvedUserId) return;
 
-    setModalSaving(true);
-    setFeedback(null);
-    const { data, error } = await supabase
-      .from("accounts")
-      .update({ name: modalName.trim(), institution: modalInstitution.trim() || null })
-      .eq("id", modalAccount.id)
-      .eq("user_id", resolvedUserId)
-      .select("id")
-      .maybeSingle();
+      setModalSaving(true);
+      setFeedback(null);
+      const { data, error } = await supabase
+        .from("accounts")
+        .update({ name: modalName.trim(), institution: modalInstitution.trim() || null })
+        .eq("id", modalAccount.id)
+        .eq("user_id", resolvedUserId)
+        .select("id")
+        .maybeSingle();
 
-    if (error) {
+      if (error) {
+        setModalSaving(false);
+        setFeedback(`Nao foi possivel editar a conta: ${error.message}`);
+        return;
+      }
+
+      if (!data) {
+        setModalSaving(false);
+        setFeedback("Conta nao encontrada para edicao.");
+        return;
+      }
+
+      closeModal();
+      setFeedback("Conta atualizada com sucesso.");
+      await loadData(resolvedUserId);
+    } catch (error) {
       setModalSaving(false);
-      setFeedback(`Nao foi possivel editar a conta: ${error.message}`);
-      return;
+      setFeedback(`Falha inesperada ao editar conta: ${error instanceof Error ? error.message : "erro desconhecido"}`);
     }
-
-    if (!data) {
-      setModalSaving(false);
-      setFeedback("Conta nao encontrada para edicao.");
-      return;
-    }
-
-    closeModal();
-    setFeedback("Conta atualizada com sucesso.");
-    loadData();
   };
 
   const handleArchive = async (account: Account) => {
-    setFeedback(null);
-    const resolvedUserId = await ensureUserId();
-    if (!resolvedUserId) return;
+    try {
+      setFeedback(null);
+      const resolvedUserId = await ensureUserId();
+      if (!resolvedUserId) return;
 
-    const { data, error } = await supabase
-      .from("accounts")
-      .update({ archived: !account.archived })
-      .eq("id", account.id)
-      .eq("user_id", resolvedUserId)
-      .select("id")
-      .maybeSingle();
-    if (error) {
-      setFeedback(`Nao foi possivel arquivar a conta: ${error.message}`);
-      return;
+      const { data, error } = await supabase
+        .from("accounts")
+        .update({ archived: !account.archived })
+        .eq("id", account.id)
+        .eq("user_id", resolvedUserId)
+        .select("id")
+        .maybeSingle();
+      if (error) {
+        setFeedback(`Nao foi possivel arquivar a conta: ${error.message}`);
+        return;
+      }
+      if (!data) {
+        setFeedback("Conta nao encontrada para arquivar.");
+        return;
+      }
+      setFeedback(account.archived ? "Conta desarquivada." : "Conta arquivada.");
+      await loadData(resolvedUserId);
+    } catch (error) {
+      setFeedback(`Falha inesperada ao arquivar conta: ${error instanceof Error ? error.message : "erro desconhecido"}`);
     }
-    if (!data) {
-      setFeedback("Conta nao encontrada para arquivar.");
-      return;
-    }
-    setFeedback(account.archived ? "Conta desarquivada." : "Conta arquivada.");
-    await loadData(resolvedUserId);
   };
 
   const handleDelete = async (account: Account) => {
-    setFeedback(null);
-    const ok = window.confirm(
-      `Excluir a conta "${account.name}"? As transacoes vao ficar sem conta vinculada.`,
-    );
-    if (!ok) return;
+    try {
+      setFeedback(null);
+      const ok = window.confirm(
+        `Excluir a conta "${account.name}"? As transacoes vao ficar sem conta vinculada.`,
+      );
+      if (!ok) return;
 
-    const resolvedUserId = await ensureUserId();
-    if (!resolvedUserId) return;
+      const resolvedUserId = await ensureUserId();
+      if (!resolvedUserId) return;
 
-    const { data, error } = await supabase
-      .from("accounts")
-      .delete()
-      .eq("id", account.id)
-      .eq("user_id", resolvedUserId)
-      .select("id")
-      .maybeSingle();
-    if (error) {
-      setFeedback(`Nao foi possivel excluir a conta: ${error.message}`);
-      return;
+      const { data, error } = await supabase
+        .from("accounts")
+        .delete()
+        .eq("id", account.id)
+        .eq("user_id", resolvedUserId)
+        .select("id")
+        .maybeSingle();
+      if (error) {
+        setFeedback(`Nao foi possivel excluir a conta: ${error.message}`);
+        return;
+      }
+      if (!data) {
+        setFeedback("Conta nao encontrada para exclusao.");
+        return;
+      }
+
+      if (transferFrom === account.id) setTransferFrom("");
+      if (transferTo === account.id) setTransferTo("");
+      setFeedback("Conta excluida com sucesso.");
+      await loadData(resolvedUserId);
+    } catch (error) {
+      setFeedback(`Falha inesperada ao excluir conta: ${error instanceof Error ? error.message : "erro desconhecido"}`);
     }
-    if (!data) {
-      setFeedback("Conta nao encontrada para exclusao.");
-      return;
-    }
-
-    if (transferFrom === account.id) setTransferFrom("");
-    if (transferTo === account.id) setTransferTo("");
-    setFeedback("Conta excluida com sucesso.");
-    await loadData(resolvedUserId);
   };
 
   const handleSaveAdjust = async () => {
-    if (!modalAccount) return;
-    const resolvedUserId = await ensureUserId();
-    if (!resolvedUserId) return;
+    try {
+      if (!modalAccount) return;
+      const resolvedUserId = await ensureUserId();
+      if (!resolvedUserId) return;
 
-    const currentBalance = balances.get(modalAccount.id) ?? 0;
-    const target = toNumber(modalTargetBalance);
-    const delta = target - currentBalance;
+      const currentBalance = balances.get(modalAccount.id) ?? 0;
+      const target = toNumber(modalTargetBalance);
+      const delta = target - currentBalance;
 
-    if (!Number.isFinite(delta)) {
-      setFeedback("Informe um saldo valido.");
-      return;
-    }
+      if (!Number.isFinite(delta)) {
+        setFeedback("Informe um saldo valido.");
+        return;
+      }
 
-    if (Math.abs(delta) < 0.01) {
+      if (Math.abs(delta) < 0.01) {
+        closeModal();
+        setFeedback("Saldo ja esta atualizado.");
+        return;
+      }
+
+      setModalSaving(true);
+      setFeedback(null);
+      const { error } = await supabase.from("transactions").insert({
+        user_id: resolvedUserId,
+        type: "adjustment",
+        description: `Ajuste de saldo - ${modalAccount.name}`,
+        category: "Ajuste",
+        amount: delta,
+        account_id: modalAccount.id,
+        occurred_at: new Date().toISOString().slice(0, 10),
+      });
+
+      if (error) {
+        setModalSaving(false);
+        setFeedback(`Nao foi possivel ajustar saldo: ${error.message}`);
+        return;
+      }
+
       closeModal();
-      setFeedback("Saldo ja esta atualizado.");
-      return;
-    }
-
-    setModalSaving(true);
-    setFeedback(null);
-    const { error } = await supabase.from("transactions").insert({
-      user_id: resolvedUserId,
-      type: "adjustment",
-      description: `Ajuste de saldo - ${modalAccount.name}`,
-      category: "Ajuste",
-      amount: delta,
-      account_id: modalAccount.id,
-      occurred_at: new Date().toISOString().slice(0, 10),
-    });
-
-    if (error) {
+      setFeedback("Saldo ajustado com sucesso.");
+      await loadData(resolvedUserId);
+    } catch (error) {
       setModalSaving(false);
-      setFeedback(`Nao foi possivel ajustar saldo: ${error.message}`);
-      return;
+      setFeedback(`Falha inesperada ao ajustar saldo: ${error instanceof Error ? error.message : "erro desconhecido"}`);
     }
-
-    closeModal();
-    setFeedback("Saldo ajustado com sucesso.");
-    loadData();
   };
 
   const handleTransfer = async () => {
-    if (!transferFrom || !transferTo || transferFrom === transferTo) {
-      setFeedback("Selecione contas diferentes para transferir.");
-      return;
-    }
-    if (!transferAmount.trim()) {
-      setFeedback("Informe o valor da transferencia.");
-      return;
-    }
+    try {
+      if (!transferFrom || !transferTo || transferFrom === transferTo) {
+        setFeedback("Selecione contas diferentes para transferir.");
+        return;
+      }
+      if (!transferAmount.trim()) {
+        setFeedback("Informe o valor da transferencia.");
+        return;
+      }
 
-    const resolvedUserId = await ensureUserId();
-    if (!resolvedUserId) return;
+      const resolvedUserId = await ensureUserId();
+      if (!resolvedUserId) return;
 
-    setFeedback(null);
-    const { error } = await supabase.from("transactions").insert({
-      user_id: resolvedUserId,
-      type: "transfer",
-      description: "Transferencia entre contas",
-      category: "Transferencia",
-      amount: toNumber(transferAmount),
-      account_id: transferFrom,
-      to_account_id: transferTo,
-      occurred_at: new Date().toISOString().slice(0, 10),
-    });
-    if (error) {
-      setFeedback(`Nao foi possivel transferir: ${error.message}`);
-      return;
+      setFeedback(null);
+      const { error } = await supabase.from("transactions").insert({
+        user_id: resolvedUserId,
+        type: "transfer",
+        description: "Transferencia entre contas",
+        category: "Transferencia",
+        amount: toNumber(transferAmount),
+        account_id: transferFrom,
+        to_account_id: transferTo,
+        occurred_at: new Date().toISOString().slice(0, 10),
+      });
+      if (error) {
+        setFeedback(`Nao foi possivel transferir: ${error.message}`);
+        return;
+      }
+      setTransferAmount("");
+      setFeedback("Transferencia registrada.");
+      await loadData(resolvedUserId);
+    } catch (error) {
+      setFeedback(`Falha inesperada ao transferir: ${error instanceof Error ? error.message : "erro desconhecido"}`);
     }
-    setTransferAmount("");
-    setFeedback("Transferencia registrada.");
-    loadData();
   };
 
   const openExtractStub = (account: Account) => {
-    window.alert(`Extrato da conta ${account.name} (CSV/OFX) em breve.`);
+    try {
+      const accountTxs = transactions
+        .filter((tx) => tx.account_id === account.id || tx.to_account_id === account.id)
+        .sort((a, b) => (a.occurred_at < b.occurred_at ? 1 : -1));
+
+      const csvRows = [
+        [
+          "data",
+          "descricao",
+          "categoria",
+          "tipo",
+          "valor",
+          "conta_origem",
+          "conta_destino",
+        ],
+        ...accountTxs.map((tx) => [
+          formatTxDate(tx.occurred_at),
+          tx.description || "",
+          tx.category || "",
+          tx.type,
+          computeAccountTxSignedAmount(account.id, tx).toFixed(2).replace(".", ","),
+          tx.account_id || "",
+          tx.to_account_id || "",
+        ]),
+      ];
+
+      const csvContent = csvRows
+        .map((row) => row.map((cell) => escapeCsvCell(cell)).join(";"))
+        .join("\n");
+
+      const baseName = account.name
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9_-]/g, "_")
+        .toLowerCase();
+      const datePart = new Date().toISOString().slice(0, 10);
+      const filename = `extrato_${baseName || "conta"}_${datePart}.csv`;
+
+      downloadTextFile(filename, csvContent, "text/csv;charset=utf-8");
+      setFeedback(`Extrato exportado: ${filename}`);
+    } catch (error) {
+      setFeedback(`Nao foi possivel exportar extrato: ${error instanceof Error ? error.message : "erro desconhecido"}`);
+    }
   };
 
   return (
@@ -471,6 +578,7 @@ export default function AccountsPage() {
               />
             </div>
             <button
+              type="button"
               className="mt-4 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2 text-sm font-semibold text-white shadow-[0_10px_30px_rgba(139,92,246,0.35)] hover:brightness-110 transition"
               onClick={handleCreate}
             >
@@ -481,6 +589,7 @@ export default function AccountsPage() {
           <section className="glass rounded-2xl p-6">
             <div className="mb-4 flex gap-2">
               <button
+                type="button"
                 className={`rounded-full border px-4 py-2 text-sm font-semibold ${
                   tab === "ativas"
                     ? "border-violet-300/60 bg-violet-500/25 text-violet-100"
@@ -491,6 +600,7 @@ export default function AccountsPage() {
                 Ativas
               </button>
               <button
+                type="button"
                 className={`rounded-full border px-4 py-2 text-sm font-semibold ${
                   tab === "arquivadas"
                     ? "border-violet-300/60 bg-violet-500/25 text-violet-100"
@@ -583,6 +693,7 @@ export default function AccountsPage() {
               />
             </div>
             <button
+              type="button"
               className="mt-4 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2 text-sm font-semibold text-white shadow-[0_10px_30px_rgba(139,92,246,0.35)] hover:brightness-110 transition"
               onClick={handleTransfer}
             >

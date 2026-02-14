@@ -288,81 +288,86 @@ export default function InvestmentsPage() {
   }, [userId]);
 
   const loadInvestments = useCallback(async () => {
-    setLoading(true);
-    setFeedback(null);
+    try {
+      setLoading(true);
+      setFeedback(null);
 
-    const resolvedUserId = await ensureUserId();
-    if (!resolvedUserId) {
-      setLoading(false);
-      return;
-    }
+      const resolvedUserId = await ensureUserId();
+      if (!resolvedUserId) {
+        setLoading(false);
+        return;
+      }
 
-    const [investmentsRes, banksRes, typesRes, assetsRes] = await Promise.all([
-      supabase
-        .from("investments")
-        .select("*")
-        .eq("user_id", resolvedUserId)
-        .order("created_at", { ascending: false }),
-      supabase.from("banks").select("id, name, logo"),
-      supabase.from("investment_types").select("id, name, category"),
-      supabase.from("assets").select("id, name, logo, category, type_id"),
-    ]);
-
-    const { data, error } = investmentsRes;
-
-    if (error) {
-      const baseMessage = /relation .*investments/i.test(error.message)
-        ? "Tabela investments nao encontrada. Rode o supabase.sql atualizado."
-        : error.message;
-      setFeedback(`Falha ao carregar investimentos: ${baseMessage}`);
-      setLoading(false);
-      return;
-    }
-
-    const banksById = new Map<string, BankRow>(
-      (((banksRes.error ? [] : banksRes.data) || []) as BankRow[]).map((item) => [item.id, item]),
-    );
-    const typesById = new Map<string, InvestmentTypeRow>(
-      (((typesRes.error ? [] : typesRes.data) || []) as InvestmentTypeRow[]).map((item) => [item.id, item]),
-    );
-    const assetsById = new Map<string, AssetRow>(
-      (((assetsRes.error ? [] : assetsRes.data) || []) as AssetRow[]).map((item) => [item.id, item]),
-    );
-
-    const normalized = ((data || []) as RawInvestmentRow[])
-      .map((row) =>
-        normalizeInvestment(row, {
-          banksById,
-          typesById,
-          assetsById,
-        }),
-      )
-      .filter((item): item is InvestmentRow => !!item);
-
-    setInvestments(normalized);
-    setLoading(false);
-
-    await Promise.allSettled(
-      normalized.map((item) =>
+      const [investmentsRes, banksRes, typesRes, assetsRes] = await Promise.all([
         supabase
           .from("investments")
-          .update({
-            operation: item.operation,
-            costs: item.costs,
-            dividends_received: item.dividends_received,
-            category: item.category,
-            asset_name: item.asset_name,
-            asset_logo_url: item.asset_logo_url,
-            quantity: item.quantity,
-            average_price: item.average_price,
-            current_price: item.current_price,
-            invested_amount: item.invested_amount,
-            current_amount: item.current_amount,
-            price_history: item.price_history,
-          })
-          .eq("id", item.id),
-      ),
-    );
+          .select("*")
+          .eq("user_id", resolvedUserId)
+          .order("created_at", { ascending: false }),
+        supabase.from("banks").select("id, name, logo"),
+        supabase.from("investment_types").select("id, name, category"),
+        supabase.from("assets").select("id, name, logo, category, type_id"),
+      ]);
+
+      const { data, error } = investmentsRes;
+
+      if (error) {
+        const baseMessage = /relation .*investments/i.test(error.message)
+          ? "Tabela investments nao encontrada. Rode o supabase.sql atualizado."
+          : error.message;
+        setFeedback(`Falha ao carregar investimentos: ${baseMessage}`);
+        setLoading(false);
+        return;
+      }
+
+      const banksById = new Map<string, BankRow>(
+        (((banksRes.error ? [] : banksRes.data) || []) as BankRow[]).map((item) => [item.id, item]),
+      );
+      const typesById = new Map<string, InvestmentTypeRow>(
+        (((typesRes.error ? [] : typesRes.data) || []) as InvestmentTypeRow[]).map((item) => [item.id, item]),
+      );
+      const assetsById = new Map<string, AssetRow>(
+        (((assetsRes.error ? [] : assetsRes.data) || []) as AssetRow[]).map((item) => [item.id, item]),
+      );
+
+      const normalized = ((data || []) as RawInvestmentRow[])
+        .map((row) =>
+          normalizeInvestment(row, {
+            banksById,
+            typesById,
+            assetsById,
+          }),
+        )
+        .filter((item): item is InvestmentRow => !!item);
+
+      setInvestments(normalized);
+      setLoading(false);
+
+      await Promise.allSettled(
+        normalized.map((item) =>
+          supabase
+            .from("investments")
+            .update({
+              operation: item.operation,
+              costs: item.costs,
+              dividends_received: item.dividends_received,
+              category: item.category,
+              asset_name: item.asset_name,
+              asset_logo_url: item.asset_logo_url,
+              quantity: item.quantity,
+              average_price: item.average_price,
+              current_price: item.current_price,
+              invested_amount: item.invested_amount,
+              current_amount: item.current_amount,
+              price_history: item.price_history,
+            })
+            .eq("id", item.id),
+        ),
+      );
+    } catch (error) {
+      setLoading(false);
+      setFeedback(`Falha inesperada ao carregar investimentos: ${error instanceof Error ? error.message : "erro desconhecido"}`);
+    }
   }, [ensureUserId]);
 
   useEffect(() => {
@@ -370,208 +375,223 @@ export default function InvestmentsPage() {
   }, [loadInvestments]);
 
   const handleAddInvestment = async (payload: InvestmentLaunchPayload) => {
-    setSaving(true);
-    setFeedback(null);
+    try {
+      setSaving(true);
+      setFeedback(null);
 
-    const resolvedUserId = await ensureUserId();
-    if (!resolvedUserId) {
-      setSaving(false);
-      setFeedback("Sessao nao carregada. Faca login novamente.");
-      return;
-    }
+      const resolvedUserId = await ensureUserId();
+      if (!resolvedUserId) {
+        setSaving(false);
+        setFeedback("Sessao nao carregada. Faca login novamente.");
+        return;
+      }
 
-    const investedAmount = roundCurrency(payload.totalValue);
-    const currentAmount = roundCurrency(payload.quantity * payload.unitPrice);
-    const initialHistory = resolvePriceHistory({
-      history: [],
-      averagePrice: payload.unitPrice,
-      currentPrice: payload.unitPrice,
-      seedRef: `${payload.assetName}-${payload.typeName}-${payload.bankName}-${payload.side}`,
-    });
+      const investedAmount = roundCurrency(payload.totalValue);
+      const currentAmount = roundCurrency(payload.quantity * payload.unitPrice);
+      const initialHistory = resolvePriceHistory({
+        history: [],
+        averagePrice: payload.unitPrice,
+        currentPrice: payload.unitPrice,
+        seedRef: `${payload.assetName}-${payload.typeName}-${payload.bankName}-${payload.side}`,
+      });
 
-    const fullInsertPayload = {
-      user_id: resolvedUserId,
-      bank_id: toUuidOrNull(payload.bankId),
-      type_id: toUuidOrNull(payload.typeId),
-      asset_id: toUuidOrNull(payload.assetId),
-      broker: payload.bankName,
-      operation: payload.side,
-      costs: payload.costs,
-      dividends_received: 0,
-      category: mapCategoryKeyToUiCategory(payload.typeCategory),
-      investment_type: payload.typeName,
-      asset_name: payload.assetName,
-      asset_logo_url: payload.assetLogoUrl,
-      quantity: payload.quantity,
-      average_price: payload.unitPrice,
-      current_price: payload.unitPrice,
-      invested_amount: investedAmount,
-      current_amount: currentAmount,
-      annual_rate: null,
-      start_date: payload.tradeDate,
-      price_history: initialHistory,
-    };
-
-    const initialInsert = await supabase.from("investments").insert(fullInsertPayload);
-    let error = initialInsert.error;
-    let usedFallback = false;
-
-    if (error && isMissingInvestmentsExtendedColumnError(error.message)) {
-      usedFallback = true;
-      const fallbackInsert = await supabase.from("investments").insert({
+      const fullInsertPayload = {
         user_id: resolvedUserId,
+        bank_id: toUuidOrNull(payload.bankId),
+        type_id: toUuidOrNull(payload.typeId),
+        asset_id: toUuidOrNull(payload.assetId),
         broker: payload.bankName,
+        operation: payload.side,
+        costs: payload.costs,
+        dividends_received: 0,
+        category: mapCategoryKeyToUiCategory(payload.typeCategory),
         investment_type: payload.typeName,
         asset_name: payload.assetName,
         asset_logo_url: payload.assetLogoUrl,
+        quantity: payload.quantity,
+        average_price: payload.unitPrice,
+        current_price: payload.unitPrice,
         invested_amount: investedAmount,
         current_amount: currentAmount,
         annual_rate: null,
         start_date: payload.tradeDate,
-      });
-      error = fallbackInsert.error;
-    }
+        price_history: initialHistory,
+      };
 
-    if (error) {
+      const initialInsert = await supabase.from("investments").insert(fullInsertPayload);
+      let error = initialInsert.error;
+      let usedFallback = false;
+
+      if (error && isMissingInvestmentsExtendedColumnError(error.message)) {
+        usedFallback = true;
+        const fallbackInsert = await supabase.from("investments").insert({
+          user_id: resolvedUserId,
+          broker: payload.bankName,
+          investment_type: payload.typeName,
+          asset_name: payload.assetName,
+          asset_logo_url: payload.assetLogoUrl,
+          invested_amount: investedAmount,
+          current_amount: currentAmount,
+          annual_rate: null,
+          start_date: payload.tradeDate,
+        });
+        error = fallbackInsert.error;
+      }
+
+      if (error) {
+        setSaving(false);
+        setFeedback(`Nao foi possivel salvar investimento: ${error.message}`);
+        return;
+      }
+
       setSaving(false);
-      setFeedback(`Nao foi possivel salvar investimento: ${error.message}`);
-      return;
+      setShowModal(false);
+      setFeedback(
+        usedFallback
+          ? "Lancamento salvo, mas alguns campos visuais exigem atualizacao do banco."
+          : "Lancamento salvo com sucesso.",
+      );
+      await loadInvestments();
+    } catch (error) {
+      setSaving(false);
+      setFeedback(`Falha inesperada ao salvar investimento: ${error instanceof Error ? error.message : "erro desconhecido"}`);
     }
-
-    setSaving(false);
-    setShowModal(false);
-    setFeedback(
-      usedFallback
-        ? "Lancamento salvo, mas alguns campos visuais exigem atualizacao do banco."
-        : "Lancamento salvo com sucesso.",
-    );
-    await loadInvestments();
   };
 
   const handleDelete = async (investmentId: string) => {
-    const confirmed = window.confirm("Excluir este investimento?");
-    if (!confirmed) return;
-    const resolvedUserId = await ensureUserId();
-    if (!resolvedUserId) return;
+    try {
+      const confirmed = window.confirm("Excluir este investimento?");
+      if (!confirmed) return;
+      const resolvedUserId = await ensureUserId();
+      if (!resolvedUserId) return;
 
-    setDeletingId(investmentId);
-    setFeedback(null);
+      setDeletingId(investmentId);
+      setFeedback(null);
 
-    const { data, error } = await supabase
-      .from("investments")
-      .delete()
-      .eq("id", investmentId)
-      .eq("user_id", resolvedUserId)
-      .select("id")
-      .maybeSingle();
-    setDeletingId(null);
+      const { data, error } = await supabase
+        .from("investments")
+        .delete()
+        .eq("id", investmentId)
+        .eq("user_id", resolvedUserId)
+        .select("id")
+        .maybeSingle();
+      setDeletingId(null);
 
-    if (error) {
-      setFeedback(`Nao foi possivel excluir: ${error.message}`);
-      return;
+      if (error) {
+        setFeedback(`Nao foi possivel excluir: ${error.message}`);
+        return;
+      }
+      if (!data) {
+        setFeedback("Investimento nao encontrado para exclusao.");
+        return;
+      }
+
+      setFeedback("Investimento excluido.");
+      await loadInvestments();
+    } catch (error) {
+      setDeletingId(null);
+      setFeedback(`Falha inesperada ao excluir investimento: ${error instanceof Error ? error.message : "erro desconhecido"}`);
     }
-    if (!data) {
-      setFeedback("Investimento nao encontrado para exclusao.");
-      return;
-    }
-
-    setFeedback("Investimento excluido.");
-    await loadInvestments();
   };
 
   const handleEdit = async (investmentId: string) => {
-    const item = investments.find((investment) => investment.id === investmentId);
-    if (!item) {
-      setFeedback("Investimento nao encontrado para edicao.");
-      return;
+    try {
+      const item = investments.find((investment) => investment.id === investmentId);
+      if (!item) {
+        setFeedback("Investimento nao encontrado para edicao.");
+        return;
+      }
+
+      const resolvedUserId = await ensureUserId();
+      if (!resolvedUserId) return;
+
+      const quantityRaw = window.prompt(
+        "Nova quantidade:",
+        item.quantity.toLocaleString("pt-BR", { maximumFractionDigits: 6 }),
+      );
+      if (quantityRaw === null) return;
+
+      const averagePriceRaw = window.prompt(
+        "Novo preco medio (R$):",
+        item.average_price.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      );
+      if (averagePriceRaw === null) return;
+
+      const currentPriceRaw = window.prompt(
+        "Novo preco atual (R$):",
+        item.current_price.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      );
+      if (currentPriceRaw === null) return;
+
+      const costsRaw = window.prompt(
+        "Custos totais (R$, opcional):",
+        item.costs.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      );
+      if (costsRaw === null) return;
+
+      const quantity = Math.abs(parsePromptQuantity(quantityRaw));
+      const averagePrice = toNumber(averagePriceRaw);
+      const currentPrice = toNumber(currentPriceRaw);
+      const costs = Math.max(0, toNumber(costsRaw));
+
+      if (!Number.isFinite(quantity) || quantity <= 0) {
+        setFeedback("Quantidade invalida.");
+        return;
+      }
+      if (!Number.isFinite(averagePrice) || averagePrice <= 0) {
+        setFeedback("Preco medio invalido.");
+        return;
+      }
+      if (!Number.isFinite(currentPrice) || currentPrice <= 0) {
+        setFeedback("Preco atual invalido.");
+        return;
+      }
+
+      const investedAmount = roundCurrency((quantity * averagePrice) + costs);
+      const currentAmount = roundCurrency(quantity * currentPrice);
+      const priceHistory = resolvePriceHistory({
+        history: item.price_history,
+        averagePrice,
+        currentPrice,
+        seedRef: `${item.asset_name}-${item.id}-edit`,
+      });
+
+      setEditingId(item.id);
+      setFeedback(null);
+
+      const { data, error } = await supabase
+        .from("investments")
+        .update({
+          quantity: roundCurrency(quantity),
+          average_price: roundCurrency(averagePrice),
+          current_price: roundCurrency(currentPrice),
+          costs: roundCurrency(costs),
+          invested_amount: investedAmount,
+          current_amount: currentAmount,
+          price_history: priceHistory,
+        })
+        .eq("id", item.id)
+        .eq("user_id", resolvedUserId)
+        .select("id")
+        .maybeSingle();
+
+      setEditingId(null);
+
+      if (error) {
+        setFeedback(`Nao foi possivel editar: ${error.message}`);
+        return;
+      }
+      if (!data) {
+        setFeedback("Investimento nao encontrado para edicao.");
+        return;
+      }
+
+      setFeedback("Investimento atualizado com sucesso.");
+      await loadInvestments();
+    } catch (error) {
+      setEditingId(null);
+      setFeedback(`Falha inesperada ao editar investimento: ${error instanceof Error ? error.message : "erro desconhecido"}`);
     }
-
-    const resolvedUserId = await ensureUserId();
-    if (!resolvedUserId) return;
-
-    const quantityRaw = window.prompt(
-      "Nova quantidade:",
-      item.quantity.toLocaleString("pt-BR", { maximumFractionDigits: 6 }),
-    );
-    if (quantityRaw === null) return;
-
-    const averagePriceRaw = window.prompt(
-      "Novo preco medio (R$):",
-      item.average_price.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-    );
-    if (averagePriceRaw === null) return;
-
-    const currentPriceRaw = window.prompt(
-      "Novo preco atual (R$):",
-      item.current_price.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-    );
-    if (currentPriceRaw === null) return;
-
-    const costsRaw = window.prompt(
-      "Custos totais (R$, opcional):",
-      item.costs.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-    );
-    if (costsRaw === null) return;
-
-    const quantity = Math.abs(parsePromptQuantity(quantityRaw));
-    const averagePrice = toNumber(averagePriceRaw);
-    const currentPrice = toNumber(currentPriceRaw);
-    const costs = Math.max(0, toNumber(costsRaw));
-
-    if (!Number.isFinite(quantity) || quantity <= 0) {
-      setFeedback("Quantidade invalida.");
-      return;
-    }
-    if (!Number.isFinite(averagePrice) || averagePrice <= 0) {
-      setFeedback("Preco medio invalido.");
-      return;
-    }
-    if (!Number.isFinite(currentPrice) || currentPrice <= 0) {
-      setFeedback("Preco atual invalido.");
-      return;
-    }
-
-    const investedAmount = roundCurrency((quantity * averagePrice) + costs);
-    const currentAmount = roundCurrency(quantity * currentPrice);
-    const priceHistory = resolvePriceHistory({
-      history: item.price_history,
-      averagePrice,
-      currentPrice,
-      seedRef: `${item.asset_name}-${item.id}-edit`,
-    });
-
-    setEditingId(item.id);
-    setFeedback(null);
-
-    const { data, error } = await supabase
-      .from("investments")
-      .update({
-        quantity: roundCurrency(quantity),
-        average_price: roundCurrency(averagePrice),
-        current_price: roundCurrency(currentPrice),
-        costs: roundCurrency(costs),
-        invested_amount: investedAmount,
-        current_amount: currentAmount,
-        price_history: priceHistory,
-      })
-      .eq("id", item.id)
-      .eq("user_id", resolvedUserId)
-      .select("id")
-      .maybeSingle();
-
-    setEditingId(null);
-
-    if (error) {
-      setFeedback(`Nao foi possivel editar: ${error.message}`);
-      return;
-    }
-    if (!data) {
-      setFeedback("Investimento nao encontrado para edicao.");
-      return;
-    }
-
-    setFeedback("Investimento atualizado com sucesso.");
-    await loadInvestments();
   };
 
   const groupedByCategory = useMemo(() => {

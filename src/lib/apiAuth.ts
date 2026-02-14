@@ -25,7 +25,9 @@ export const getTokenClient = (token: string) => {
     return { client: null as SupabaseClient | null, error: "Token ausente." };
   }
 
-  const keyToUse = serviceRole || supabaseAnonKey;
+  // Prioriza ANON para fluxo autenticado por JWT do usuario.
+  // Isso evita falha do app quando a service role estiver ausente ou invalida.
+  const keyToUse = supabaseAnonKey || serviceRole;
   if (!keyToUse) {
     return {
       client: null as SupabaseClient | null,

@@ -727,6 +727,10 @@ begin
   alter type public.alert_type add value if not exists 'dollar_threshold';
   alter type public.alert_type add value if not exists 'spending_spike';
   alter type public.alert_type add value if not exists 'forecast_warning';
+  alter type public.alert_type add value if not exists 'relationship_delay_risk';
+  alter type public.alert_type add value if not exists 'relationship_limit_high';
+  alter type public.alert_type add value if not exists 'relationship_score_drop';
+  alter type public.alert_type add value if not exists 'relationship_spending_spike';
 end
 $$;
 
@@ -1171,6 +1175,111 @@ create trigger trg_automations_set_updated_at
 before update on public.automations
 for each row execute function public.set_automations_updated_at();
 
+create table if not exists public.banking_relationship_scores (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  reference_date date not null default current_date,
+  month_ref date not null default date_trunc('month', now())::date,
+  score int not null default 0,
+  punctuality_score int not null default 0,
+  limit_usage_score int not null default 0,
+  investment_score int not null default 0,
+  history_score int not null default 0,
+  spending_control_score int not null default 0,
+  risk_level text not null default 'bom',
+  recommendations jsonb not null default '[]'::jsonb,
+  ai_recommendations jsonb not null default '[]'::jsonb,
+  indicators jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id, reference_date)
+);
+
+alter table public.banking_relationship_scores add column if not exists user_id uuid;
+alter table public.banking_relationship_scores add column if not exists reference_date date not null default current_date;
+alter table public.banking_relationship_scores add column if not exists month_ref date not null default date_trunc('month', now())::date;
+alter table public.banking_relationship_scores add column if not exists score int not null default 0;
+alter table public.banking_relationship_scores add column if not exists punctuality_score int not null default 0;
+alter table public.banking_relationship_scores add column if not exists limit_usage_score int not null default 0;
+alter table public.banking_relationship_scores add column if not exists investment_score int not null default 0;
+alter table public.banking_relationship_scores add column if not exists history_score int not null default 0;
+alter table public.banking_relationship_scores add column if not exists spending_control_score int not null default 0;
+alter table public.banking_relationship_scores add column if not exists risk_level text not null default 'bom';
+alter table public.banking_relationship_scores add column if not exists recommendations jsonb not null default '[]'::jsonb;
+alter table public.banking_relationship_scores add column if not exists ai_recommendations jsonb not null default '[]'::jsonb;
+alter table public.banking_relationship_scores add column if not exists indicators jsonb not null default '{}'::jsonb;
+alter table public.banking_relationship_scores add column if not exists created_at timestamptz not null default now();
+alter table public.banking_relationship_scores add column if not exists updated_at timestamptz not null default now();
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'banking_relationship_scores_user_id_fkey'
+      and conrelid = 'public.banking_relationship_scores'::regclass
+  ) then
+    alter table public.banking_relationship_scores
+    add constraint banking_relationship_scores_user_id_fkey
+    foreign key (user_id) references auth.users(id) on delete cascade;
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'banking_relationship_scores_user_day_unique'
+      and conrelid = 'public.banking_relationship_scores'::regclass
+  ) then
+    alter table public.banking_relationship_scores
+    add constraint banking_relationship_scores_user_day_unique unique (user_id, reference_date);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'banking_relationship_scores_score_range'
+      and conrelid = 'public.banking_relationship_scores'::regclass
+  ) then
+    alter table public.banking_relationship_scores
+    add constraint banking_relationship_scores_score_range
+    check (
+      score between 0 and 100
+      and punctuality_score between 0 and 100
+      and limit_usage_score between 0 and 100
+      and investment_score between 0 and 100
+      and history_score between 0 and 100
+      and spending_control_score between 0 and 100
+    );
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'banking_relationship_scores_risk_level_check'
+      and conrelid = 'public.banking_relationship_scores'::regclass
+  ) then
+    alter table public.banking_relationship_scores
+    add constraint banking_relationship_scores_risk_level_check
+    check (risk_level in ('excelente', 'bom', 'atencao', 'alto_risco'));
+  end if;
+end
+$$;
+
+create or replace function public.set_banking_relationship_scores_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end
+$$;
+
+drop trigger if exists trg_banking_relationship_scores_set_updated_at on public.banking_relationship_scores;
+create trigger trg_banking_relationship_scores_set_updated_at
+before update on public.banking_relationship_scores
+for each row execute function public.set_banking_relationship_scores_updated_at();
+
 alter table public.transactions add column if not exists transaction_type text;
 
 update public.transactions
@@ -1260,6 +1369,7 @@ alter table public.monthly_report_deliveries enable row level security;
 alter table public.subscriptions enable row level security;
 alter table public.insights enable row level security;
 alter table public.automations enable row level security;
+alter table public.banking_relationship_scores enable row level security;
 alter table public.alerts enable row level security;
 alter table public.whatsapp_messages enable row level security;
 
@@ -1439,6 +1549,17 @@ begin
 
   if not exists (
     select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'banking_relationship_scores' and policyname = 'banking_relationship_scores_crud_own'
+  ) then
+    create policy banking_relationship_scores_crud_own
+    on public.banking_relationship_scores
+    for all
+    using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
     where schemaname = 'public' and tablename = 'alerts' and policyname = 'alerts_crud_own'
   ) then
     create policy alerts_crud_own
@@ -1479,6 +1600,8 @@ create index if not exists idx_monthly_report_deliveries_user_month on public.mo
 create index if not exists idx_subscriptions_user_active on public.subscriptions(user_id, active, created_at desc);
 create index if not exists idx_insights_user_period on public.insights(user_id, period desc, created_at desc);
 create index if not exists idx_automations_enabled on public.automations(enabled, updated_at desc);
+create index if not exists idx_banking_relationship_scores_user_date on public.banking_relationship_scores(user_id, reference_date desc);
+create index if not exists idx_banking_relationship_scores_user_month on public.banking_relationship_scores(user_id, month_ref desc);
 create index if not exists idx_alerts_user_date on public.alerts(user_id, created_at desc);
 create index if not exists idx_whatsapp_user_date on public.whatsapp_messages(user_id, created_at desc);
 

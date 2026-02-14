@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   getAdminClient,
+  getBearerToken,
   getUserFromRequest,
   isCronAuthorized,
 } from "@/lib/apiAuth";
@@ -41,13 +43,13 @@ const mapTableHint = (message?: string | null) => {
 };
 
 const runForSingleUser = async ({
-  admin,
+  db,
   userId,
   userEmail,
   settingsRow,
   dollarBid,
 }: {
-  admin: NonNullable<ReturnType<typeof getAdminClient>>;
+  db: SupabaseClient;
   userId: string;
   userEmail: string;
   settingsRow?: Partial<AutomationSettingsRow> | null;
@@ -55,11 +57,11 @@ const runForSingleUser = async ({
 }) => {
   const base = settingsRow
     ? settingsRow
-    : await ensureAutomationSettings(admin, userId);
+    : await ensureAutomationSettings(db, userId);
   const settings = normalizeAutomationSettings(base);
 
   if (!settings.enabled) {
-    await admin
+    await db
       .from("automations")
       .update({
         last_run_at: new Date().toISOString(),
@@ -76,14 +78,14 @@ const runForSingleUser = async ({
   }
 
   const result = await runUserAutomation({
-    admin,
+    admin: db,
     userId,
     userEmail,
     settings,
     dollarBid,
   });
 
-  await admin
+  await db
     .from("automations")
     .update({
       last_run_at: new Date().toISOString(),
@@ -100,18 +102,17 @@ const runForSingleUser = async ({
 };
 
 async function runAutomations(req: NextRequest) {
-  const admin = getAdminClient();
-  if (!admin) {
-    return NextResponse.json(
-      { ok: false, message: "Configure NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY." },
-      { status: 500 },
-    );
-  }
+  const bearerToken = getBearerToken(req);
+  const cronSecret = process.env.CRON_SECRET ?? "";
+  const cronAuthorized = isCronAuthorized(req);
+  const isCronCall = cronSecret
+    ? bearerToken === cronSecret
+    : req.headers.has("x-vercel-cron");
 
   const authAttempt = await getUserFromRequest(req);
-  if (authAttempt.user) {
+  if (authAttempt.user && authAttempt.client) {
     try {
-      const settingsRow = await ensureAutomationSettings(admin, authAttempt.user.id);
+      const settingsRow = await ensureAutomationSettings(authAttempt.client, authAttempt.user.id);
       let dollarBid = 0;
       try {
         dollarBid = await fetchDollarBid();
@@ -120,7 +121,7 @@ async function runAutomations(req: NextRequest) {
       }
 
       const run = await runForSingleUser({
-        admin,
+        db: authAttempt.client,
         userId: authAttempt.user.id,
         userEmail: authAttempt.user.email || "",
         settingsRow,
@@ -148,9 +149,23 @@ async function runAutomations(req: NextRequest) {
     }
   }
 
-  const cronSecret = process.env.CRON_SECRET ?? "";
-  if (!cronSecret || !isCronAuthorized(req)) {
+  if (!isCronCall) {
+    return NextResponse.json(
+      { ok: false, message: authAttempt.error || "Nao autorizado." },
+      { status: 401 },
+    );
+  }
+
+  if (!cronAuthorized) {
     return NextResponse.json({ ok: false, message: "Nao autorizado." }, { status: 401 });
+  }
+
+  const admin = getAdminClient();
+  if (!admin) {
+    return NextResponse.json(
+      { ok: false, message: "Configure NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY." },
+      { status: 500 },
+    );
   }
 
   const automationsRes = await admin
@@ -211,7 +226,7 @@ async function runAutomations(req: NextRequest) {
 
     try {
       const run = await runForSingleUser({
-        admin,
+        db: admin,
         userId: row.user_id,
         userEmail: email,
         settingsRow: row,

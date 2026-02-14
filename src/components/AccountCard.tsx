@@ -76,7 +76,7 @@ export function AccountCard({
             <p className="text-xs text-slate-400">{resolvedBankLabel}</p>
           </div>
         </div>
-        <button className={softButtonClassName} onClick={onRefresh}>
+        <button type="button" className={softButtonClassName} onClick={onRefresh}>
           Atualizar
         </button>
       </div>
@@ -119,22 +119,23 @@ export function AccountCard({
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-3">
-        <button className={softButtonClassName} onClick={() => onOpenExtract(account)}>
+        <button type="button" className={softButtonClassName} onClick={() => onOpenExtract(account)}>
           Extrato
         </button>
-        <button className={softButtonClassName} onClick={() => onOpenAdjust(account)}>
+        <button type="button" className={softButtonClassName} onClick={() => onOpenAdjust(account)}>
           Ajustar saldo
         </button>
-        <button className={softButtonClassName} onClick={() => onPrepareTransfer(account)}>
+        <button type="button" className={softButtonClassName} onClick={() => onPrepareTransfer(account)}>
           Transferir
         </button>
-        <button className={softButtonClassName} onClick={() => onOpenRename(account)}>
+        <button type="button" className={softButtonClassName} onClick={() => onOpenRename(account)}>
           Editar
         </button>
-        <button className={softButtonClassName} onClick={() => onToggleArchive(account)}>
+        <button type="button" className={softButtonClassName} onClick={() => onToggleArchive(account)}>
           {account.archived ? "Desarquivar" : "Arquivar"}
         </button>
         <button
+          type="button"
           className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200 hover:bg-rose-500/20 transition"
           onClick={() => onDelete(account)}
         >

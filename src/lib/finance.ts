@@ -65,7 +65,17 @@ export type Transaction = {
 
 export type Alert = {
   id: string;
-  type: "card_closing_soon" | "card_due_soon";
+  type:
+    | "card_closing_soon"
+    | "card_due_soon"
+    | "investment_drop"
+    | "dollar_threshold"
+    | "spending_spike"
+    | "forecast_warning"
+    | "relationship_delay_risk"
+    | "relationship_limit_high"
+    | "relationship_score_drop"
+    | "relationship_spending_spike";
   title: string;
   body: string;
   due_at: string | null;
