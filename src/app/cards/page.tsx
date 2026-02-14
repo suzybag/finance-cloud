@@ -246,8 +246,15 @@ export default function CardsPage() {
     setCardNote("");
   };
 
+  const prepareModalViewport = () => {
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "auto" });
+    }
+  };
+
   const openCreateModal = () => {
     resetForm();
+    prepareModalViewport();
     setIsFormOpen(true);
   };
 
@@ -427,6 +434,7 @@ export default function CardsPage() {
     setDueDay(String(card.due_day));
     setCardColor(card.color || CARD_COLOR_OPTIONS[0]);
     setCardNote(card.note || "");
+    prepareModalViewport();
     setIsFormOpen(true);
   };
 
@@ -845,8 +853,12 @@ export default function CardsPage() {
           </section>
 
           {isFormOpen ? (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#06040dcc]/80 p-4 backdrop-blur-sm">
-              <div className="w-full max-w-xl rounded-2xl border border-violet-300/20 bg-[linear-gradient(170deg,rgba(31,17,56,0.96),rgba(14,10,31,0.97))] p-5 shadow-[0_20px_60px_rgba(76,29,149,0.45)]">
+            <div
+              className="fixed inset-0 z-[120] overflow-y-auto p-4 backdrop-blur-sm"
+              style={{ backgroundColor: "rgba(6, 4, 13, 0.82)" }}
+            >
+              <div className="flex min-h-full items-start justify-center py-6 sm:items-center">
+                <div className="w-full max-w-xl rounded-2xl border border-violet-300/20 bg-[linear-gradient(170deg,rgba(31,17,56,0.96),rgba(14,10,31,0.97))] p-5 shadow-[0_20px_60px_rgba(76,29,149,0.45)]">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xl font-extrabold tracking-tight text-violet-100">
                     {editId ? "Editar cartao" : "Novo cartao"}
@@ -983,6 +995,7 @@ export default function CardsPage() {
                     {saving ? "Salvando..." : editId ? "Salvar alteracoes" : "Criar cartao"}
                   </button>
                 </div>
+              </div>
               </div>
             </div>
           ) : null}
