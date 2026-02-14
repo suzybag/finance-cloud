@@ -22,7 +22,7 @@
     },
     {
       "path": "/api/agenda/reminders/run",
-      "schedule": "* * * * *"
+      "schedule": "25 9 * * *"
     }
   ]
 }
