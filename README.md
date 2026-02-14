@@ -65,6 +65,7 @@ Acesse `http://localhost:3000`.
 - `GET/POST /api/alerts-smart/run` -> rotina cron de alertas inteligentes por email
 - `GET /api/reports/monthly/summary?month=YYYY-MM` -> resumo mensal de gastos
 - `GET /api/reports/monthly/excel?month=YYYY-MM` -> exporta planilha Excel mensal
+- `GET /api/reports/monthly/history?limit=12` -> historico dos relatorios enviados
 - `POST /api/reports/monthly/email` -> envia relatorio mensal por email com anexo .xlsx
 - `GET/POST /api/reports/monthly/run` -> rotina cron mensal de envio de relatorios
 

@@ -57,6 +57,25 @@ type MonthlyReportResponse = {
   message?: string;
 };
 
+type MonthlyReportDelivery = {
+  id: string;
+  reference_month: string;
+  recipient_email: string | null;
+  total_amount: number;
+  status: "pending" | "sent" | "error" | "skipped";
+  details: string | null;
+  sent_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type MonthlyHistoryResponse = {
+  ok: boolean;
+  history?: MonthlyReportDelivery[];
+  warning?: string;
+  message?: string;
+};
+
 const PIE_COLORS = [
   "#8b5cf6",
   "#ec4899",
@@ -108,6 +127,29 @@ const parseFilename = (header: string | null, fallback: string) => {
   return fallback;
 };
 
+const formatMonthReference = (isoDate: string) => {
+  const parsed = new Date(`${isoDate}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return isoDate;
+  return new Intl.DateTimeFormat("pt-BR", {
+    month: "long",
+    year: "numeric",
+  }).format(parsed);
+};
+
+const statusPillClass = (status: MonthlyReportDelivery["status"]) => {
+  if (status === "sent") return "border-emerald-400/35 bg-emerald-500/15 text-emerald-200";
+  if (status === "error") return "border-rose-400/35 bg-rose-500/15 text-rose-200";
+  if (status === "skipped") return "border-amber-400/35 bg-amber-500/15 text-amber-200";
+  return "border-slate-400/35 bg-slate-500/15 text-slate-200";
+};
+
+const statusLabel = (status: MonthlyReportDelivery["status"]) => {
+  if (status === "sent") return "Enviado";
+  if (status === "error") return "Erro";
+  if (status === "skipped") return "Ignorado";
+  return "Pendente";
+};
+
 export default function RelatorioPage() {
   const [monthFilter, setMonthFilter] = useState(currentMonth());
   const [emailTo, setEmailTo] = useState("");
@@ -117,6 +159,9 @@ export default function RelatorioPage() {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [reportRows, setReportRows] = useState<MonthlyExpenseRow[]>([]);
   const [summary, setSummary] = useState<MonthlyReportSummary | null>(null);
+  const [historyItems, setHistoryItems] = useState<MonthlyReportDelivery[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyWarning, setHistoryWarning] = useState<string | null>(null);
 
   const getSessionToken = useCallback(async () => {
     const sessionRes = await supabase.auth.getSession();
@@ -154,9 +199,45 @@ export default function RelatorioPage() {
     setLoading(false);
   }, [getSessionToken, monthFilter]);
 
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    setHistoryWarning(null);
+
+    const token = await getSessionToken();
+    if (!token) {
+      setHistoryWarning("Sessao nao encontrada para carregar historico.");
+      setHistoryLoading(false);
+      return;
+    }
+
+    const response = await fetch("/api/reports/monthly/history?limit=12", {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      cache: "no-store",
+    });
+
+    const data = (await response.json().catch(() => ({}))) as MonthlyHistoryResponse;
+    if (!response.ok || !data.ok) {
+      setHistoryWarning(data.message || "Falha ao carregar historico.");
+      setHistoryItems([]);
+      setHistoryLoading(false);
+      return;
+    }
+
+    setHistoryItems(data.history || []);
+    setHistoryWarning(data.warning || null);
+    setHistoryLoading(false);
+  }, [getSessionToken]);
+
   useEffect(() => {
     void loadReport();
   }, [loadReport]);
+
+  useEffect(() => {
+    void loadHistory();
+  }, [loadHistory]);
 
   const handleExport = async () => {
     setExporting(true);
@@ -232,6 +313,7 @@ export default function RelatorioPage() {
     }
 
     setFeedback(`Relatorio enviado por email para ${data.to || "seu endereco cadastrado"}.`);
+    await loadHistory();
     setSendingEmail(false);
   };
 
@@ -473,6 +555,66 @@ export default function RelatorioPage() {
                     <Mail className="h-4 w-4" />
                     {sendingEmail ? "Enviando..." : "Enviar relatorio por email"}
                   </button>
+                </section>
+
+                <section className="rounded-2xl border border-white/10 bg-slate-950/45 p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <h2 className="text-lg font-extrabold text-slate-100">Historico de envios</h2>
+                      <p className="text-xs text-slate-400">Ultimos relatorios mensais gerados/enviados.</p>
+                    </div>
+                    <button
+                      type="button"
+                      className="rounded-xl border border-white/10 bg-slate-900/45 px-3 py-2 text-xs font-semibold text-slate-100 transition hover:bg-slate-900/70 disabled:opacity-60"
+                      onClick={() => void loadHistory()}
+                      disabled={historyLoading}
+                    >
+                      Atualizar
+                    </button>
+                  </div>
+
+                  {historyWarning ? (
+                    <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                      {historyWarning}
+                    </div>
+                  ) : null}
+
+                  <div className="mt-3 space-y-2">
+                    {historyLoading ? (
+                      <div className="rounded-xl border border-white/10 bg-slate-900/50 px-3 py-2 text-sm text-slate-300">
+                        Carregando historico...
+                      </div>
+                    ) : historyItems.length ? (
+                      historyItems.map((item) => (
+                        <div key={item.id} className="rounded-xl border border-white/10 bg-slate-900/50 px-3 py-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-semibold text-slate-100">
+                              {formatMonthReference(item.reference_month)}
+                            </p>
+                            <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusPillClass(item.status)}`}>
+                              {statusLabel(item.status)}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-xs text-slate-300">
+                            Total: {formatCurrency(Number(item.total_amount || 0))}
+                          </p>
+                          <p className="text-xs text-slate-400">
+                            Destino: {item.recipient_email || "-"}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {item.sent_at ? `Enviado em ${formatDateLabel(item.sent_at.slice(0, 10))}` : "Sem data de envio"}
+                          </p>
+                          {item.details ? (
+                            <p className="mt-1 text-[11px] text-slate-400">{item.details}</p>
+                          ) : null}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-xl border border-white/10 bg-slate-900/50 px-3 py-2 text-sm text-slate-300">
+                        Nenhum envio registrado ainda.
+                      </div>
+                    )}
+                  </div>
                 </section>
               </div>
             </section>
