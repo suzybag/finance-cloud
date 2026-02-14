@@ -397,7 +397,7 @@ export default function PlanningPage() {
     if (!userId || !progressGoal || !progressMode) return;
 
     const addAmount = Math.max(0, toNumber(progressForm.amountMasked));
-    if (addAmount <= 0) {
+    if (progressMode === "add_value" && addAmount <= 0) {
       setFeedback("Informe um valor maior que zero para adicionar.");
       return;
     }
@@ -442,11 +442,15 @@ export default function PlanningPage() {
     }
 
     closeProgressModal();
-    setFeedback(
-      progressMode === "pay_months"
-        ? `Progresso registrado: +${brl(addAmount)} e ${paidMonths} mes(es) abatido(s).`
-        : `Valor abatido com sucesso: +${brl(addAmount)}.`,
-    );
+    if (progressMode === "pay_months") {
+      setFeedback(
+        addAmount > 0
+          ? `Progresso registrado: +${brl(addAmount)} e ${paidMonths} mes(es) abatido(s).`
+          : `Progresso registrado: ${paidMonths} mes(es) abatido(s).`,
+      );
+    } else {
+      setFeedback(`Valor abatido com sucesso: +${brl(addAmount)}.`);
+    }
     await loadGoals();
   };
 
@@ -830,6 +834,7 @@ export default function PlanningPage() {
               <label className="block">
                 <span className="mb-1 block text-xs font-semibold text-cyan-100/80">
                   Quanto voce conseguiu guardar agora (R$)
+                  {progressMode === "pay_months" ? " (opcional)" : ""}
                 </span>
                 <input
                   className={INPUT_CLASS}
