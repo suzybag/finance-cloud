@@ -36,6 +36,12 @@ WHATSAPP_ACCESS_TOKEN=
 WHATSAPP_PHONE_NUMBER_ID=
 # Avatar (upload server-side):
 SUPABASE_SERVICE_ROLE_KEY=
+CRON_SECRET=
+# Email alerts (use one provider or both):
+EMAIL_PROVIDER=resend
+ALERT_EMAIL_FROM=Finance Cloud <alerts@seu-dominio.com>
+RESEND_API_KEY=
+BREVO_API_KEY=
 ```
 
 ## 3) Rodar local
@@ -56,9 +62,10 @@ Acesse `http://localhost:3000`.
 - `POST /api/ai/categorize` -> sugestao de categoria por descricao
 - `GET/POST /api/whatsapp/webhook` -> webhook para mensagens
 - `POST /api/whatsapp/send` -> stub para envio
+- `GET/POST /api/alerts-smart/run` -> rotina cron de alertas inteligentes por email
 
 ## Observacoes
-- Alertas sao gerados ao entrar no dashboard (futuro: job/cron).
+- Alertas inteligentes por email usam cron na Vercel (`/api/alerts-smart/run`) e cooldown de 1h.
 - Importacao CSV usa dedupe simples (data + descricao + valor + conta + tipo).
 - Compras no cartao sao transacoes com `card_id`.
 - Pagamento de fatura cria transacao `card_payment` na conta bancaria.

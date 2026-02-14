@@ -50,6 +50,34 @@ const getUserFromRequest = async (req: NextRequest) => {
   return { user: data.user, error: null, client };
 };
 
+export async function GET(req: NextRequest) {
+  const { user, error, client } = await getUserFromRequest(req);
+  if (!user || error || !client) {
+    return NextResponse.json({ ok: false, message: error }, { status: 401 });
+  }
+
+  const { data, error: profileError } = await client
+    .from("profiles")
+    .select("display_name, avatar_url, avatar_path")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (profileError) {
+    return NextResponse.json({ ok: false, message: profileError.message }, { status: 500 });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    profile: {
+      id: user.id,
+      email: user.email ?? null,
+      display_name: data?.display_name ?? null,
+      avatar_url: data?.avatar_url ?? null,
+      avatar_path: data?.avatar_path ?? null,
+    },
+  });
+}
+
 export async function PATCH(req: NextRequest) {
   const { user, error, client } = await getUserFromRequest(req);
   if (!user || error || !client) {

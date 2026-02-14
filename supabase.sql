@@ -736,6 +736,115 @@ create trigger trg_financial_planning_set_updated_at
 before update on public.financial_planning
 for each row execute function public.set_financial_planning_updated_at();
 
+create table if not exists public.email_alert_rules (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  user_email text not null,
+  tipo_alerta text not null,
+  ativo text,
+  valor_alvo numeric,
+  percentual numeric,
+  status text,
+  last_triggered_at timestamptz,
+  ativo_boolean boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.email_alert_rules add column if not exists user_id uuid;
+alter table public.email_alert_rules add column if not exists user_email text;
+alter table public.email_alert_rules add column if not exists tipo_alerta text;
+alter table public.email_alert_rules add column if not exists ativo text;
+alter table public.email_alert_rules add column if not exists valor_alvo numeric;
+alter table public.email_alert_rules add column if not exists percentual numeric;
+alter table public.email_alert_rules add column if not exists status text;
+alter table public.email_alert_rules add column if not exists last_triggered_at timestamptz;
+alter table public.email_alert_rules add column if not exists ativo_boolean boolean not null default true;
+alter table public.email_alert_rules add column if not exists created_at timestamptz not null default now();
+alter table public.email_alert_rules add column if not exists updated_at timestamptz not null default now();
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'email_alert_rules_tipo_alerta_check'
+      and conrelid = 'public.email_alert_rules'::regclass
+  ) then
+    alter table public.email_alert_rules
+    add constraint email_alert_rules_tipo_alerta_check
+    check (tipo_alerta in ('cartao', 'investimento', 'dolar'));
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'email_alert_rules_status_check'
+      and conrelid = 'public.email_alert_rules'::regclass
+  ) then
+    alter table public.email_alert_rules
+    add constraint email_alert_rules_status_check
+    check (
+      status in (
+        'vence_3_dias',
+        'queda_percentual',
+        'queda_valor',
+        'negativo_dia',
+        'acima',
+        'abaixo'
+      )
+      or status is null
+    );
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'email_alert_rules_percentual_non_negative'
+      and conrelid = 'public.email_alert_rules'::regclass
+  ) then
+    alter table public.email_alert_rules
+    add constraint email_alert_rules_percentual_non_negative
+    check (percentual is null or percentual >= 0);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'email_alert_rules_valor_alvo_non_negative'
+      and conrelid = 'public.email_alert_rules'::regclass
+  ) then
+    alter table public.email_alert_rules
+    add constraint email_alert_rules_valor_alvo_non_negative
+    check (valor_alvo is null or valor_alvo >= 0);
+  end if;
+end
+$$;
+
+update public.email_alert_rules
+set status = case
+  when tipo_alerta = 'cartao' then coalesce(status, 'vence_3_dias')
+  when tipo_alerta = 'investimento' then coalesce(status, 'queda_percentual')
+  when tipo_alerta = 'dolar' then coalesce(status, 'acima')
+  else coalesce(status, 'queda_percentual')
+end
+where status is null;
+
+create or replace function public.set_email_alert_rules_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end
+$$;
+
+drop trigger if exists trg_email_alert_rules_set_updated_at on public.email_alert_rules;
+create trigger trg_email_alert_rules_set_updated_at
+before update on public.email_alert_rules
+for each row execute function public.set_email_alert_rules_updated_at();
+
 alter table public.transactions add column if not exists transaction_type text;
 
 update public.transactions
@@ -820,6 +929,7 @@ alter table public.assets enable row level security;
 alter table public.investments enable row level security;
 alter table public.transactions enable row level security;
 alter table public.financial_planning enable row level security;
+alter table public.email_alert_rules enable row level security;
 alter table public.alerts enable row level security;
 alter table public.whatsapp_messages enable row level security;
 
@@ -944,6 +1054,17 @@ begin
 
   if not exists (
     select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'email_alert_rules' and policyname = 'email_alert_rules_crud_own'
+  ) then
+    create policy email_alert_rules_crud_own
+    on public.email_alert_rules
+    for all
+    using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
     where schemaname = 'public' and tablename = 'alerts' and policyname = 'alerts_crud_own'
   ) then
     create policy alerts_crud_own
@@ -978,6 +1099,8 @@ create index if not exists idx_investments_asset_id on public.investments(asset_
 create index if not exists idx_tx_user_date on public.transactions(user_id, occurred_at desc);
 create index if not exists idx_financial_planning_user_created on public.financial_planning(user_id, created_at desc);
 create index if not exists idx_financial_planning_user_completed on public.financial_planning(user_id, is_completed, created_at desc);
+create index if not exists idx_email_alert_rules_user_active on public.email_alert_rules(user_id, ativo_boolean, tipo_alerta);
+create index if not exists idx_email_alert_rules_last_triggered on public.email_alert_rules(last_triggered_at);
 create index if not exists idx_alerts_user_date on public.alerts(user_id, created_at desc);
 create index if not exists idx_whatsapp_user_date on public.whatsapp_messages(user_id, created_at desc);
 

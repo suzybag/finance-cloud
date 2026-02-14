@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabaseClient";
 import {
   ArrowLeftRight,
   BarChart3,
+  BellRing,
   Bot,
   CalendarCheck2,
   CreditCard,
@@ -27,6 +28,7 @@ const navItems = [
   { href: "/cards", label: "Cartoes", icon: CreditCard },
   { href: "/investments", label: "Investimentos", icon: TrendingUp },
   { href: "/planning", label: "Planejamento", icon: CalendarCheck2 },
+  { href: "/alerts", label: "Alertas Inteligentes", icon: BellRing },
   { href: "/transactions", label: "Transacoes", icon: ArrowLeftRight },
   { href: "/gastos", label: "Gastos", icon: Receipt },
   { href: "/ai", label: "Assistente IA", icon: Bot },
