@@ -1065,7 +1065,7 @@ export default function CardsPage() {
                       </div>
                     </div>
 
-                    <div className="mt-4">
+                    <div className="mt-4 pointer-events-none">
                       {isPicPay ? (
                         <PicPayCardVisual />
                       ) : isStyledBank ? (
@@ -1115,18 +1115,18 @@ export default function CardsPage() {
                       </div>
                     </div>
 
-                    <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+                    <div className="relative z-20 mt-4 flex flex-wrap items-center justify-between gap-2">
                       <Link
-                        className="rounded-xl border border-white/10 bg-slate-900/50 px-4 py-2 text-xs font-semibold hover:bg-slate-900/70"
+                        className="relative z-20 rounded-xl border border-white/10 bg-slate-900/50 px-4 py-2 text-xs font-semibold hover:bg-slate-900/70"
                         href={`/cards/${card.id}/invoice`}
                       >
                         Ver detalhes da fatura
                       </Link>
-                      <div className="flex gap-2">
+                      <div className="relative z-20 flex gap-2">
                         {!hasBankLogo ? (
                           <button
                             type="button"
-                            className="rounded-xl border border-white/10 bg-slate-900/50 px-3 py-2 text-xs font-semibold hover:bg-slate-900/70"
+                            className="relative z-20 rounded-xl border border-white/10 bg-slate-900/50 px-3 py-2 text-xs font-semibold hover:bg-slate-900/70"
                             onClick={() => handleSetBank(card)}
                           >
                             Definir banco
@@ -1134,7 +1134,7 @@ export default function CardsPage() {
                         ) : null}
                         <button
                           type="button"
-                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-slate-900/50 hover:bg-slate-900/70"
+                          className="relative z-20 flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-slate-900/50 hover:bg-slate-900/70"
                           onClick={() => handleEdit(card)}
                           disabled={busyCardId === card.id}
                           aria-label="Editar cartao"
@@ -1143,7 +1143,7 @@ export default function CardsPage() {
                         </button>
                         <button
                           type="button"
-                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-slate-900/50 hover:bg-slate-900/70"
+                          className="relative z-20 flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-slate-900/50 hover:bg-slate-900/70"
                           onClick={() => handleArchive(card)}
                           disabled={busyCardId === card.id}
                           aria-label="Arquivar cartao"
@@ -1152,7 +1152,7 @@ export default function CardsPage() {
                         </button>
                         <button
                           type="button"
-                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-rose-400/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 disabled:opacity-60"
+                          className="relative z-20 flex h-9 w-9 items-center justify-center rounded-xl border border-rose-400/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 disabled:opacity-60"
                           onClick={() => handleDelete(card)}
                           disabled={busyCardId === card.id}
                           aria-label="Excluir cartao"
