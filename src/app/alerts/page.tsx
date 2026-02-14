@@ -3,16 +3,21 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Bell,
   BellRing,
+  BrainCircuit,
   Loader2,
   Pencil,
+  Play,
   Plus,
   RefreshCcw,
+  Save,
   Trash2,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { brl, toNumber } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
+import { useAutomationCenter } from "@/ui/dashboard/useAutomationCenter";
 
 type RuleType = "cartao" | "investimento" | "dolar";
 type RuleStatus =
@@ -97,6 +102,26 @@ const formatDateTime = (value?: string | null) => {
   return parsed.toLocaleString("pt-BR");
 };
 
+const formatAutomationDateTime = (value?: string | null) => {
+  if (!value) return "Nunca";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "Nunca";
+  return parsed.toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const severityClass = (severity: "info" | "warning" | "critical" | "success") => {
+  if (severity === "critical") return "border-rose-400/35 bg-rose-500/15 text-rose-100";
+  if (severity === "warning") return "border-amber-400/35 bg-amber-500/15 text-amber-100";
+  if (severity === "success") return "border-emerald-400/35 bg-emerald-500/15 text-emerald-100";
+  return "border-cyan-400/35 bg-cyan-500/15 text-cyan-100";
+};
+
 const defaultStatusForType = (type: RuleType): RuleStatus => {
   if (type === "cartao") return "vence_3_dias";
   if (type === "investimento") return "queda_percentual";
@@ -146,22 +171,56 @@ const formFromRule = (rule: EmailAlertRule): RuleFormState => ({
 export default function AlertsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const [ruleFeedback, setRuleFeedback] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>("");
   const [rules, setRules] = useState<EmailAlertRule[]>([]);
   const [form, setForm] = useState<RuleFormState>(emptyForm);
   const [editingRule, setEditingRule] = useState<EmailAlertRule | null>(null);
   const [editForm, setEditForm] = useState<RuleFormState>(emptyForm);
+  const {
+    settings,
+    settingsLoading,
+    settingsSaving,
+    runningAutomation,
+    lastRunAt,
+    lastStatus,
+    lastError,
+    insights,
+    insightPeriod,
+    insightsLoading,
+    pushSupported,
+    pushConfigured,
+    pushPermission,
+    pushSubscribed,
+    pushBusy,
+    feedback: automationFeedback,
+    setFeedback: setAutomationFeedback,
+    setBooleanSetting,
+    setCardDueDays,
+    setInvestmentDropPct,
+    setSpendingSpikePct,
+    setDollarUpperFromInput,
+    setDollarLowerFromInput,
+    dollarUpperInput,
+    dollarLowerInput,
+    enablePush,
+    disablePush,
+    sendPushTest,
+    saveSettings,
+    runNow,
+    refreshInsights,
+    refreshAll: refreshAutomationCenter,
+  } = useAutomationCenter();
 
   const loadRules = useCallback(async () => {
     setLoading(true);
-    setFeedback(null);
+    setRuleFeedback(null);
 
     const { data: userData, error: userError } = await supabase.auth.getUser();
     const user = userData.user;
     if (userError || !user) {
-      setFeedback("Sessao nao encontrada. Faca login novamente.");
+      setRuleFeedback("Sessao nao encontrada. Faca login novamente.");
       setLoading(false);
       return;
     }
@@ -177,7 +236,7 @@ export default function AlertsPage() {
 
     if (error) {
       setLoading(false);
-      setFeedback(
+      setRuleFeedback(
         isMissingTableError(error.message)
           ? "Tabela email_alert_rules nao encontrada. Rode o supabase.sql atualizado."
           : `Falha ao carregar alertas: ${error.message}`,
@@ -247,19 +306,19 @@ export default function AlertsPage() {
 
   const handleCreateRule = async () => {
     if (!userId || !userEmail) {
-      setFeedback("Email do usuario nao encontrado.");
+      setRuleFeedback("Email do usuario nao encontrado.");
       return;
     }
 
     const payload = createPayloadFromForm(form);
     const validationError = validatePayload(payload);
     if (validationError) {
-      setFeedback(validationError);
+      setRuleFeedback(validationError);
       return;
     }
 
     setSaving(true);
-    setFeedback(null);
+    setRuleFeedback(null);
     const { error } = await supabase.from("email_alert_rules").insert({
       user_id: userId,
       user_email: userEmail,
@@ -268,12 +327,12 @@ export default function AlertsPage() {
     setSaving(false);
 
     if (error) {
-      setFeedback(`Nao foi possivel criar alerta: ${error.message}`);
+      setRuleFeedback(`Nao foi possivel criar alerta: ${error.message}`);
       return;
     }
 
     setForm(emptyForm());
-    setFeedback("Alerta criado com sucesso.");
+    setRuleFeedback("Alerta criado com sucesso.");
     await loadRules();
   };
 
@@ -293,12 +352,12 @@ export default function AlertsPage() {
     const payload = createPayloadFromForm(editForm);
     const validationError = validatePayload(payload);
     if (validationError) {
-      setFeedback(validationError);
+      setRuleFeedback(validationError);
       return;
     }
 
     setSaving(true);
-    setFeedback(null);
+    setRuleFeedback(null);
     const { error } = await supabase
       .from("email_alert_rules")
       .update(payload)
@@ -307,19 +366,19 @@ export default function AlertsPage() {
     setSaving(false);
 
     if (error) {
-      setFeedback(`Nao foi possivel editar alerta: ${error.message}`);
+      setRuleFeedback(`Nao foi possivel editar alerta: ${error.message}`);
       return;
     }
 
     closeEdit();
-    setFeedback("Alerta atualizado.");
+    setRuleFeedback("Alerta atualizado.");
     await loadRules();
   };
 
   const handleToggleActive = async (rule: EmailAlertRule) => {
     if (!userId) return;
     setSaving(true);
-    setFeedback(null);
+    setRuleFeedback(null);
     const { error } = await supabase
       .from("email_alert_rules")
       .update({ ativo_boolean: !rule.ativo_boolean })
@@ -328,11 +387,11 @@ export default function AlertsPage() {
     setSaving(false);
 
     if (error) {
-      setFeedback(`Nao foi possivel alterar status: ${error.message}`);
+      setRuleFeedback(`Nao foi possivel alterar status: ${error.message}`);
       return;
     }
 
-    setFeedback(rule.ativo_boolean ? "Alerta desativado." : "Alerta ativado.");
+    setRuleFeedback(rule.ativo_boolean ? "Alerta desativado." : "Alerta ativado.");
     await loadRules();
   };
 
@@ -342,7 +401,7 @@ export default function AlertsPage() {
     if (!confirmed) return;
 
     setSaving(true);
-    setFeedback(null);
+    setRuleFeedback(null);
     const { error } = await supabase
       .from("email_alert_rules")
       .delete()
@@ -351,11 +410,11 @@ export default function AlertsPage() {
     setSaving(false);
 
     if (error) {
-      setFeedback(`Nao foi possivel excluir alerta: ${error.message}`);
+      setRuleFeedback(`Nao foi possivel excluir alerta: ${error.message}`);
       return;
     }
 
-    setFeedback("Alerta excluido.");
+    setRuleFeedback("Alerta excluido.");
     await loadRules();
   };
 
@@ -465,7 +524,10 @@ export default function AlertsPage() {
     <button
       type="button"
       className="inline-flex items-center gap-2 rounded-xl border border-violet-300/30 bg-violet-500/20 px-3 py-2 text-xs font-semibold text-violet-100 transition hover:bg-violet-500/30"
-      onClick={() => void loadRules()}
+      onClick={() => {
+        void loadRules();
+        void refreshAutomationCenter();
+      }}
     >
       <RefreshCcw className="h-3.5 w-3.5" />
       Atualizar
@@ -483,11 +545,313 @@ export default function AlertsPage() {
         <div className={`${CARD_CLASS} text-slate-200`}>Carregando alertas...</div>
       ) : (
         <div className="space-y-6">
-          {feedback ? (
+          {ruleFeedback ? (
             <div className="rounded-xl border border-violet-300/30 bg-violet-950/35 px-4 py-3 text-sm text-violet-100">
-              {feedback}
+              {ruleFeedback}
             </div>
           ) : null}
+
+          {automationFeedback ? (
+            <div
+              className={`rounded-xl px-4 py-3 text-sm ${
+                automationFeedback.kind === "error"
+                  ? "border border-rose-400/40 bg-rose-500/15 text-rose-100"
+                  : automationFeedback.kind === "success"
+                    ? "border border-emerald-400/40 bg-emerald-500/15 text-emerald-100"
+                    : "border border-cyan-400/40 bg-cyan-500/15 text-cyan-100"
+              }`}
+            >
+              {automationFeedback.message}
+            </div>
+          ) : null}
+
+          <section className="grid gap-4 xl:grid-cols-2">
+            <article className={`${CARD_CLASS} rounded-3xl`}>
+              <div className="flex items-center justify-between">
+                <h2 className="inline-flex items-center gap-2 text-lg font-bold text-white">
+                  <Bell className="h-5 w-5 text-violet-300" />
+                  Notificacoes Push
+                </h2>
+                <button
+                  type="button"
+                  className="rounded-lg border border-white/15 bg-black/30 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-black/45"
+                  onClick={() => void refreshAutomationCenter()}
+                >
+                  Atualizar
+                </button>
+              </div>
+
+              <div className="mt-3 space-y-2 text-sm text-slate-300">
+                <p>
+                  Suporte navegador:{" "}
+                  <span className={pushSupported ? "text-emerald-300" : "text-rose-300"}>
+                    {pushSupported ? "Disponivel" : "Nao suportado"}
+                  </span>
+                </p>
+                <p>
+                  VAPID no servidor:{" "}
+                  <span className={pushConfigured ? "text-emerald-300" : "text-amber-300"}>
+                    {pushConfigured ? "Configurado" : "Pendente"}
+                  </span>
+                </p>
+                <p>
+                  Permissao:{" "}
+                  <span className="text-slate-100">{pushPermission}</span>
+                </p>
+                <p>
+                  Subscription:{" "}
+                  <span className={pushSubscribed ? "text-emerald-300" : "text-slate-300"}>
+                    {pushSubscribed ? "Ativa" : "Inativa"}
+                  </span>
+                </p>
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                {pushSubscribed ? (
+                  <button
+                    type="button"
+                    className="rounded-xl border border-rose-400/30 bg-rose-500/15 px-3 py-2 text-xs font-semibold text-rose-100 transition hover:bg-rose-500/25 disabled:opacity-60"
+                    onClick={() => void disablePush()}
+                    disabled={pushBusy}
+                  >
+                    {pushBusy ? "Desativando..." : "Desativar push"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="rounded-xl border border-violet-400/30 bg-violet-500/20 px-3 py-2 text-xs font-semibold text-violet-100 transition hover:bg-violet-500/30 disabled:opacity-60"
+                    onClick={() => void enablePush()}
+                    disabled={pushBusy || !pushSupported || !pushConfigured}
+                  >
+                    {pushBusy ? "Ativando..." : "Ativar push"}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="rounded-xl border border-cyan-400/30 bg-cyan-500/15 px-3 py-2 text-xs font-semibold text-cyan-100 transition hover:bg-cyan-500/25 disabled:opacity-60"
+                  onClick={() => void sendPushTest()}
+                  disabled={pushBusy || !pushSubscribed}
+                >
+                  Testar push
+                </button>
+              </div>
+            </article>
+
+            <article className={`${CARD_CLASS} rounded-3xl`}>
+              <div className="flex items-center justify-between">
+                <h2 className="inline-flex items-center gap-2 text-lg font-bold text-white">
+                  <BrainCircuit className="h-5 w-5 text-fuchsia-300" />
+                  Insights IA de gastos
+                </h2>
+                <button
+                  type="button"
+                  className="rounded-lg border border-white/15 bg-black/30 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-black/45"
+                  onClick={() => void refreshInsights()}
+                >
+                  Atualizar
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-slate-400">
+                Periodo: {insightPeriod || "sem dados"}
+              </p>
+
+              <div className="mt-3 space-y-2">
+                {insightsLoading ? (
+                  <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-3 text-sm text-slate-300">
+                    Carregando insights...
+                  </div>
+                ) : insights.length ? (
+                  insights.slice(0, 6).map((item) => (
+                    <div
+                      key={item.id}
+                      className={`rounded-xl border px-3 py-2 ${severityClass(item.severity)}`}
+                    >
+                      <p className="text-xs uppercase tracking-[0.12em] opacity-85">{item.title}</p>
+                      <p className="mt-1 text-sm">{item.body}</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-3 text-sm text-slate-300">
+                    Nenhum insight disponivel. Execute a automacao para gerar analise.
+                  </div>
+                )}
+              </div>
+            </article>
+          </section>
+
+          <section className={`${CARD_CLASS} rounded-3xl`}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-white">Automacao Finance Cloud</h2>
+                <p className="text-xs text-slate-400">
+                  Regras para alertas automaticos por push, email e notificacao interna.
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Ultima execucao: {formatAutomationDateTime(lastRunAt)} | Status: {lastStatus || "n/a"}
+                </p>
+                {lastError ? (
+                  <p className="mt-1 text-xs text-rose-300">Erro: {lastError}</p>
+                ) : null}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-500/15 px-3 py-2 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-500/25 disabled:opacity-60"
+                  onClick={() => {
+                    setAutomationFeedback(null);
+                    void runNow();
+                  }}
+                  disabled={runningAutomation || settingsLoading}
+                >
+                  <Play className="h-3.5 w-3.5" />
+                  {runningAutomation ? "Executando..." : "Executar agora"}
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 rounded-xl border border-violet-400/30 bg-violet-500/20 px-3 py-2 text-xs font-semibold text-violet-100 transition hover:bg-violet-500/30 disabled:opacity-60"
+                  onClick={() => {
+                    setAutomationFeedback(null);
+                    void saveSettings();
+                  }}
+                  disabled={settingsSaving || settingsLoading}
+                >
+                  <Save className="h-3.5 w-3.5" />
+                  {settingsSaving ? "Salvando..." : "Salvar automacoes"}
+                </button>
+              </div>
+            </div>
+
+            {settingsLoading ? (
+              <div className="mt-4 rounded-xl border border-white/10 bg-black/25 px-3 py-3 text-sm text-slate-300">
+                Carregando configuracoes...
+              </div>
+            ) : (
+              <>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <label className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-sm text-slate-100">
+                    <input
+                      type="checkbox"
+                      checked={settings.enabled}
+                      onChange={(event) => setBooleanSetting("enabled", event.target.checked)}
+                    />
+                    Automacao ativa
+                  </label>
+                  <label className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-sm text-slate-100">
+                    <input
+                      type="checkbox"
+                      checked={settings.push_enabled}
+                      onChange={(event) => setBooleanSetting("push_enabled", event.target.checked)}
+                    />
+                    Push ativo
+                  </label>
+                  <label className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-sm text-slate-100">
+                    <input
+                      type="checkbox"
+                      checked={settings.email_enabled}
+                      onChange={(event) => setBooleanSetting("email_enabled", event.target.checked)}
+                    />
+                    Email ativo
+                  </label>
+                  <label className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-sm text-slate-100">
+                    <input
+                      type="checkbox"
+                      checked={settings.internal_enabled}
+                      onChange={(event) => setBooleanSetting("internal_enabled", event.target.checked)}
+                    />
+                    Notificacao interna
+                  </label>
+                  <label className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-sm text-slate-100">
+                    <input
+                      type="checkbox"
+                      checked={settings.monthly_report_enabled}
+                      onChange={(event) => setBooleanSetting("monthly_report_enabled", event.target.checked)}
+                    />
+                    Relatorio mensal
+                  </label>
+                  <label className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-sm text-slate-100">
+                    <input
+                      type="checkbox"
+                      checked={settings.market_refresh_enabled}
+                      onChange={(event) => setBooleanSetting("market_refresh_enabled", event.target.checked)}
+                    />
+                    Atualizacao mercado
+                  </label>
+                </div>
+
+                <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                  <label className="rounded-xl border border-white/10 bg-black/25 px-3 py-2">
+                    <span className="text-[11px] uppercase tracking-[0.12em] text-slate-400">
+                      Cartao (dias)
+                    </span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={10}
+                      className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/60 px-2 py-1.5 text-sm text-slate-100"
+                      value={settings.card_due_days}
+                      onChange={(event) => setCardDueDays(Number(event.target.value))}
+                    />
+                  </label>
+
+                  <label className="rounded-xl border border-white/10 bg-black/25 px-3 py-2">
+                    <span className="text-[11px] uppercase tracking-[0.12em] text-slate-400">
+                      Queda investimento (%)
+                    </span>
+                    <input
+                      type="number"
+                      min={0.5}
+                      step={0.1}
+                      className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/60 px-2 py-1.5 text-sm text-slate-100"
+                      value={settings.investment_drop_pct}
+                      onChange={(event) => setInvestmentDropPct(Number(event.target.value))}
+                    />
+                  </label>
+
+                  <label className="rounded-xl border border-white/10 bg-black/25 px-3 py-2">
+                    <span className="text-[11px] uppercase tracking-[0.12em] text-slate-400">
+                      Pico gastos (%)
+                    </span>
+                    <input
+                      type="number"
+                      min={5}
+                      step={1}
+                      className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/60 px-2 py-1.5 text-sm text-slate-100"
+                      value={settings.spending_spike_pct}
+                      onChange={(event) => setSpendingSpikePct(Number(event.target.value))}
+                    />
+                  </label>
+
+                  <label className="rounded-xl border border-white/10 bg-black/25 px-3 py-2">
+                    <span className="text-[11px] uppercase tracking-[0.12em] text-slate-400">
+                      Dolar maximo (R$)
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="ex: 5,60"
+                      className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/60 px-2 py-1.5 text-sm text-slate-100"
+                      value={dollarUpperInput}
+                      onChange={(event) => setDollarUpperFromInput(event.target.value)}
+                    />
+                  </label>
+
+                  <label className="rounded-xl border border-white/10 bg-black/25 px-3 py-2">
+                    <span className="text-[11px] uppercase tracking-[0.12em] text-slate-400">
+                      Dolar minimo (R$)
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="ex: 4,90"
+                      className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/60 px-2 py-1.5 text-sm text-slate-100"
+                      value={dollarLowerInput}
+                      onChange={(event) => setDollarLowerFromInput(event.target.value)}
+                    />
+                  </label>
+                </div>
+              </>
+            )}
+          </section>
 
           <section className={`${CARD_CLASS} rounded-3xl`}>
             <div className="mb-4 flex items-center justify-between gap-3">

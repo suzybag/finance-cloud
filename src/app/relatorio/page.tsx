@@ -560,7 +560,7 @@ export default function RelatorioPage() {
                 <section className="rounded-2xl border border-white/10 bg-slate-950/45 p-4">
                   <div className="flex items-center justify-between gap-2">
                     <div>
-                      <h2 className="text-lg font-extrabold text-slate-100">Historico de envios</h2>
+                      <h2 className="text-lg font-extrabold text-slate-100">Historico de relatorios enviados</h2>
                       <p className="text-xs text-slate-400">Ultimos relatorios mensais gerados/enviados.</p>
                     </div>
                     <button

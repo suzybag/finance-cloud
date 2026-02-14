@@ -721,6 +721,15 @@ begin
 end
 $$;
 
+do $$
+begin
+  alter type public.alert_type add value if not exists 'investment_drop';
+  alter type public.alert_type add value if not exists 'dollar_threshold';
+  alter type public.alert_type add value if not exists 'spending_spike';
+  alter type public.alert_type add value if not exists 'forecast_warning';
+end
+$$;
+
 create or replace function public.set_financial_planning_updated_at()
 returns trigger
 language plpgsql
@@ -899,6 +908,269 @@ create trigger trg_monthly_report_deliveries_set_updated_at
 before update on public.monthly_report_deliveries
 for each row execute function public.set_monthly_report_deliveries_updated_at();
 
+create table if not exists public.subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  endpoint text not null,
+  p256dh text not null,
+  auth text not null,
+  user_agent text,
+  active boolean not null default true,
+  last_success_at timestamptz,
+  last_failure_at timestamptz,
+  failure_reason text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (endpoint)
+);
+
+alter table public.subscriptions add column if not exists user_id uuid;
+alter table public.subscriptions add column if not exists endpoint text;
+alter table public.subscriptions add column if not exists p256dh text;
+alter table public.subscriptions add column if not exists auth text;
+alter table public.subscriptions add column if not exists user_agent text;
+alter table public.subscriptions add column if not exists active boolean not null default true;
+alter table public.subscriptions add column if not exists last_success_at timestamptz;
+alter table public.subscriptions add column if not exists last_failure_at timestamptz;
+alter table public.subscriptions add column if not exists failure_reason text;
+alter table public.subscriptions add column if not exists created_at timestamptz not null default now();
+alter table public.subscriptions add column if not exists updated_at timestamptz not null default now();
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'subscriptions_endpoint_unique'
+      and conrelid = 'public.subscriptions'::regclass
+  ) then
+    alter table public.subscriptions
+    add constraint subscriptions_endpoint_unique unique (endpoint);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'subscriptions_user_id_fkey'
+      and conrelid = 'public.subscriptions'::regclass
+  ) then
+    alter table public.subscriptions
+    add constraint subscriptions_user_id_fkey
+    foreign key (user_id) references auth.users(id) on delete cascade;
+  end if;
+end
+$$;
+
+update public.subscriptions
+set active = true
+where active is null;
+
+create or replace function public.set_subscriptions_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end
+$$;
+
+drop trigger if exists trg_subscriptions_set_updated_at on public.subscriptions;
+create trigger trg_subscriptions_set_updated_at
+before update on public.subscriptions
+for each row execute function public.set_subscriptions_updated_at();
+
+create table if not exists public.insights (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  period text not null,
+  insight_type text not null,
+  title text not null,
+  body text not null,
+  severity text not null default 'info',
+  source text not null default 'automation',
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.insights add column if not exists user_id uuid;
+alter table public.insights add column if not exists period text;
+alter table public.insights add column if not exists insight_type text;
+alter table public.insights add column if not exists title text;
+alter table public.insights add column if not exists body text;
+alter table public.insights add column if not exists severity text not null default 'info';
+alter table public.insights add column if not exists source text not null default 'automation';
+alter table public.insights add column if not exists metadata jsonb not null default '{}'::jsonb;
+alter table public.insights add column if not exists created_at timestamptz not null default now();
+alter table public.insights add column if not exists updated_at timestamptz not null default now();
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'insights_user_id_fkey'
+      and conrelid = 'public.insights'::regclass
+  ) then
+    alter table public.insights
+    add constraint insights_user_id_fkey
+    foreign key (user_id) references auth.users(id) on delete cascade;
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'insights_severity_check'
+      and conrelid = 'public.insights'::regclass
+  ) then
+    alter table public.insights
+    add constraint insights_severity_check
+    check (severity in ('info', 'warning', 'critical', 'success'));
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'insights_source_check'
+      and conrelid = 'public.insights'::regclass
+  ) then
+    alter table public.insights
+    add constraint insights_source_check
+    check (source in ('automation', 'ai', 'manual'));
+  end if;
+end
+$$;
+
+create or replace function public.set_insights_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end
+$$;
+
+drop trigger if exists trg_insights_set_updated_at on public.insights;
+create trigger trg_insights_set_updated_at
+before update on public.insights
+for each row execute function public.set_insights_updated_at();
+
+create table if not exists public.automations (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade unique,
+  enabled boolean not null default true,
+  push_enabled boolean not null default true,
+  email_enabled boolean not null default true,
+  internal_enabled boolean not null default true,
+  card_due_days int not null default 3,
+  dollar_upper numeric,
+  dollar_lower numeric,
+  investment_drop_pct numeric not null default 2,
+  spending_spike_pct numeric not null default 20,
+  monthly_report_enabled boolean not null default true,
+  market_refresh_enabled boolean not null default true,
+  last_run_at timestamptz,
+  last_status text,
+  last_error text,
+  config jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.automations add column if not exists user_id uuid;
+alter table public.automations add column if not exists enabled boolean not null default true;
+alter table public.automations add column if not exists push_enabled boolean not null default true;
+alter table public.automations add column if not exists email_enabled boolean not null default true;
+alter table public.automations add column if not exists internal_enabled boolean not null default true;
+alter table public.automations add column if not exists card_due_days int not null default 3;
+alter table public.automations add column if not exists dollar_upper numeric;
+alter table public.automations add column if not exists dollar_lower numeric;
+alter table public.automations add column if not exists investment_drop_pct numeric not null default 2;
+alter table public.automations add column if not exists spending_spike_pct numeric not null default 20;
+alter table public.automations add column if not exists monthly_report_enabled boolean not null default true;
+alter table public.automations add column if not exists market_refresh_enabled boolean not null default true;
+alter table public.automations add column if not exists last_run_at timestamptz;
+alter table public.automations add column if not exists last_status text;
+alter table public.automations add column if not exists last_error text;
+alter table public.automations add column if not exists config jsonb not null default '{}'::jsonb;
+alter table public.automations add column if not exists created_at timestamptz not null default now();
+alter table public.automations add column if not exists updated_at timestamptz not null default now();
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'automations_user_id_fkey'
+      and conrelid = 'public.automations'::regclass
+  ) then
+    alter table public.automations
+    add constraint automations_user_id_fkey
+    foreign key (user_id) references auth.users(id) on delete cascade;
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'automations_user_unique'
+      and conrelid = 'public.automations'::regclass
+  ) then
+    alter table public.automations
+    add constraint automations_user_unique unique (user_id);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'automations_card_due_days_check'
+      and conrelid = 'public.automations'::regclass
+  ) then
+    alter table public.automations
+    add constraint automations_card_due_days_check
+    check (card_due_days between 1 and 15);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'automations_investment_drop_pct_check'
+      and conrelid = 'public.automations'::regclass
+  ) then
+    alter table public.automations
+    add constraint automations_investment_drop_pct_check
+    check (investment_drop_pct >= 0);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'automations_spending_spike_pct_check'
+      and conrelid = 'public.automations'::regclass
+  ) then
+    alter table public.automations
+    add constraint automations_spending_spike_pct_check
+    check (spending_spike_pct >= 0);
+  end if;
+end
+$$;
+
+create or replace function public.set_automations_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end
+$$;
+
+drop trigger if exists trg_automations_set_updated_at on public.automations;
+create trigger trg_automations_set_updated_at
+before update on public.automations
+for each row execute function public.set_automations_updated_at();
+
 alter table public.transactions add column if not exists transaction_type text;
 
 update public.transactions
@@ -985,6 +1257,9 @@ alter table public.transactions enable row level security;
 alter table public.financial_planning enable row level security;
 alter table public.email_alert_rules enable row level security;
 alter table public.monthly_report_deliveries enable row level security;
+alter table public.subscriptions enable row level security;
+alter table public.insights enable row level security;
+alter table public.automations enable row level security;
 alter table public.alerts enable row level security;
 alter table public.whatsapp_messages enable row level security;
 
@@ -1131,6 +1406,39 @@ begin
 
   if not exists (
     select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'subscriptions' and policyname = 'subscriptions_crud_own'
+  ) then
+    create policy subscriptions_crud_own
+    on public.subscriptions
+    for all
+    using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'insights' and policyname = 'insights_crud_own'
+  ) then
+    create policy insights_crud_own
+    on public.insights
+    for all
+    using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'automations' and policyname = 'automations_crud_own'
+  ) then
+    create policy automations_crud_own
+    on public.automations
+    for all
+    using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
     where schemaname = 'public' and tablename = 'alerts' and policyname = 'alerts_crud_own'
   ) then
     create policy alerts_crud_own
@@ -1168,6 +1476,9 @@ create index if not exists idx_financial_planning_user_completed on public.finan
 create index if not exists idx_email_alert_rules_user_active on public.email_alert_rules(user_id, ativo_boolean, tipo_alerta);
 create index if not exists idx_email_alert_rules_last_triggered on public.email_alert_rules(last_triggered_at);
 create index if not exists idx_monthly_report_deliveries_user_month on public.monthly_report_deliveries(user_id, reference_month desc);
+create index if not exists idx_subscriptions_user_active on public.subscriptions(user_id, active, created_at desc);
+create index if not exists idx_insights_user_period on public.insights(user_id, period desc, created_at desc);
+create index if not exists idx_automations_enabled on public.automations(enabled, updated_at desc);
 create index if not exists idx_alerts_user_date on public.alerts(user_id, created_at desc);
 create index if not exists idx_whatsapp_user_date on public.whatsapp_messages(user_id, created_at desc);
 

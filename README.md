@@ -37,6 +37,10 @@ WHATSAPP_PHONE_NUMBER_ID=
 # Avatar (upload server-side):
 SUPABASE_SERVICE_ROLE_KEY=
 CRON_SECRET=
+# Push notifications (Web Push):
+VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=mailto:alerts@seu-dominio.com
 # Email alerts (use one provider or both):
 EMAIL_PROVIDER=resend
 ALERT_EMAIL_FROM=Finance Cloud <alerts@seu-dominio.com>
@@ -63,6 +67,13 @@ Acesse `http://localhost:3000`.
 - `GET/POST /api/whatsapp/webhook` -> webhook para mensagens
 - `POST /api/whatsapp/send` -> stub para envio
 - `GET/POST /api/alerts-smart/run` -> rotina cron de alertas inteligentes por email
+- `GET /api/push/vapid` -> publica configuracao VAPID para registrar push no navegador
+- `GET/POST/DELETE /api/push/subscribe` -> lista, cria e remove subscription Web Push por usuario
+- `POST /api/push/test` -> envia push de teste para o usuario logado
+- `GET /api/insights/latest?limit=6` -> busca insights mais recentes gerados pela automacao
+- `GET/POST /api/insights/run` -> executa analise automatica de gastos para o usuario logado
+- `GET/POST /api/automations/settings` -> carregar/salvar regras de automacao do usuario
+- `GET/POST /api/automations/run` -> executa automacoes (usuario autenticado ou cron)
 - `GET /api/reports/monthly/summary?month=YYYY-MM` -> resumo mensal de gastos
 - `GET /api/reports/monthly/excel?month=YYYY-MM` -> exporta planilha Excel mensal
 - `GET /api/reports/monthly/history?limit=12` -> historico dos relatorios enviados
@@ -72,6 +83,8 @@ Acesse `http://localhost:3000`.
 ## Observacoes
 - Alertas inteligentes por email usam cron na Vercel (`/api/alerts-smart/run`) e cooldown de 1h.
 - Relatorio mensal automatico roda no cron da Vercel (`/api/reports/monthly/run`) no dia 1.
+- Automacoes gerais rodam no cron da Vercel (`/api/automations/run`) e podem ser executadas manualmente no dashboard.
+- Push no navegador precisa de VAPID keys validas e Service Worker ativo (`public/sw.js`).
 - Importacao CSV usa dedupe simples (data + descricao + valor + conta + tipo).
 - Compras no cartao sao transacoes com `card_id`.
 - Pagamento de fatura cria transacao `card_payment` na conta bancaria.
