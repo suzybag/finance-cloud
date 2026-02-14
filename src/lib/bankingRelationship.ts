@@ -483,8 +483,14 @@ export const computeBankRelationshipSummary = async ({
   };
 };
 
-export const isRelationshipTableMissing = (message?: string | null) =>
-  /relation .*banking_relationship_scores/i.test(message || "");
+export const isRelationshipTableMissing = (message?: string | null) => {
+  const text = (message || "").toLowerCase();
+  if (/relation .*banking_relationship_scores/i.test(text)) return true;
+  if (!text.includes("banking_relationship_scores")) return false;
+  return text.includes("could not find the table")
+    || text.includes("schema cache")
+    || text.includes("does not exist");
+};
 
 export const isRelationshipAlertTypeMissing = (message?: string | null) =>
   /invalid input value for enum alert_type/i.test(message || "");
@@ -609,4 +615,3 @@ export const createRelationshipInternalAlerts = async ({
 
   return { created, skipped, error: null as string | null };
 };
-
