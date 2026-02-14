@@ -11,6 +11,7 @@ import {
   BarChart3,
   BellRing,
   Bot,
+  CalendarClock,
   CalendarCheck2,
   CreditCard,
   FileText,
@@ -34,6 +35,7 @@ const navItems = [
   { href: "/ai", label: "Assistente IA", icon: Bot },
   { href: "/import", label: "Importacao", icon: Upload },
   { href: "/relatorio", label: "Relatorio", icon: BarChart3 },
+  { href: "/agenda", label: "Agenda", icon: CalendarClock },
   { href: "/notes", label: "Notas", icon: FileText },
   { href: "/profile", label: "Configuracoes", icon: Settings },
 ];
