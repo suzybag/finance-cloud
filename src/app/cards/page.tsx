@@ -1,5 +1,4 @@
 "use client";
-/* eslint-disable react-hooks/set-state-in-effect */
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -138,16 +137,31 @@ export default function CardsPage() {
   const [paymentAccount, setPaymentAccount] = useState("");
   const [paymentAmount, setPaymentAmount] = useState("");
 
-  const loadData = async () => {
+  const loadData = async (resolvedUserId?: string | null) => {
     setLoading(true);
+    const effectiveUserId = resolvedUserId || (await ensureUserId());
+    if (!effectiveUserId) {
+      setLoading(false);
+      return;
+    }
+
     const [cardsRes, txRes, accountsRes] = await Promise.all([
-      supabase.from("cards").select("*").order("created_at"),
+      supabase
+        .from("cards")
+        .select("*")
+        .eq("user_id", effectiveUserId)
+        .order("created_at"),
       supabase
         .from("transactions")
         .select("*")
+        .eq("user_id", effectiveUserId)
         .order("occurred_at", { ascending: false })
         .limit(500),
-      supabase.from("accounts").select("*").order("created_at"),
+      supabase
+        .from("accounts")
+        .select("*")
+        .eq("user_id", effectiveUserId)
+        .order("created_at"),
     ]);
 
     if (cardsRes.error || txRes.error || accountsRes.error) {
@@ -163,8 +177,11 @@ export default function CardsPage() {
   };
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
-    loadData();
+    void (async () => {
+      const resolvedUserId = await ensureUserId();
+      await loadData(resolvedUserId);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const resetForm = () => {
@@ -185,6 +202,13 @@ export default function CardsPage() {
 
   const ensureUserId = async () => {
     if (userId) return userId;
+
+    const sessionRes = await supabase.auth.getSession();
+    const fromSession = sessionRes.data.session?.user?.id ?? null;
+    if (fromSession) {
+      setUserId(fromSession);
+      return fromSession;
+    }
 
     const { data, error } = await supabase.auth.getUser();
     if (error) {
@@ -263,22 +287,32 @@ export default function CardsPage() {
         : "Cartao criado com sucesso.",
     );
     resetForm();
-    loadData();
+    await loadData(resolvedUserId);
   };
 
   const handleArchive = async (card: Card) => {
     setFeedback(null);
+    const resolvedUserId = await ensureUserId();
+    if (!resolvedUserId) return;
+
     setBusyCardId(card.id);
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("cards")
       .update({ archived: !card.archived })
-      .eq("id", card.id);
+      .eq("id", card.id)
+      .eq("user_id", resolvedUserId)
+      .select("id")
+      .maybeSingle();
     setBusyCardId(null);
     if (error) {
       setFeedback(`Nao foi possivel alterar arquivo: ${error.message}`);
       return;
     }
-    loadData();
+    if (!data) {
+      setFeedback("Cartao nao encontrado para arquivar.");
+      return;
+    }
+    await loadData(resolvedUserId);
   };
 
   const handleDelete = async (card: Card) => {
@@ -287,13 +321,25 @@ export default function CardsPage() {
       `Excluir o cartao "${card.name}"? Essa acao nao pode ser desfeita.`,
     );
     if (!ok) return;
+    const resolvedUserId = await ensureUserId();
+    if (!resolvedUserId) return;
 
     setBusyCardId(card.id);
-    const { error } = await supabase.from("cards").delete().eq("id", card.id);
+    const { data, error } = await supabase
+      .from("cards")
+      .delete()
+      .eq("id", card.id)
+      .eq("user_id", resolvedUserId)
+      .select("id")
+      .maybeSingle();
     setBusyCardId(null);
 
     if (error) {
       setFeedback(`Nao foi possivel excluir: ${error.message}`);
+      return;
+    }
+    if (!data) {
+      setFeedback("Cartao nao encontrado para exclusao.");
       return;
     }
 
@@ -303,7 +349,7 @@ export default function CardsPage() {
     }
 
     setFeedback("Cartao excluido com sucesso.");
-    loadData();
+    await loadData(resolvedUserId);
   };
 
   const handleEdit = (card: Card) => {
@@ -320,6 +366,9 @@ export default function CardsPage() {
 
   const handleSaveEdit = async () => {
     if (!editId || !name.trim()) return;
+    const resolvedUserId = await ensureUserId();
+    if (!resolvedUserId) return;
+
     setSaving(true);
     setFeedback(null);
 
@@ -347,20 +396,42 @@ export default function CardsPage() {
 
     let usedFallback = !supportsCardStyleFields;
     const saveRes = supportsCardStyleFields
-      ? await supabase.from("cards").update(styledPayload).eq("id", editId)
-      : await supabase.from("cards").update(basePayload).eq("id", editId);
+      ? await supabase
+        .from("cards")
+        .update(styledPayload)
+        .eq("id", editId)
+        .eq("user_id", resolvedUserId)
+        .select("id")
+      : await supabase
+        .from("cards")
+        .update(basePayload)
+        .eq("id", editId)
+        .eq("user_id", resolvedUserId)
+        .select("id");
 
     let error = saveRes.error;
+    let updatedRows = (saveRes.data ?? []).length;
     if (error && supportsCardStyleFields && isMissingCardsStyleColumnError(error.message)) {
       setSupportsCardStyleFields(false);
       usedFallback = true;
-      const retryRes = await supabase.from("cards").update(basePayload).eq("id", editId);
+      const retryRes = await supabase
+        .from("cards")
+        .update(basePayload)
+        .eq("id", editId)
+        .eq("user_id", resolvedUserId)
+        .select("id");
       error = retryRes.error;
+      updatedRows = (retryRes.data ?? []).length;
     }
 
     if (error) {
       setSaving(false);
       setFeedback(`Nao foi possivel salvar: ${error.message}`);
+      return;
+    }
+    if (!updatedRows) {
+      setSaving(false);
+      setFeedback("Cartao nao encontrado para edicao.");
       return;
     }
 
@@ -372,10 +443,13 @@ export default function CardsPage() {
         : "Cartao atualizado com sucesso.",
     );
     resetForm();
-    loadData();
+    await loadData(resolvedUserId);
   };
 
   const handleSetBank = async (card: Card) => {
+    const resolvedUserId = await ensureUserId();
+    if (!resolvedUserId) return;
+
     const current = resolveIssuerLabel(card.issuer, card.name) || "";
     const next = window.prompt(
       `Informe o banco (${BANK_ISSUER_OPTIONS.join(", ")}):`,
@@ -386,17 +460,30 @@ export default function CardsPage() {
     const normalized = resolveIssuerLabel(next, card.name);
     if (!normalized) return;
 
-    const { error } = await supabase.from("cards").update({ issuer: normalized }).eq("id", card.id);
+    const { data, error } = await supabase
+      .from("cards")
+      .update({ issuer: normalized })
+      .eq("id", card.id)
+      .eq("user_id", resolvedUserId)
+      .select("id")
+      .maybeSingle();
     if (error) {
       setFeedback(`Nao foi possivel definir banco: ${error.message}`);
       return;
     }
+    if (!data) {
+      setFeedback("Cartao nao encontrado para definir banco.");
+      return;
+    }
 
-    loadData();
+    await loadData(resolvedUserId);
   };
 
   const handlePayment = async () => {
-    if (!paymentCard || !paymentAccount || !paymentAmount) return;
+    if (!paymentCard || !paymentAccount || !paymentAmount.trim()) {
+      setFeedback("Selecione cartao, conta e valor do pagamento.");
+      return;
+    }
     setFeedback(null);
     const resolvedUserId = await ensureUserId();
     if (!resolvedUserId) return;
@@ -418,7 +505,7 @@ export default function CardsPage() {
 
     setPaymentAmount("");
     setFeedback("Pagamento registrado com sucesso.");
-    loadData();
+    await loadData(resolvedUserId);
   };
 
   const cardSummaries = useMemo(

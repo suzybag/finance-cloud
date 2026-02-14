@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, Building2, Trash2 } from "lucide-react";
+import { BarChart3, Building2, Pencil, Trash2 } from "lucide-react";
 import { MiniChart } from "@/components/investments/MiniChart";
 import {
   calculateInvestmentStatus,
@@ -29,6 +29,8 @@ export type InvestmentCardItem = {
 type InvestmentCardProps = {
   item: InvestmentCardItem;
   deleting: boolean;
+  editing: boolean;
+  onEdit: (id: string) => void;
   onDelete: (id: string) => void;
 };
 
@@ -79,7 +81,7 @@ const resolveFallbackLogo = (item: InvestmentCardItem) => {
   return "/investments/other.svg";
 };
 
-export function InvestmentCard({ item, deleting, onDelete }: InvestmentCardProps) {
+export function InvestmentCard({ item, deleting, editing, onEdit, onDelete }: InvestmentCardProps) {
   const status = calculateInvestmentStatus(item.average_price, item.current_price);
   const { difference, percent } = calculateReturn(item.invested_amount, item.current_amount);
   const positive = difference >= 0;
@@ -115,15 +117,26 @@ export function InvestmentCard({ item, deleting, onDelete }: InvestmentCardProps
           </div>
         </div>
 
-        <button
-          type="button"
-          className="rounded-lg border border-rose-300/35 bg-rose-500/10 p-1.5 text-rose-200 hover:bg-rose-500/20 disabled:opacity-60"
-          onClick={() => onDelete(item.id)}
-          disabled={deleting}
-          aria-label="Excluir investimento"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="rounded-lg border border-violet-300/35 bg-violet-500/10 p-1.5 text-violet-100 hover:bg-violet-500/20 disabled:opacity-60"
+            onClick={() => onEdit(item.id)}
+            disabled={deleting || editing}
+            aria-label="Editar investimento"
+          >
+            <Pencil className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            className="rounded-lg border border-rose-300/35 bg-rose-500/10 p-1.5 text-rose-200 hover:bg-rose-500/20 disabled:opacity-60"
+            onClick={() => onDelete(item.id)}
+            disabled={deleting || editing}
+            aria-label="Excluir investimento"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       <div className="mt-4 grid gap-2 sm:grid-cols-3">

@@ -1,5 +1,4 @@
 "use client";
-/* eslint-disable react-hooks/set-state-in-effect */
 
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
@@ -44,13 +43,50 @@ export default function AccountsPage() {
   const [modalTargetBalance, setModalTargetBalance] = useState("");
   const [modalSaving, setModalSaving] = useState(false);
 
-  const loadData = async () => {
+  const ensureUserId = async () => {
+    if (userId) return userId;
+
+    const sessionRes = await supabase.auth.getSession();
+    const fromSession = sessionRes.data.session?.user?.id ?? null;
+    if (fromSession) {
+      setUserId(fromSession);
+      return fromSession;
+    }
+
+    const { data, error } = await supabase.auth.getUser();
+    if (error) {
+      setFeedback(`Nao foi possivel validar sessao: ${error.message}`);
+      return null;
+    }
+
+    const resolvedUserId = data.user?.id ?? null;
+    setUserId(resolvedUserId);
+    if (!resolvedUserId) {
+      setFeedback("Sessao nao carregada. Entre novamente.");
+      return null;
+    }
+
+    return resolvedUserId;
+  };
+
+  const loadData = async (resolvedUserId?: string | null) => {
     setLoading(true);
+    const effectiveUserId = resolvedUserId || (await ensureUserId());
+    if (!effectiveUserId) {
+      setLoading(false);
+      return;
+    }
+
     const [accountsRes, txRes] = await Promise.all([
-      supabase.from("accounts").select("*").order("created_at"),
+      supabase
+        .from("accounts")
+        .select("*")
+        .eq("user_id", effectiveUserId)
+        .order("created_at"),
       supabase
         .from("transactions")
         .select("*")
+        .eq("user_id", effectiveUserId)
         .order("occurred_at", { ascending: false })
         .limit(800),
     ]);
@@ -71,8 +107,11 @@ export default function AccountsPage() {
   };
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
-    loadData();
+    void (async () => {
+      const resolvedUserId = await ensureUserId();
+      await loadData(resolvedUserId);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const balances = useMemo(
@@ -91,12 +130,19 @@ export default function AccountsPage() {
   );
 
   const handleCreate = async () => {
-    if (!userId || !name) return;
+    if (!name.trim()) {
+      setFeedback("Informe o nome da conta.");
+      return;
+    }
+
+    const resolvedUserId = await ensureUserId();
+    if (!resolvedUserId) return;
+
     setFeedback(null);
     const { error } = await supabase.from("accounts").insert({
-      user_id: userId,
-      name,
-      institution,
+      user_id: resolvedUserId,
+      name: name.trim(),
+      institution: institution.trim() || null,
       opening_balance: toNumber(openingBalance),
       currency: "BRL",
     });
@@ -141,17 +187,28 @@ export default function AccountsPage() {
 
   const handleSaveRename = async () => {
     if (!modalAccount || !modalName.trim()) return;
+    const resolvedUserId = await ensureUserId();
+    if (!resolvedUserId) return;
 
     setModalSaving(true);
     setFeedback(null);
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("accounts")
       .update({ name: modalName.trim(), institution: modalInstitution.trim() || null })
-      .eq("id", modalAccount.id);
+      .eq("id", modalAccount.id)
+      .eq("user_id", resolvedUserId)
+      .select("id")
+      .maybeSingle();
 
     if (error) {
       setModalSaving(false);
       setFeedback(`Nao foi possivel editar a conta: ${error.message}`);
+      return;
+    }
+
+    if (!data) {
+      setModalSaving(false);
+      setFeedback("Conta nao encontrada para edicao.");
       return;
     }
 
@@ -162,16 +219,26 @@ export default function AccountsPage() {
 
   const handleArchive = async (account: Account) => {
     setFeedback(null);
-    const { error } = await supabase
+    const resolvedUserId = await ensureUserId();
+    if (!resolvedUserId) return;
+
+    const { data, error } = await supabase
       .from("accounts")
       .update({ archived: !account.archived })
-      .eq("id", account.id);
+      .eq("id", account.id)
+      .eq("user_id", resolvedUserId)
+      .select("id")
+      .maybeSingle();
     if (error) {
       setFeedback(`Nao foi possivel arquivar a conta: ${error.message}`);
       return;
     }
+    if (!data) {
+      setFeedback("Conta nao encontrada para arquivar.");
+      return;
+    }
     setFeedback(account.archived ? "Conta desarquivada." : "Conta arquivada.");
-    loadData();
+    await loadData(resolvedUserId);
   };
 
   const handleDelete = async (account: Account) => {
@@ -181,20 +248,35 @@ export default function AccountsPage() {
     );
     if (!ok) return;
 
-    const { error } = await supabase.from("accounts").delete().eq("id", account.id);
+    const resolvedUserId = await ensureUserId();
+    if (!resolvedUserId) return;
+
+    const { data, error } = await supabase
+      .from("accounts")
+      .delete()
+      .eq("id", account.id)
+      .eq("user_id", resolvedUserId)
+      .select("id")
+      .maybeSingle();
     if (error) {
       setFeedback(`Nao foi possivel excluir a conta: ${error.message}`);
+      return;
+    }
+    if (!data) {
+      setFeedback("Conta nao encontrada para exclusao.");
       return;
     }
 
     if (transferFrom === account.id) setTransferFrom("");
     if (transferTo === account.id) setTransferTo("");
     setFeedback("Conta excluida com sucesso.");
-    loadData();
+    await loadData(resolvedUserId);
   };
 
   const handleSaveAdjust = async () => {
-    if (!userId || !modalAccount) return;
+    if (!modalAccount) return;
+    const resolvedUserId = await ensureUserId();
+    if (!resolvedUserId) return;
 
     const currentBalance = balances.get(modalAccount.id) ?? 0;
     const target = toNumber(modalTargetBalance);
@@ -214,7 +296,7 @@ export default function AccountsPage() {
     setModalSaving(true);
     setFeedback(null);
     const { error } = await supabase.from("transactions").insert({
-      user_id: userId,
+      user_id: resolvedUserId,
       type: "adjustment",
       description: `Ajuste de saldo - ${modalAccount.name}`,
       category: "Ajuste",
@@ -235,10 +317,21 @@ export default function AccountsPage() {
   };
 
   const handleTransfer = async () => {
-    if (!userId || !transferFrom || !transferTo || transferFrom === transferTo) return;
+    if (!transferFrom || !transferTo || transferFrom === transferTo) {
+      setFeedback("Selecione contas diferentes para transferir.");
+      return;
+    }
+    if (!transferAmount.trim()) {
+      setFeedback("Informe o valor da transferencia.");
+      return;
+    }
+
+    const resolvedUserId = await ensureUserId();
+    if (!resolvedUserId) return;
+
     setFeedback(null);
     const { error } = await supabase.from("transactions").insert({
-      user_id: userId,
+      user_id: resolvedUserId,
       type: "transfer",
       description: "Transferencia entre contas",
       category: "Transferencia",

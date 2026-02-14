@@ -94,6 +94,28 @@ const safeRatio = (numerator: number, denominator: number, fallback = 0) => {
   return numerator / denominator;
 };
 
+const parsePromptQuantity = (value: string) => {
+  const raw = (value || "").trim().replace(/\s/g, "");
+  if (!raw) return Number.NaN;
+
+  const hasComma = raw.includes(",");
+  const hasDot = raw.includes(".");
+
+  let normalized = raw;
+  if (hasComma && hasDot) {
+    const lastComma = raw.lastIndexOf(",");
+    const lastDot = raw.lastIndexOf(".");
+    const decimalSep = lastComma > lastDot ? "," : ".";
+    const thousandSep = decimalSep === "," ? "." : ",";
+    normalized = raw.split(thousandSep).join("").replace(decimalSep, ".");
+  } else if (hasComma) {
+    normalized = raw.replace(/\./g, "").replace(",", ".");
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : Number.NaN;
+};
+
 const isMissingInvestmentsExtendedColumnError = (message?: string | null) =>
   /could not find the '(bank_id|type_id|asset_id|operation|costs|category|asset_name|asset_logo_url|quantity|average_price|current_price|price_history|dividends_received)' column of 'investments' in the schema cache/i
     .test(message ?? "");
@@ -230,6 +252,7 @@ export default function InvestmentsPage() {
   const [showModal, setShowModal] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [investments, setInvestments] = useState<InvestmentRow[]>([]);
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>(() =>
@@ -238,20 +261,41 @@ export default function InvestmentsPage() {
     ),
   );
 
+  const ensureUserId = useCallback(async () => {
+    if (userId) return userId;
+
+    const sessionRes = await supabase.auth.getSession();
+    const fromSession = sessionRes.data.session?.user?.id ?? null;
+    if (fromSession) {
+      setUserId(fromSession);
+      return fromSession;
+    }
+
+    const { data, error } = await supabase.auth.getUser();
+    if (error) {
+      setFeedback(`Sessao nao encontrada: ${error.message}`);
+      return null;
+    }
+
+    const resolvedUserId = data.user?.id ?? null;
+    setUserId(resolvedUserId);
+    if (!resolvedUserId) {
+      setFeedback("Sessao nao encontrada. Entre novamente.");
+      return null;
+    }
+
+    return resolvedUserId;
+  }, [userId]);
+
   const loadInvestments = useCallback(async () => {
     setLoading(true);
     setFeedback(null);
 
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    const resolvedUserId = userData.user?.id ?? null;
-
-    if (userError || !resolvedUserId) {
-      setFeedback("Sessao nao encontrada. Entre novamente.");
+    const resolvedUserId = await ensureUserId();
+    if (!resolvedUserId) {
       setLoading(false);
       return;
     }
-
-    setUserId(resolvedUserId);
 
     const [investmentsRes, banksRes, typesRes, assetsRes] = await Promise.all([
       supabase
@@ -319,7 +363,7 @@ export default function InvestmentsPage() {
           .eq("id", item.id),
       ),
     );
-  }, []);
+  }, [ensureUserId]);
 
   useEffect(() => {
     void loadInvestments();
@@ -329,7 +373,7 @@ export default function InvestmentsPage() {
     setSaving(true);
     setFeedback(null);
 
-    const resolvedUserId = userId || (await supabase.auth.getUser()).data.user?.id || null;
+    const resolvedUserId = await ensureUserId();
     if (!resolvedUserId) {
       setSaving(false);
       setFeedback("Sessao nao carregada. Faca login novamente.");
@@ -407,19 +451,126 @@ export default function InvestmentsPage() {
   const handleDelete = async (investmentId: string) => {
     const confirmed = window.confirm("Excluir este investimento?");
     if (!confirmed) return;
+    const resolvedUserId = await ensureUserId();
+    if (!resolvedUserId) return;
 
     setDeletingId(investmentId);
     setFeedback(null);
 
-    const { error } = await supabase.from("investments").delete().eq("id", investmentId);
+    const { data, error } = await supabase
+      .from("investments")
+      .delete()
+      .eq("id", investmentId)
+      .eq("user_id", resolvedUserId)
+      .select("id")
+      .maybeSingle();
     setDeletingId(null);
 
     if (error) {
       setFeedback(`Nao foi possivel excluir: ${error.message}`);
       return;
     }
+    if (!data) {
+      setFeedback("Investimento nao encontrado para exclusao.");
+      return;
+    }
 
     setFeedback("Investimento excluido.");
+    await loadInvestments();
+  };
+
+  const handleEdit = async (investmentId: string) => {
+    const item = investments.find((investment) => investment.id === investmentId);
+    if (!item) {
+      setFeedback("Investimento nao encontrado para edicao.");
+      return;
+    }
+
+    const resolvedUserId = await ensureUserId();
+    if (!resolvedUserId) return;
+
+    const quantityRaw = window.prompt(
+      "Nova quantidade:",
+      item.quantity.toLocaleString("pt-BR", { maximumFractionDigits: 6 }),
+    );
+    if (quantityRaw === null) return;
+
+    const averagePriceRaw = window.prompt(
+      "Novo preco medio (R$):",
+      item.average_price.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    );
+    if (averagePriceRaw === null) return;
+
+    const currentPriceRaw = window.prompt(
+      "Novo preco atual (R$):",
+      item.current_price.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    );
+    if (currentPriceRaw === null) return;
+
+    const costsRaw = window.prompt(
+      "Custos totais (R$, opcional):",
+      item.costs.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    );
+    if (costsRaw === null) return;
+
+    const quantity = Math.abs(parsePromptQuantity(quantityRaw));
+    const averagePrice = toNumber(averagePriceRaw);
+    const currentPrice = toNumber(currentPriceRaw);
+    const costs = Math.max(0, toNumber(costsRaw));
+
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      setFeedback("Quantidade invalida.");
+      return;
+    }
+    if (!Number.isFinite(averagePrice) || averagePrice <= 0) {
+      setFeedback("Preco medio invalido.");
+      return;
+    }
+    if (!Number.isFinite(currentPrice) || currentPrice <= 0) {
+      setFeedback("Preco atual invalido.");
+      return;
+    }
+
+    const investedAmount = roundCurrency((quantity * averagePrice) + costs);
+    const currentAmount = roundCurrency(quantity * currentPrice);
+    const priceHistory = resolvePriceHistory({
+      history: item.price_history,
+      averagePrice,
+      currentPrice,
+      seedRef: `${item.asset_name}-${item.id}-edit`,
+    });
+
+    setEditingId(item.id);
+    setFeedback(null);
+
+    const { data, error } = await supabase
+      .from("investments")
+      .update({
+        quantity: roundCurrency(quantity),
+        average_price: roundCurrency(averagePrice),
+        current_price: roundCurrency(currentPrice),
+        costs: roundCurrency(costs),
+        invested_amount: investedAmount,
+        current_amount: currentAmount,
+        price_history: priceHistory,
+      })
+      .eq("id", item.id)
+      .eq("user_id", resolvedUserId)
+      .select("id")
+      .maybeSingle();
+
+    setEditingId(null);
+
+    if (error) {
+      setFeedback(`Nao foi possivel editar: ${error.message}`);
+      return;
+    }
+    if (!data) {
+      setFeedback("Investimento nao encontrado para edicao.");
+      return;
+    }
+
+    setFeedback("Investimento atualizado com sucesso.");
     await loadInvestments();
   };
 
@@ -497,7 +648,9 @@ export default function InvestmentsPage() {
                   items={groupedByCategory.get(category) || []}
                   open={openCategories[category] ?? false}
                   deletingId={deletingId}
+                  editingId={editingId}
                   onToggle={() => toggleCategory(category)}
+                  onEdit={(id) => void handleEdit(id)}
                   onDelete={(id) => void handleDelete(id)}
                 />
               ))}

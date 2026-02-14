@@ -9,7 +9,9 @@ type InvestmentCategoryProps = {
   items: InvestmentCardItem[];
   open: boolean;
   deletingId: string | null;
+  editingId: string | null;
   onToggle: () => void;
+  onEdit: (id: string) => void;
   onDelete: (id: string) => void;
 };
 
@@ -18,7 +20,9 @@ export function InvestmentCategory({
   items,
   open,
   deletingId,
+  editingId,
   onToggle,
+  onEdit,
   onDelete,
 }: InvestmentCategoryProps) {
   const categoryTotal = items.reduce(
@@ -56,6 +60,8 @@ export function InvestmentCategory({
                   key={item.id}
                   item={item}
                   deleting={deletingId === item.id}
+                  editing={editingId === item.id}
+                  onEdit={onEdit}
                   onDelete={onDelete}
                 />
               ))}
