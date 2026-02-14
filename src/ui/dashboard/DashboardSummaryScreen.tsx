@@ -238,19 +238,19 @@ export const DashboardSummaryScreen = () => {
                 title="Dolar"
                 value={brl(market.indicators.dollar.price)}
                 variation={market.indicators.dollar.changePct}
-                updatedAt={market.updatedAt}
+                updatedAt={market.indicators.dollar.updatedAt}
               />
               <MarketIndicatorCard
                 title="Ibovespa"
                 value={`${formatPoints(market.indicators.ibovespa.points)} pts`}
                 variation={market.indicators.ibovespa.changePct}
-                updatedAt={market.updatedAt}
+                updatedAt={market.indicators.ibovespa.updatedAt}
               />
               <MarketIndicatorCard
                 title="CDI (Ult. 12m)"
                 value={`${market.indicators.cdi.rate.toFixed(2).replace(".", ",")} %`}
                 variation={market.indicators.cdi.changePct}
-                updatedAt={market.updatedAt}
+                updatedAt={market.indicators.cdi.updatedAt}
               />
             </div>
 
@@ -263,12 +263,20 @@ export const DashboardSummaryScreen = () => {
                         key={coin.id}
                         className="h-10 w-10 rounded-full border-2 border-[#0c1017] bg-[#111722] p-1 shadow-sm"
                       >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={coin.image}
-                          alt={coin.name}
-                          className="h-full w-full rounded-full object-cover"
-                        />
+                        {coin.image ? (
+                          <>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={coin.image}
+                              alt={coin.name}
+                              className="h-full w-full rounded-full object-cover"
+                            />
+                          </>
+                        ) : (
+                          <div className="grid h-full w-full place-items-center rounded-full bg-slate-700 text-[10px] font-bold text-slate-200">
+                            {coin.symbol.slice(0, 3)}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -321,7 +329,7 @@ export const DashboardSummaryScreen = () => {
                           </span>
                         </div>
                         <p className="mt-1 text-sm font-semibold text-slate-200">
-                          {brl(coin.currentPrice)}
+                          {brl(coin.positionValue || coin.currentPrice)}
                         </p>
                         <div className="mt-2 h-8">
                           <CryptoSparkline values={coin.sparkline} positive={positive} />

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+export const runtime = "nodejs";
 
 type AwesomeDollarResponse = {
   USDBRL?: {
@@ -34,20 +35,36 @@ type YahooChartResponse = {
   };
 };
 
+type YahooQuoteResponse = {
+  quoteResponse?: {
+    result?: Array<{
+      regularMarketPrice?: number;
+      regularMarketChangePercent?: number;
+      regularMarketTime?: number;
+      regularMarketPreviousClose?: number;
+    }>;
+  };
+};
+
 type BcbCdiRow = {
   data?: string;
   valor?: string;
 };
 
 type CoinGeckoSimpleResponse = {
-  bitcoin?: {
+  [coinId: string]: {
     brl?: number;
     brl_24h_change?: number;
   };
-  ethereum?: {
-    brl?: number;
-    brl_24h_change?: number;
-  };
+};
+
+type CoinGeckoMarketRow = {
+  id?: string;
+  symbol?: string;
+  name?: string;
+  image?: string;
+  current_price?: number;
+  price_change_percentage_24h?: number;
 };
 
 type CoinCapAssetsResponse = {
@@ -71,10 +88,17 @@ type CryptoItem = {
   symbol: string;
   name: string;
   image: string;
+  quantity: number;
   currentPrice: number;
+  positionValue: number;
   changePct24h: number;
   sparkline: number[];
   updatedAt: string;
+};
+
+type CryptoPosition = {
+  coinId: string;
+  quantity: number;
 };
 
 const NO_STORE_HEADERS = {
@@ -131,6 +155,29 @@ const buildSyntheticSparkline = (price: number, changePct: number) => {
   return [base, base * 1.002, mid * 0.999, mid * 1.001, price];
 };
 
+const normalizeCoinId = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "");
+
+const parseCryptoPositions = (request: Request) => {
+  const url = new URL(request.url);
+  const raw = url.searchParams.get("positions");
+  if (!raw) return [] as CryptoPosition[];
+
+  const grouped = new Map<string, number>();
+  raw.split(",").forEach((item) => {
+    const [coinRaw, quantityRaw] = item.split(":");
+    const coinId = normalizeCoinId(coinRaw || "");
+    const quantity = toNumber(quantityRaw);
+    if (!coinId || !Number.isFinite(quantity) || quantity <= 0) return;
+    grouped.set(coinId, (grouped.get(coinId) || 0) + quantity);
+  });
+
+  return Array.from(grouped.entries()).map(([coinId, quantity]) => ({ coinId, quantity }));
+};
+
 const fetchJson = async <T>(url: string): Promise<T> => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -148,6 +195,30 @@ const fetchJson = async <T>(url: string): Promise<T> => {
   } finally {
     clearTimeout(timeoutId);
   }
+};
+
+const fetchYahooQuote = async (symbol: string) => {
+  const data = await fetchJson<YahooQuoteResponse>(
+    `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`,
+  );
+  const quote = data.quoteResponse?.result?.[0];
+  const price = toNumber(quote?.regularMarketPrice);
+  const quoteChange = toNumber(quote?.regularMarketChangePercent);
+  const previousClose = toNumber(quote?.regularMarketPreviousClose);
+  const changePct =
+    Number.isFinite(quoteChange) && quoteChange !== 0
+      ? quoteChange
+      : previousClose > 0
+        ? ((price - previousClose) / previousClose) * 100
+        : 0;
+
+  return {
+    price,
+    changePct,
+    updatedAt: quote?.regularMarketTime
+      ? new Date(quote.regularMarketTime * 1000).toISOString()
+      : new Date().toISOString(),
+  };
 };
 
 const fetchDollar = async () => {
@@ -172,10 +243,20 @@ const fetchDollar = async () => {
     // fallback below
   }
 
+  try {
+    const quote = await fetchYahooQuote("USDBRL=X");
+    if (quote.price > 0) {
+      return quote;
+    }
+  } catch {
+    // fallback below
+  }
+
   const yahoo = await fetchJson<YahooChartResponse>(
-    "https://query1.finance.yahoo.com/v8/finance/chart/USDBRL=X?range=2d&interval=1d",
+    "https://query1.finance.yahoo.com/v8/finance/chart/USDBRL=X?range=1d&interval=1m",
   );
-  const meta = yahoo.chart?.result?.[0]?.meta;
+  const result = yahoo.chart?.result?.[0];
+  const meta = result?.meta;
   const price = toNumber(meta?.regularMarketPrice);
   const previous = toNumber(meta?.chartPreviousClose);
   const changePct = previous > 0 ? ((price - previous) / previous) * 100 : 0;
@@ -210,8 +291,21 @@ const fetchIbovespa = async () => {
     // Fallback Yahoo because AwesomeAPI IBOV endpoint is unstable/404.
   }
 
+  try {
+    const quote = await fetchYahooQuote("^BVSP");
+    if (quote.price > 0) {
+      return {
+        points: quote.price,
+        changePct: quote.changePct,
+        updatedAt: quote.updatedAt,
+      };
+    }
+  } catch {
+    // fallback below
+  }
+
   const yahoo = await fetchJson<YahooChartResponse>(
-    "https://query1.finance.yahoo.com/v8/finance/chart/%5EBVSP?range=2d&interval=1d",
+    "https://query1.finance.yahoo.com/v8/finance/chart/%5EBVSP?range=1d&interval=1m",
   );
   const meta = yahoo.chart?.result?.[0]?.meta;
   const points = toNumber(meta?.regularMarketPrice);
@@ -260,116 +354,155 @@ const fetchCoinSparkline = async (symbol: "BTCBRL" | "ETHBRL") => {
   }
 };
 
-const fetchCryptos = async () => {
-  let btcPrice = 0;
-  let ethPrice = 0;
-  let btcChange = 0;
-  let ethChange = 0;
+const coinIdToBinancePair = (coinId: string): "BTCBRL" | "ETHBRL" | null => {
+  if (coinId === "bitcoin") return "BTCBRL";
+  if (coinId === "ethereum") return "ETHBRL";
+  return null;
+};
 
-  try {
-    const data = await fetchJson<CoinGeckoSimpleResponse>(
-      "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=brl&include_24hr_change=true",
-    );
-    btcPrice = toNumber(data.bitcoin?.brl);
-    ethPrice = toNumber(data.ethereum?.brl);
-    btcChange = toNumber(data.bitcoin?.brl_24h_change);
-    ethChange = toNumber(data.ethereum?.brl_24h_change);
-  } catch {
-    // fallback below
+const fetchCoinGeckoMarkets = async (coinIds: string[]) => {
+  if (!coinIds.length) return [] as CoinGeckoMarketRow[];
+  const ids = coinIds.join(",");
+  const data = await fetchJson<CoinGeckoMarketRow[]>(
+    `https://api.coingecko.com/api/v3/coins/markets?vs_currency=brl&ids=${encodeURIComponent(ids)}&order=market_cap_desc&per_page=${coinIds.length}&page=1&sparkline=false&price_change_percentage=24h`,
+  );
+  return Array.isArray(data) ? data : [];
+};
+
+const fetchCryptos = async (positions: CryptoPosition[]) => {
+  const activePositions = positions.filter((position) => position.quantity > 0);
+  if (!activePositions.length) {
+    return {
+      list: [] as CryptoItem[],
+      summary: {
+        basketTotal: 0,
+        basketChangeValue: 0,
+        basketChangePct: 0,
+      },
+    };
   }
 
-  if (btcPrice <= 0 || ethPrice <= 0) {
+  const coinIds = Array.from(new Set(activePositions.map((position) => position.coinId)));
+  const now = new Date().toISOString();
+  let marketRows: CoinGeckoMarketRow[] = [];
+
+  try {
+    marketRows = await fetchCoinGeckoMarkets(coinIds);
+  } catch {
+    // fallback below with simple endpoint
+  }
+
+  if (!marketRows.length) {
+    try {
+      const data = await fetchJson<CoinGeckoSimpleResponse>(
+        `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(coinIds.join(","))}&vs_currencies=brl&include_24hr_change=true`,
+      );
+      marketRows = coinIds.map((coinId) => ({
+        id: coinId,
+        symbol: coinId.slice(0, 3).toUpperCase(),
+        name: coinId,
+        image: "",
+        current_price: toNumber(data[coinId]?.brl),
+        price_change_percentage_24h: toNumber(data[coinId]?.brl_24h_change),
+      }));
+    } catch {
+      // fallback below
+    }
+  }
+
+  if (!marketRows.length) {
     try {
       const [coinCapData, usdBrlData] = await Promise.all([
-        fetchJson<CoinCapAssetsResponse>("https://api.coincap.io/v2/assets?ids=bitcoin,ethereum"),
+        fetchJson<CoinCapAssetsResponse>(`https://api.coincap.io/v2/assets?ids=${coinIds.join(",")}`),
         fetchJson<AwesomeDollarResponse>("https://economia.awesomeapi.com.br/json/last/USD-BRL"),
       ]);
       const usdBrl = toNumber(usdBrlData.USDBRL?.bid);
       if (usdBrl > 0) {
-        const btcCoinCap = (coinCapData.data || []).find((asset) => asset.id === "bitcoin");
-        const ethCoinCap = (coinCapData.data || []).find((asset) => asset.id === "ethereum");
-
-        if (btcPrice <= 0) {
-          btcPrice = toNumber(btcCoinCap?.priceUsd) * usdBrl;
-        }
-        if (ethPrice <= 0) {
-          ethPrice = toNumber(ethCoinCap?.priceUsd) * usdBrl;
-        }
-        if ((!Number.isFinite(btcChange) || btcChange === 0) && btcCoinCap?.changePercent24Hr) {
-          btcChange = toNumber(btcCoinCap.changePercent24Hr);
-        }
-        if ((!Number.isFinite(ethChange) || ethChange === 0) && ethCoinCap?.changePercent24Hr) {
-          ethChange = toNumber(ethCoinCap.changePercent24Hr);
-        }
+        marketRows = coinIds.map((coinId) => {
+          const asset = (coinCapData.data || []).find((entry) => entry.id === coinId);
+          return {
+            id: coinId,
+            symbol: asset?.symbol || coinId.slice(0, 3).toUpperCase(),
+            name: asset?.id || coinId,
+            image: "",
+            current_price: toNumber(asset?.priceUsd) * usdBrl,
+            price_change_percentage_24h: toNumber(asset?.changePercent24Hr),
+          };
+        });
       }
     } catch {
       // fallback below
     }
   }
 
-  if (btcPrice <= 0 || ethPrice <= 0) {
-    const [btcTickerResult, ethTickerResult] = await Promise.allSettled([
-      fetchJson<BinanceTickerResponse>("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCBRL"),
-      fetchJson<BinanceTickerResponse>("https://api.binance.com/api/v3/ticker/24hr?symbol=ETHBRL"),
-    ]);
-
-    const btcTicker =
-      btcTickerResult.status === "fulfilled" ? btcTickerResult.value : ({} as BinanceTickerResponse);
-    const ethTicker =
-      ethTickerResult.status === "fulfilled" ? ethTickerResult.value : ({} as BinanceTickerResponse);
-
-    if (btcPrice <= 0) {
-      btcPrice = toNumber(btcTicker.lastPrice);
-    }
-    if (ethPrice <= 0) {
-      ethPrice = toNumber(ethTicker.lastPrice);
-    }
-    if ((!Number.isFinite(btcChange) || btcChange === 0) && btcTicker.priceChangePercent) {
-      btcChange = toNumber(btcTicker.priceChangePercent);
-    }
-    if ((!Number.isFinite(ethChange) || ethChange === 0) && ethTicker.priceChangePercent) {
-      ethChange = toNumber(ethTicker.priceChangePercent);
-    }
+  if (!marketRows.length) {
+    const fallbackPairs = await Promise.all(
+      activePositions.map(async (position) => {
+        const pair = coinIdToBinancePair(position.coinId);
+        if (!pair) return null;
+        try {
+          const ticker = await fetchJson<BinanceTickerResponse>(
+            `https://api.binance.com/api/v3/ticker/24hr?symbol=${pair}`,
+          );
+          return {
+            id: position.coinId,
+            symbol: pair.replace("BRL", ""),
+            name: position.coinId,
+            image: "",
+            current_price: toNumber(ticker.lastPrice),
+            price_change_percentage_24h: toNumber(ticker.priceChangePercent),
+          } as CoinGeckoMarketRow;
+        } catch {
+          return null;
+        }
+      }),
+    );
+    marketRows = fallbackPairs.filter((item): item is CoinGeckoMarketRow => !!item);
   }
 
-  if (btcPrice <= 0 && ethPrice <= 0) throw new Error("Falha ao atualizar criptomoedas.");
+  if (!marketRows.length) throw new Error("Falha ao atualizar criptomoedas.");
 
-  const [btcSparkRaw, ethSparkRaw] = await Promise.all([
-    fetchCoinSparkline("BTCBRL"),
-    fetchCoinSparkline("ETHBRL"),
-  ]);
+  const marketById = new Map<string, CoinGeckoMarketRow>(
+    marketRows.map((row) => [String(row.id || "").toLowerCase(), row]),
+  );
 
-  const now = new Date().toISOString();
-  const btcSpark = btcSparkRaw.length ? btcSparkRaw : buildSyntheticSparkline(btcPrice, btcChange);
-  const ethSpark = ethSparkRaw.length ? ethSparkRaw : buildSyntheticSparkline(ethPrice, ethChange);
+  const listWithNulls = await Promise.all(
+    activePositions.map(async (position) => {
+      const market = marketById.get(position.coinId);
+      if (!market) return null;
+      const currentPrice = toNumber(market.current_price);
+      if (currentPrice <= 0) return null;
 
-  const list: CryptoItem[] = [
-    {
-      id: "bitcoin",
-      symbol: "BTC",
-      name: "Bitcoin",
-      image: "https://assets.coingecko.com/coins/images/1/large/bitcoin.png",
-      currentPrice: btcPrice,
-      changePct24h: btcChange,
-      sparkline: btcSpark,
-      updatedAt: now,
-    },
-    {
-      id: "ethereum",
-      symbol: "ETH",
-      name: "Ethereum",
-      image: "https://assets.coingecko.com/coins/images/279/large/ethereum.png",
-      currentPrice: ethPrice,
-      changePct24h: ethChange,
-      sparkline: ethSpark,
-      updatedAt: now,
-    },
-  ].filter((coin) => coin.currentPrice > 0);
+      const changePct24h = toNumber(market.price_change_percentage_24h);
+      const pair = coinIdToBinancePair(position.coinId);
+      const sparkRaw = pair ? await fetchCoinSparkline(pair) : [];
+      const sparkline = sparkRaw.length
+        ? sparkRaw
+        : buildSyntheticSparkline(currentPrice, changePct24h);
 
-  const basketTotal = list.reduce((sum, coin) => sum + coin.currentPrice, 0);
+      return {
+        id: position.coinId,
+        symbol: (market.symbol || position.coinId.slice(0, 3)).toUpperCase(),
+        name: market.name || position.coinId,
+        image: market.image || "",
+        quantity: position.quantity,
+        currentPrice,
+        positionValue: currentPrice * position.quantity,
+        changePct24h,
+        sparkline,
+        updatedAt: now,
+      } as CryptoItem;
+    }),
+  );
+
+  const list = listWithNulls
+    .filter((coin): coin is CryptoItem => !!coin)
+    .sort((a, b) => b.positionValue - a.positionValue);
+
+  const basketTotal = list.reduce((sum, coin) => sum + coin.positionValue, 0);
   const basketPrevious = list.reduce((sum, coin) => {
     const ratio = 1 + coin.changePct24h / 100;
-    const previous = ratio > 0 ? coin.currentPrice / ratio : coin.currentPrice;
+    const previous = ratio > 0 ? coin.positionValue / ratio : coin.positionValue;
     return sum + previous;
   }, 0);
   const basketChangeValue = basketTotal - basketPrevious;
@@ -385,15 +518,16 @@ const fetchCryptos = async () => {
   };
 };
 
-export async function GET() {
+export async function GET(request: Request) {
   const now = new Date().toISOString();
   const warnings: string[] = [];
+  const positions = parseCryptoPositions(request);
 
   const [dollarResult, ibovespaResult, cdiResult, cryptoResult] = await Promise.allSettled([
     fetchDollar(),
     fetchIbovespa(),
     fetchCdi(),
-    fetchCryptos(),
+    fetchCryptos(positions),
   ]);
 
   const dollar =
