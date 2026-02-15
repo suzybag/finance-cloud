@@ -65,7 +65,7 @@ const buildLocalFallback = (text: string) => {
     return "Posso registrar esse texto para voce. Envie no formato: gastei 25 uber e 12 netflix, ou ganhei 500 deposito.";
   }
 
-  return "No momento a IA externa esta indisponivel. Tente novamente em alguns minutos ou envie um lancamento financeiro que eu te ajudo a registrar.";
+  return "Nao consegui interpretar totalmente sua mensagem agora. Se quiser registrar, envie assim: descricao + valor (ex: curso 500, uber 27,90) ou use gastei/paguei/ganhei.";
 };
 
 const parseHistory = (rawHistory: unknown): ChatTurn[] => {

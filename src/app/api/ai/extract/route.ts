@@ -206,13 +206,42 @@ const hasFinanceIntent = (text: string) => {
 
   if (hasKeyword) return true;
 
-  const hasAmount = /(?:r\$\s*)?\d{1,6}(?:[.,]\d{1,2})?/i.test(normalized);
+  const amountMatches = Array.from(
+    normalized.matchAll(/(?:r\$\s*)?(\d{1,6}(?:[.,]\d{1,2})?)/gi),
+  );
+  const hasAmount = amountMatches.length > 0;
+  const hasCurrency = /\br\$\s*\d/i.test(normalized);
   const hasFinanceVerb =
     /(gastei|paguei|recebi|ganhei|depositei|deposito|pix|investi|aporte|fatura|compra|salario|rendimento)/i.test(
       normalized,
     );
 
-  return hasAmount && hasFinanceVerb;
+  if (hasAmount && hasFinanceVerb) return true;
+
+  // Aceita frases curtas com valor (ex: "curso 500", "uber 27,90")
+  // para nao bloquear lancamentos rapidos sem verbo financeiro explicito.
+  if (hasAmount) {
+    const words = normalized.split(" ").filter(Boolean);
+    const isQuestion =
+      normalized.includes("?") ||
+      /^(o que|como|qual|quais|porque|por que|onde|quando|quem)\b/.test(normalized);
+
+    const hasTextWord = words.some((word) => /[a-z]/.test(word) && word.length >= 3);
+
+    const hasNonYearAmount = amountMatches.some((item) => {
+      const raw = String(item[1] ?? "").replace(/\./g, "").replace(",", ".");
+      const value = Number(raw);
+      if (!Number.isFinite(value)) return false;
+      if (hasCurrency) return true;
+      return value < 1900 || value > 2100;
+    });
+
+    if (!isQuestion && hasTextWord && hasNonYearAmount && words.length <= 8) {
+      return true;
+    }
+  }
+
+  return false;
 };
 
 const emptyResult = (
