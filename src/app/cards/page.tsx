@@ -122,6 +122,21 @@ const isValidCycleDay = (value: number) =>
 const isMissingCardsStyleColumnError = (message?: string | null) =>
   /could not find the '(color|note)' column of 'cards' in the schema cache/i.test(message ?? "");
 
+const isMissingCardsBankScoreColumnError = (message?: string | null) =>
+  /could not find the 'bank_score' column of 'cards' in the schema cache/i.test(message ?? "");
+
+const parseBankScoreInput = (rawValue: string) => {
+  const trimmed = rawValue.trim();
+  if (!trimmed) return null;
+
+  const parsed = Number(trimmed.replace(",", "."));
+  if (!Number.isFinite(parsed)) return undefined;
+
+  const normalized = Math.round(parsed);
+  if (normalized < 0 || normalized > 1000) return undefined;
+  return normalized;
+};
+
 const riskBadgeClass = (level: "excelente" | "bom" | "atencao" | "alto_risco") => {
   if (level === "excelente") return "border-emerald-400/40 bg-emerald-500/15 text-emerald-200";
   if (level === "bom") return "border-cyan-400/40 bg-cyan-500/15 text-cyan-200";
@@ -158,6 +173,7 @@ export default function CardsPage() {
   const [limitTotal, setLimitTotal] = useState("");
   const [closingDay, setClosingDay] = useState("10");
   const [dueDay, setDueDay] = useState("17");
+  const [bankScore, setBankScore] = useState("");
   const [cardColor, setCardColor] = useState<string>(CARD_COLOR_OPTIONS[0]);
   const [cardNote, setCardNote] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -168,6 +184,7 @@ export default function CardsPage() {
   const [busyCardId, setBusyCardId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [supportsCardStyleFields, setSupportsCardStyleFields] = useState(true);
+  const [supportsCardBankScoreField, setSupportsCardBankScoreField] = useState(true);
 
   const [paymentCard, setPaymentCard] = useState("");
   const [paymentAccount, setPaymentAccount] = useState("");
@@ -242,6 +259,7 @@ export default function CardsPage() {
     setLimitTotal("");
     setClosingDay("10");
     setDueDay("17");
+    setBankScore("");
     setCardColor(CARD_COLOR_OPTIONS[0]);
     setCardNote("");
   };
@@ -304,6 +322,13 @@ export default function CardsPage() {
         return;
       }
 
+      const bankScoreValue = parseBankScoreInput(bankScore);
+      if (typeof bankScoreValue === "undefined") {
+        setSaving(false);
+        setFeedback("Score do banco deve ser um numero de 0 a 1000.");
+        return;
+      }
+
       const issuerToSave = resolveIssuerLabel(issuer, name);
       const basePayload = {
         user_id: resolvedUserId,
@@ -313,23 +338,49 @@ export default function CardsPage() {
         closing_day: closingDayValue,
         due_day: dueDayValue,
       };
-      const styledPayload = {
-        ...basePayload,
-        color: cardColor,
-        note: cardNote.trim() ? cardNote.trim() : null,
+
+      let includeStyle = supportsCardStyleFields;
+      let includeBankScore = supportsCardBankScoreField;
+      let usedStyleFallback = !supportsCardStyleFields;
+      let usedBankScoreFallback = !supportsCardBankScoreField;
+
+      const insertCard = () => {
+        const payload = {
+          ...basePayload,
+          ...(includeStyle
+            ? {
+                color: cardColor,
+                note: cardNote.trim() ? cardNote.trim() : null,
+              }
+            : {}),
+          ...(includeBankScore ? { bank_score: bankScoreValue } : {}),
+        };
+        return supabase.from("cards").insert(payload);
       };
 
-      let usedFallback = !supportsCardStyleFields;
-      const createRes = supportsCardStyleFields
-        ? await supabase.from("cards").insert(styledPayload)
-        : await supabase.from("cards").insert(basePayload);
-
+      let createRes = await insertCard();
       let error = createRes.error;
-      if (error && supportsCardStyleFields && isMissingCardsStyleColumnError(error.message)) {
-        setSupportsCardStyleFields(false);
-        usedFallback = true;
-        const retryRes = await supabase.from("cards").insert(basePayload);
-        error = retryRes.error;
+
+      for (let attempt = 0; attempt < 2 && error; attempt += 1) {
+        if (includeStyle && isMissingCardsStyleColumnError(error.message)) {
+          includeStyle = false;
+          usedStyleFallback = true;
+          setSupportsCardStyleFields(false);
+          createRes = await insertCard();
+          error = createRes.error;
+          continue;
+        }
+
+        if (includeBankScore && isMissingCardsBankScoreColumnError(error.message)) {
+          includeBankScore = false;
+          usedBankScoreFallback = true;
+          setSupportsCardBankScoreField(false);
+          createRes = await insertCard();
+          error = createRes.error;
+          continue;
+        }
+
+        break;
       }
 
       if (error) {
@@ -340,11 +391,15 @@ export default function CardsPage() {
 
       setSaving(false);
       setIsFormOpen(false);
-      setFeedback(
-        usedFallback
-          ? "Cartao criado. Cor e observacao ficam indisponiveis ate atualizar o banco."
-          : "Cartao criado com sucesso.",
-      );
+      if (usedStyleFallback && usedBankScoreFallback) {
+        setFeedback("Cartao criado. Cor, observacao e score ficam indisponiveis ate atualizar o banco.");
+      } else if (usedStyleFallback) {
+        setFeedback("Cartao criado. Cor e observacao ficam indisponiveis ate atualizar o banco.");
+      } else if (usedBankScoreFallback) {
+        setFeedback("Cartao criado. Campo de score fica indisponivel ate atualizar o banco.");
+      } else {
+        setFeedback("Cartao criado com sucesso.");
+      }
       resetForm();
       await loadData(resolvedUserId);
     } catch (error) {
@@ -432,6 +487,11 @@ export default function CardsPage() {
     setLimitTotal(String(card.limit_total));
     setClosingDay(String(card.closing_day));
     setDueDay(String(card.due_day));
+    setBankScore(
+      typeof card.bank_score === "number" && Number.isFinite(card.bank_score)
+        ? String(Math.round(card.bank_score))
+        : "",
+    );
     setCardColor(card.color || CARD_COLOR_OPTIONS[0]);
     setCardNote(card.note || "");
     prepareModalViewport();
@@ -455,6 +515,13 @@ export default function CardsPage() {
         return;
       }
 
+      const bankScoreValue = parseBankScoreInput(bankScore);
+      if (typeof bankScoreValue === "undefined") {
+        setSaving(false);
+        setFeedback("Score do banco deve ser um numero de 0 a 1000.");
+        return;
+      }
+
       const issuerToSave = resolveIssuerLabel(issuer, name);
       const basePayload = {
         name: name.trim(),
@@ -463,40 +530,58 @@ export default function CardsPage() {
         closing_day: closingDayValue,
         due_day: dueDayValue,
       };
-      const styledPayload = {
-        ...basePayload,
-        color: cardColor,
-        note: cardNote.trim() ? cardNote.trim() : null,
+
+      let includeStyle = supportsCardStyleFields;
+      let includeBankScore = supportsCardBankScoreField;
+      let usedStyleFallback = !supportsCardStyleFields;
+      let usedBankScoreFallback = !supportsCardBankScoreField;
+
+      const updateCard = () => {
+        const payload = {
+          ...basePayload,
+          ...(includeStyle
+            ? {
+                color: cardColor,
+                note: cardNote.trim() ? cardNote.trim() : null,
+              }
+            : {}),
+          ...(includeBankScore ? { bank_score: bankScoreValue } : {}),
+        };
+
+        return supabase
+          .from("cards")
+          .update(payload)
+          .eq("id", editId)
+          .eq("user_id", resolvedUserId)
+          .select("id");
       };
 
-      let usedFallback = !supportsCardStyleFields;
-      const saveRes = supportsCardStyleFields
-        ? await supabase
-          .from("cards")
-          .update(styledPayload)
-          .eq("id", editId)
-          .eq("user_id", resolvedUserId)
-          .select("id")
-        : await supabase
-          .from("cards")
-          .update(basePayload)
-          .eq("id", editId)
-          .eq("user_id", resolvedUserId)
-          .select("id");
-
+      let saveRes = await updateCard();
       let error = saveRes.error;
       let updatedRows = (saveRes.data ?? []).length;
-      if (error && supportsCardStyleFields && isMissingCardsStyleColumnError(error.message)) {
-        setSupportsCardStyleFields(false);
-        usedFallback = true;
-        const retryRes = await supabase
-          .from("cards")
-          .update(basePayload)
-          .eq("id", editId)
-          .eq("user_id", resolvedUserId)
-          .select("id");
-        error = retryRes.error;
-        updatedRows = (retryRes.data ?? []).length;
+
+      for (let attempt = 0; attempt < 2 && error; attempt += 1) {
+        if (includeStyle && isMissingCardsStyleColumnError(error.message)) {
+          includeStyle = false;
+          usedStyleFallback = true;
+          setSupportsCardStyleFields(false);
+          saveRes = await updateCard();
+          error = saveRes.error;
+          updatedRows = (saveRes.data ?? []).length;
+          continue;
+        }
+
+        if (includeBankScore && isMissingCardsBankScoreColumnError(error.message)) {
+          includeBankScore = false;
+          usedBankScoreFallback = true;
+          setSupportsCardBankScoreField(false);
+          saveRes = await updateCard();
+          error = saveRes.error;
+          updatedRows = (saveRes.data ?? []).length;
+          continue;
+        }
+
+        break;
       }
 
       if (error) {
@@ -512,11 +597,15 @@ export default function CardsPage() {
 
       setSaving(false);
       setIsFormOpen(false);
-      setFeedback(
-        usedFallback
-          ? "Cartao atualizado. Cor e observacao ficam indisponiveis ate atualizar o banco."
-          : "Cartao atualizado com sucesso.",
-      );
+      if (usedStyleFallback && usedBankScoreFallback) {
+        setFeedback("Cartao atualizado. Cor, observacao e score ficam indisponiveis ate atualizar o banco.");
+      } else if (usedStyleFallback) {
+        setFeedback("Cartao atualizado. Cor e observacao ficam indisponiveis ate atualizar o banco.");
+      } else if (usedBankScoreFallback) {
+        setFeedback("Cartao atualizado. Campo de score fica indisponivel ate atualizar o banco.");
+      } else {
+        setFeedback("Cartao atualizado com sucesso.");
+      }
       resetForm();
       await loadData(resolvedUserId);
     } catch (error) {
@@ -915,7 +1004,7 @@ export default function CardsPage() {
                     </div>
                   </div>
 
-                  <div className="grid gap-3 md:grid-cols-3">
+                  <div className="grid gap-3 md:grid-cols-4">
                     <div>
                       <p className="mb-1 text-sm font-semibold text-violet-100">Limite total (R$)</p>
                       <input
@@ -941,6 +1030,15 @@ export default function CardsPage() {
                         placeholder="17"
                         value={dueDay}
                         onChange={(event) => setDueDay(event.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <p className="mb-1 text-sm font-semibold text-violet-100">Score banco (0-1000)</p>
+                      <input
+                        className={CARD_INPUT_CLASS}
+                        placeholder="Ex: 890"
+                        value={bankScore}
+                        onChange={(event) => setBankScore(event.target.value)}
                       />
                     </div>
                   </div>
@@ -1096,7 +1194,7 @@ export default function CardsPage() {
                       </div>
                     </div>
 
-                    <div className="mt-4 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 text-sm">
+                    <div className="mt-4 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 text-sm">
                       <div>
                         <p className="text-xs text-slate-400">Limite usado</p>
                         <p className="font-extrabold text-rose-400">{brl(summary.limitUsed)}</p>
@@ -1108,6 +1206,14 @@ export default function CardsPage() {
                       <div>
                         <p className="text-xs text-slate-400">Limite total</p>
                         <p className="font-extrabold text-slate-100">{brl(card.limit_total)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-400">Score banco</p>
+                        <p className="font-extrabold text-cyan-300">
+                          {typeof card.bank_score === "number" && Number.isFinite(card.bank_score)
+                            ? Math.round(card.bank_score)
+                            : "--"}
+                        </p>
                       </div>
                     </div>
 

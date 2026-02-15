@@ -218,14 +218,31 @@ create table if not exists public.cards (
   limit_total numeric not null default 0,
   closing_day int not null default 1,
   due_day int not null default 10,
+  bank_score int,
   color text,
   note text,
   archived boolean not null default false,
   created_at timestamptz not null default now()
 );
 
+alter table public.cards add column if not exists bank_score int;
 alter table public.cards add column if not exists color text;
 alter table public.cards add column if not exists note text;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'cards_bank_score_range'
+      and conrelid = 'public.cards'::regclass
+  ) then
+    alter table public.cards
+    add constraint cards_bank_score_range
+    check (bank_score is null or (bank_score >= 0 and bank_score <= 1000));
+  end if;
+end
+$$;
 
 create table if not exists public.banks (
   id uuid primary key default gen_random_uuid(),
