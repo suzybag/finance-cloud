@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getUserFromRequest } from "@/lib/apiAuth";
+import { toNumber } from "@/lib/money";
 
 type ChatTurn = {
   role: "user" | "assistant";
@@ -66,6 +68,100 @@ const buildLocalFallback = (text: string) => {
   }
 
   return "Nao consegui interpretar totalmente sua mensagem agora. Se quiser registrar, envie assim: descricao + valor (ex: curso 500, uber 27,90) ou use gastei/paguei/ganhei.";
+};
+
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    maximumFractionDigits: 2,
+  }).format(value);
+
+const formatMonthLabel = (date = new Date()) =>
+  new Intl.DateTimeFormat("pt-BR", {
+    month: "long",
+    year: "numeric",
+  }).format(date);
+
+const isSpendingSummaryQuestion = (text: string) => {
+  const normalized = normalizeSpace(
+    text
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase(),
+  );
+
+  return (
+    /(como andam|como estao|como estão|resumo|situacao|situação)/.test(normalized)
+      && /(gasto|despesa|financeiro|financas|finanças)/.test(normalized)
+  ) || /(quanto gastei|gastei no mes|gastei no mes|meus gastos|despesas do mes)/.test(normalized);
+};
+
+const buildMonthlySummaryReply = async (req: NextRequest) => {
+  const { user, client, error } = await getUserFromRequest(req);
+  if (!user || !client || error) {
+    return "Para eu responder seus gastos do mes, faca login novamente e tente de novo.";
+  }
+
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const startDate = start.toISOString().slice(0, 10);
+  const endDate = end.toISOString().slice(0, 10);
+
+  const { data, error: txError } = await client
+    .from("transactions")
+    .select("amount, type, category")
+    .eq("user_id", user.id)
+    .gte("occurred_at", startDate)
+    .lt("occurred_at", endDate)
+    .in("type", ["income", "adjustment", "expense", "card_payment"]);
+
+  if (txError) {
+    return "Nao consegui carregar seu resumo financeiro agora. Tente novamente em alguns segundos.";
+  }
+
+  const rows = (data || []) as Array<{
+    amount: number | string | null;
+    type: string | null;
+    category: string | null;
+  }>;
+
+  let income = 0;
+  let expense = 0;
+  const byCategory = new Map<string, number>();
+
+  rows.forEach((row) => {
+    const amount = Math.abs(toNumber(row.amount));
+    if (!Number.isFinite(amount) || amount <= 0) return;
+
+    if (row.type === "income" || row.type === "adjustment") {
+      income += amount;
+      return;
+    }
+
+    if (row.type === "expense" || row.type === "card_payment") {
+      expense += amount;
+      const category = (row.category || "Sem categoria").trim() || "Sem categoria";
+      byCategory.set(category, (byCategory.get(category) || 0) + amount);
+    }
+  });
+
+  const topCategory = Array.from(byCategory.entries()).sort((a, b) => b[1] - a[1])[0];
+  const balance = income - expense;
+  const monthLabel = formatMonthLabel(now);
+
+  const topCategoryLine = topCategory
+    ? `Maior categoria: ${topCategory[0]} (${formatCurrency(topCategory[1])}).`
+    : "Sem categoria dominante no periodo.";
+
+  return [
+    `Resumo de ${monthLabel}:`,
+    `- Entradas: ${formatCurrency(income)}`,
+    `- Gastos: ${formatCurrency(expense)}`,
+    `- Resultado: ${formatCurrency(balance)}`,
+    topCategoryLine,
+  ].join("\n");
 };
 
 const parseHistory = (rawHistory: unknown): ChatTurn[] => {
@@ -230,6 +326,14 @@ export async function POST(req: NextRequest) {
 
   if (!text) {
     return NextResponse.json({ message: "Informe uma mensagem." }, { status: 400 });
+  }
+
+  if (isSpendingSummaryQuestion(text)) {
+    const reply = await buildMonthlySummaryReply(req);
+    return NextResponse.json({
+      reply,
+      provider: "financial-summary",
+    });
   }
 
   const geminiApiKey =
