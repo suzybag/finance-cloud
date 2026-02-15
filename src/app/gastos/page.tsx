@@ -37,6 +37,9 @@ export default function GastosPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [monthFilter, setMonthFilter] = useState(currentMonth());
   const [searchFilter, setSearchFilter] = useState("");
+  const [newExpenseName, setNewExpenseName] = useState("");
+  const [newExpenseAmount, setNewExpenseAmount] = useState("");
+  const [addingExpense, setAddingExpense] = useState(false);
   const categoryLookup = useCategoryMetadata(transactions.map((tx) => tx.category));
 
   const loadData = async () => {
@@ -62,6 +65,58 @@ export default function GastosPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  const addExpense = async () => {
+    const description = newExpenseName.trim();
+    const amount = Math.abs(toNumber(newExpenseAmount));
+
+    if (!description) {
+      setMessage("Informe o nome do gasto.");
+      return;
+    }
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setMessage("Informe um valor valido maior que zero.");
+      return;
+    }
+
+    const userRes = await supabase.auth.getUser();
+    const userId = userRes.data.user?.id;
+    if (!userId) {
+      setMessage("Sessao expirada. Faca login novamente.");
+      return;
+    }
+
+    setAddingExpense(true);
+    setMessage(null);
+
+    const today = new Date().toISOString().slice(0, 10);
+    const { error } = await supabase.from("transactions").insert({
+      user_id: userId,
+      type: "expense",
+      occurred_at: today,
+      description,
+      category: "Outros",
+      amount,
+      account_id: null,
+      to_account_id: null,
+      card_id: null,
+      tags: ["manual"],
+      note: null,
+    });
+
+    if (error) {
+      setMessage(error.message || "Falha ao adicionar gasto.");
+      setAddingExpense(false);
+      return;
+    }
+
+    setNewExpenseName("");
+    setNewExpenseAmount("");
+    await loadData();
+    setMessage("Gasto adicionado com sucesso.");
+    setAddingExpense(false);
+  };
 
   const filtered = useMemo(() => {
     const search = searchFilter.trim().toLowerCase();
@@ -159,6 +214,41 @@ export default function GastosPage() {
                 {brl(totals.income - totals.expense)}
               </p>
             </div>
+          </div>
+        </section>
+
+        <section className="glass-panel p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-xl font-extrabold tracking-tight text-slate-100">Adicionar gasto</h2>
+            <button
+              type="button"
+              className="rounded-xl border border-rose-300/30 bg-rose-500/20 px-4 py-2 text-sm font-semibold text-rose-100 transition hover:bg-rose-500/30 disabled:opacity-60"
+              onClick={addExpense}
+              disabled={addingExpense}
+            >
+              {addingExpense ? "Adicionando..." : "Adicionar gasto"}
+            </button>
+          </div>
+
+          <div className="mt-3 grid gap-2 md:grid-cols-[1fr_180px]">
+            <input
+              className="rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2 text-sm text-slate-100"
+              placeholder="Nome do gasto (ex: Mercado)"
+              value={newExpenseName}
+              onChange={(event) => setNewExpenseName(event.target.value)}
+            />
+            <input
+              className="rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2 text-sm text-slate-100"
+              placeholder="Valor (ex: 120,50)"
+              value={newExpenseAmount}
+              onChange={(event) => setNewExpenseAmount(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  if (!addingExpense) void addExpense();
+                }
+              }}
+            />
           </div>
         </section>
 
