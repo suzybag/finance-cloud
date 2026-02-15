@@ -137,6 +137,12 @@ const parseBankScoreInput = (rawValue: string) => {
   return normalized;
 };
 
+const parsePositiveAmountInput = (rawValue?: string | null) => {
+  const amount = Math.abs(toNumber(rawValue ?? ""));
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  return amount;
+};
+
 const riskBadgeClass = (level: "excelente" | "bom" | "atencao" | "alto_risco") => {
   if (level === "excelente") return "border-emerald-400/40 bg-emerald-500/15 text-emerald-200";
   if (level === "bom") return "border-cyan-400/40 bg-cyan-500/15 text-cyan-200";
@@ -648,6 +654,109 @@ export default function CardsPage() {
       await loadData(resolvedUserId);
     } catch (error) {
       setFeedback(`Falha inesperada ao definir banco: ${error instanceof Error ? error.message : "erro desconhecido"}`);
+    }
+  };
+
+  const insertCardExpense = async ({
+    card,
+    amount,
+    description,
+  }: {
+    card: Card;
+    amount: number;
+    description: string;
+  }) => {
+    const resolvedUserId = await ensureUserId();
+    if (!resolvedUserId) return false;
+
+    const { error } = await supabase.from("transactions").insert({
+      user_id: resolvedUserId,
+      type: "expense",
+      occurred_at: new Date().toISOString().slice(0, 10),
+      description,
+      category: "Cartao",
+      amount,
+      account_id: null,
+      to_account_id: null,
+      card_id: card.id,
+      tags: ["cartao_manual"],
+      note: null,
+    });
+
+    if (error) {
+      setFeedback(`Nao foi possivel registrar gasto: ${error.message}`);
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleAddCardSpend = async (card: Card) => {
+    try {
+      setFeedback(null);
+      const amountInput = window.prompt(`Quanto voce gastou no cartao "${card.name}"?`, "");
+      if (amountInput === null) return;
+
+      const amount = parsePositiveAmountInput(amountInput);
+      if (!amount) {
+        setFeedback("Informe um valor valido maior que zero.");
+        return;
+      }
+
+      const descriptionInput = window.prompt(
+        "Descricao do gasto (opcional):",
+        "Gasto no cartao",
+      );
+      const description = (descriptionInput || "Gasto no cartao").trim() || "Gasto no cartao";
+
+      setBusyCardId(card.id);
+      const ok = await insertCardExpense({ card, amount, description });
+      setBusyCardId(null);
+      if (!ok) return;
+
+      setFeedback(`Gasto de ${brl(amount)} adicionado no cartao ${card.name}.`);
+      await loadData();
+    } catch (error) {
+      setBusyCardId(null);
+      setFeedback(`Falha inesperada ao adicionar gasto: ${error instanceof Error ? error.message : "erro desconhecido"}`);
+    }
+  };
+
+  const handleSetLimitUsed = async (card: Card, currentUsed: number) => {
+    try {
+      setFeedback(null);
+      const targetInput = window.prompt(
+        `Limite usado atual: ${brl(currentUsed)}\nInforme o novo limite usado total:`,
+        String(Math.round(currentUsed)),
+      );
+      if (targetInput === null) return;
+
+      const target = parsePositiveAmountInput(targetInput);
+      if (!target) {
+        setFeedback("Informe um valor valido maior que zero.");
+        return;
+      }
+
+      const delta = target - currentUsed;
+      if (delta <= 0) {
+        setFeedback("Esse botao adiciona gasto. Informe um valor maior que o limite usado atual.");
+        return;
+      }
+
+      setBusyCardId(card.id);
+      const ok = await insertCardExpense({
+        card,
+        amount: delta,
+        description: "Ajuste limite usado",
+      });
+      setBusyCardId(null);
+      if (!ok) return;
+
+      setFeedback(`Limite usado atualizado. Foi adicionado ${brl(delta)} no cartao ${card.name}.`);
+      await loadData();
+    } catch (error) {
+      setBusyCardId(null);
+      setFeedback(`Falha inesperada ao ajustar limite usado: ${error instanceof Error ? error.message : "erro desconhecido"}`);
     }
   };
 
@@ -1235,12 +1344,30 @@ export default function CardsPage() {
                     </div>
 
                     <div className="relative z-20 mt-4 flex flex-wrap items-center justify-between gap-2">
-                      <Link
-                        className="relative z-20 rounded-xl border border-white/10 bg-slate-900/50 px-4 py-2 text-xs font-semibold hover:bg-slate-900/70"
-                        href={`/cards/${card.id}/invoice`}
-                      >
-                        Ver detalhes da fatura
-                      </Link>
+                      <div className="relative z-20 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          className="rounded-xl border border-white/10 bg-slate-900/50 px-3 py-2 text-xs font-semibold hover:bg-slate-900/70 disabled:opacity-60"
+                          onClick={() => handleSetLimitUsed(card, summary.currentTotal)}
+                          disabled={busyCardId === card.id}
+                        >
+                          Definir limite usado
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded-xl border border-white/10 bg-slate-900/50 px-3 py-2 text-xs font-semibold hover:bg-slate-900/70 disabled:opacity-60"
+                          onClick={() => handleAddCardSpend(card)}
+                          disabled={busyCardId === card.id}
+                        >
+                          Adicionar gasto
+                        </button>
+                        <Link
+                          className="rounded-xl border border-white/10 bg-slate-900/50 px-4 py-2 text-xs font-semibold hover:bg-slate-900/70"
+                          href={`/cards/${card.id}/invoice`}
+                        >
+                          Ver detalhes da fatura
+                        </Link>
+                      </div>
                       <div className="relative z-20 flex gap-2">
                         {!hasBankLogo ? (
                           <button
