@@ -3,9 +3,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { CategoryIcon } from "@/components/CategoryIcon";
 import type { Transaction } from "@/lib/finance";
+import { normalizeCategoryKey } from "@/lib/categoryVisuals";
 import { brl, toNumber } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
+import { useCategoryMetadata } from "@/lib/useCategoryMetadata";
 
 const currentMonth = () => new Date().toISOString().slice(0, 7);
 
@@ -34,6 +37,7 @@ export default function GastosPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [monthFilter, setMonthFilter] = useState(currentMonth());
   const [searchFilter, setSearchFilter] = useState("");
+  const categoryLookup = useCategoryMetadata(transactions.map((tx) => tx.category));
 
   const loadData = async () => {
     setLoading(true);
@@ -83,6 +87,22 @@ export default function GastosPage() {
       },
       { income: 0, expense: 0 },
     );
+  }, [filtered]);
+
+  const categoryTotals = useMemo(() => {
+    const map = new Map<string, number>();
+    filtered
+      .filter((tx) => isExpenseType(tx.type))
+      .forEach((tx) => {
+        const category = (tx.category || "Sem categoria").trim() || "Sem categoria";
+        const amount = Math.abs(toNumber(tx.amount));
+        if (amount <= 0) return;
+        map.set(category, (map.get(category) || 0) + amount);
+      });
+
+    return Array.from(map.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
   }, [filtered]);
 
   const actions = (
@@ -144,6 +164,43 @@ export default function GastosPage() {
 
         <section className="glass-panel p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-xl font-extrabold tracking-tight text-slate-100">Categorias</h2>
+            <span className="text-xs text-slate-400">{categoryTotals.length} categorias</span>
+          </div>
+
+          {categoryTotals.length ? (
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              {categoryTotals.slice(0, 12).map((item) => {
+                const metadata = categoryLookup.get(normalizeCategoryKey(item.name));
+                return (
+                  <div
+                    key={item.name}
+                    className="flex items-center justify-between rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2"
+                  >
+                    <div className="flex min-w-0 items-center gap-2">
+                      <CategoryIcon
+                        categoryName={item.name}
+                        iconName={metadata?.icon_name}
+                        iconColor={metadata?.icon_color}
+                        size={12}
+                        circleSize={24}
+                      />
+                      <p className="truncate text-sm text-slate-100">{item.name}</p>
+                    </div>
+                    <p className="text-sm font-semibold text-slate-300">{brl(item.value)}</p>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="mt-3 rounded-xl border border-white/10 bg-slate-950/35 px-4 py-4 text-sm text-slate-300">
+              Nenhuma categoria de gasto encontrada no filtro atual.
+            </div>
+          )}
+        </section>
+
+        <section className="glass-panel p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-xl font-extrabold tracking-tight text-slate-100">Ultimos lancamentos</h2>
             <span className="text-xs text-slate-400">{filtered.length} itens</span>
           </div>
@@ -172,6 +229,8 @@ export default function GastosPage() {
                 const income = isIncomeType(tx.type);
                 const expense = isExpenseType(tx.type);
                 const amount = Math.abs(toNumber(tx.amount));
+                const categoryLabel = (tx.category || "Sem categoria").trim() || "Sem categoria";
+                const categoryMetadata = categoryLookup.get(normalizeCategoryKey(categoryLabel));
 
                 const toneClass = income
                   ? "bg-emerald-500/15 text-emerald-300"
@@ -198,9 +257,18 @@ export default function GastosPage() {
                       </span>
                       <div className="min-w-0">
                         <p className="truncate font-semibold text-slate-100">{tx.description}</p>
-                        <p className="text-xs text-slate-400">
-                          {formatDateLabel(tx.occurred_at)} | {tx.category || "Sem categoria"}
-                        </p>
+                        <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                          <span>{formatDateLabel(tx.occurred_at)}</span>
+                          <span>|</span>
+                          <CategoryIcon
+                            categoryName={categoryLabel}
+                            iconName={categoryMetadata?.icon_name}
+                            iconColor={categoryMetadata?.icon_color}
+                            size={10}
+                            circleSize={19}
+                          />
+                          <span>{categoryLabel}</span>
+                        </div>
                       </div>
                     </div>
 

@@ -673,6 +673,76 @@ create table if not exists public.transactions (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.transaction_categories (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  icon_name text,
+  icon_color text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.transaction_categories add column if not exists user_id uuid;
+alter table public.transaction_categories add column if not exists name text;
+alter table public.transaction_categories add column if not exists icon_name text;
+alter table public.transaction_categories add column if not exists icon_color text;
+alter table public.transaction_categories add column if not exists created_at timestamptz not null default now();
+alter table public.transaction_categories add column if not exists updated_at timestamptz not null default now();
+alter table public.transaction_categories alter column user_id set not null;
+alter table public.transaction_categories alter column name set not null;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'transaction_categories_user_id_fkey'
+      and conrelid = 'public.transaction_categories'::regclass
+  ) then
+    alter table public.transaction_categories
+    add constraint transaction_categories_user_id_fkey
+    foreign key (user_id) references auth.users(id) on delete cascade;
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'transaction_categories_user_name_key'
+      and conrelid = 'public.transaction_categories'::regclass
+  ) then
+    alter table public.transaction_categories
+    add constraint transaction_categories_user_name_key unique (user_id, name);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'transaction_categories_name_not_blank'
+      and conrelid = 'public.transaction_categories'::regclass
+  ) then
+    alter table public.transaction_categories
+    add constraint transaction_categories_name_not_blank
+    check (char_length(trim(name)) > 0);
+  end if;
+end
+$$;
+
+create or replace function public.set_transaction_categories_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end
+$$;
+
+drop trigger if exists trg_transaction_categories_set_updated_at on public.transaction_categories;
+create trigger trg_transaction_categories_set_updated_at
+before update on public.transaction_categories
+for each row execute function public.set_transaction_categories_updated_at();
+
 create table if not exists public.financial_planning (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -1436,6 +1506,18 @@ for each row execute function public.set_transaction_type_default();
 
 alter table public.transactions alter column transaction_type set not null;
 
+insert into public.transaction_categories (user_id, name)
+select distinct t.user_id, trim(t.category)
+from public.transactions t
+where coalesce(trim(t.category), '') <> ''
+on conflict (user_id, name) do nothing;
+
+insert into public.transaction_categories (user_id, name)
+select distinct i.user_id, trim(i.category)
+from public.investments i
+where coalesce(trim(i.category), '') <> ''
+on conflict (user_id, name) do nothing;
+
 create table if not exists public.alerts (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -1467,6 +1549,7 @@ alter table public.investment_types enable row level security;
 alter table public.assets enable row level security;
 alter table public.investments enable row level security;
 alter table public.transactions enable row level security;
+alter table public.transaction_categories enable row level security;
 alter table public.financial_planning enable row level security;
 alter table public.email_alert_rules enable row level security;
 alter table public.monthly_report_deliveries enable row level security;
@@ -1581,6 +1664,17 @@ begin
   ) then
     create policy transactions_crud_own
     on public.transactions
+    for all
+    using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'transaction_categories' and policyname = 'transaction_categories_crud_own'
+  ) then
+    create policy transaction_categories_crud_own
+    on public.transaction_categories
     for all
     using (auth.uid() = user_id)
     with check (auth.uid() = user_id);
@@ -1708,6 +1802,8 @@ create index if not exists idx_investments_bank_id on public.investments(bank_id
 create index if not exists idx_investments_type_id on public.investments(type_id);
 create index if not exists idx_investments_asset_id on public.investments(asset_id);
 create index if not exists idx_tx_user_date on public.transactions(user_id, occurred_at desc);
+create index if not exists idx_transaction_categories_user on public.transaction_categories(user_id, created_at desc);
+create index if not exists idx_transaction_categories_name on public.transaction_categories(user_id, name);
 create index if not exists idx_financial_planning_user_created on public.financial_planning(user_id, created_at desc);
 create index if not exists idx_financial_planning_user_completed on public.financial_planning(user_id, is_completed, created_at desc);
 create index if not exists idx_email_alert_rules_user_active on public.email_alert_rules(user_id, ativo_boolean, tipo_alerta);

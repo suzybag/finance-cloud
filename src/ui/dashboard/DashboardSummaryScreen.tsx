@@ -3,9 +3,12 @@
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { BankLogo } from "@/components/BankLogo";
+import { CategoryIcon } from "@/components/CategoryIcon";
 import { getBankIconPath } from "@/lib/bankIcons";
+import { normalizeCategoryKey } from "@/lib/categoryVisuals";
 import { brl, formatPercent } from "@/lib/money";
-import { computeAccountBalances, computeCardSummary } from "@/lib/finance";
+import { computeAccountBalances, computeCardSummary, groupByCategory } from "@/lib/finance";
+import { useCategoryMetadata } from "@/lib/useCategoryMetadata";
 import { monthInputValue, normalizePeriod } from "@/core/finance/dashboardSummary";
 import { useDashboardSummary } from "./useDashboardSummary";
 import { useMarketOverview } from "./useMarketOverview";
@@ -171,6 +174,10 @@ export const DashboardSummaryScreen = () => {
   const visibleCards = cards.filter((card) => !card.archived);
 
   const periodLabel = normalizePeriod(period);
+  const periodDate = new Date(`${periodLabel}-01T00:00:00`);
+  const topCategories = groupByCategory(transactions, periodDate).slice(0, 6);
+  const topCategoryTotal = topCategories.reduce((sum, item) => sum + item.value, 0);
+  const categoryLookup = useCategoryMetadata(topCategories.map((item) => item.name));
   const monthName = new Date(`${periodLabel}-01T00:00:00`).toLocaleDateString("pt-BR", {
     month: "long",
   });
@@ -442,6 +449,50 @@ export const DashboardSummaryScreen = () => {
               icon={<Circle className="h-5 w-5" />}
               footer="Saldo considerando o periodo."
             />
+          </section>
+
+          <section className="rounded-2xl border border-white/5 bg-slate-900/60 p-5 shadow-lg shadow-black/40">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-100">Categorias do mes</h2>
+                <p className="text-xs text-slate-400">Distribuicao das despesas por categoria</p>
+              </div>
+              <span className="rounded-full border border-white/10 bg-slate-900/70 px-3 py-1 text-xs text-slate-300">
+                {topCategories.length} categorias
+              </span>
+            </div>
+
+            {topCategories.length ? (
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                {topCategories.map((item) => {
+                  const metadata = categoryLookup.get(normalizeCategoryKey(item.name));
+                  const share = topCategoryTotal > 0 ? (item.value / topCategoryTotal) * 100 : 0;
+                  return (
+                    <div
+                      key={item.name}
+                      className="flex items-center justify-between rounded-xl border border-white/10 bg-slate-900/70 px-3 py-2"
+                    >
+                      <div className="flex min-w-0 items-center gap-2">
+                        <CategoryIcon
+                          categoryName={item.name}
+                          iconName={metadata?.icon_name}
+                          iconColor={metadata?.icon_color}
+                          size={12}
+                          circleSize={24}
+                        />
+                        <p className="truncate text-sm text-slate-100">{item.name}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-slate-200">{brl(item.value)}</p>
+                        <p className="text-[11px] text-slate-400">{share.toFixed(1).replace(".", ",")}%</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-400">Sem despesas categorizadas no periodo.</p>
+            )}
           </section>
 
           <section className="grid gap-6 lg:grid-cols-2">

@@ -5,13 +5,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Download, Mail, RefreshCcw } from "lucide-react";
 import {
   Cell,
-  Legend,
   Pie,
   PieChart,
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
 import { AppShell } from "@/components/AppShell";
+import { CategoryIcon } from "@/components/CategoryIcon";
 import { supabase } from "@/lib/supabaseClient";
 
 type MonthlyExpenseRow = {
@@ -19,6 +19,8 @@ type MonthlyExpenseRow = {
   date: string;
   description: string;
   category: string;
+  categoryIconName: string;
+  categoryIconColor: string;
   amount: number;
   expenseType: string;
   source: "transacao" | "investimento";
@@ -26,6 +28,8 @@ type MonthlyExpenseRow = {
 
 type MonthlyCategoryTotal = {
   category: string;
+  categoryIconName: string;
+  categoryIconColor: string;
   total: number;
   percent: number;
 };
@@ -323,6 +327,8 @@ export default function RelatorioPage() {
         name: item.category,
         value: item.total,
         percent: item.percent,
+        iconName: item.categoryIconName,
+        iconColor: item.categoryIconColor,
       })),
     [summary],
   );
@@ -334,6 +340,10 @@ export default function RelatorioPage() {
 
   const insights = useMemo(
     () => summary?.insights || [],
+    [summary],
+  );
+  const topCategoryItem = useMemo(
+    () => summary?.categoryTotals?.[0] || null,
     [summary],
   );
 
@@ -397,7 +407,16 @@ export default function RelatorioPage() {
               </div>
               <div className="rounded-2xl border border-violet-300/20 bg-[linear-gradient(160deg,rgba(34,18,61,0.88),rgba(12,9,31,0.9))] p-4">
                 <p className="text-xs text-slate-400">Maior categoria</p>
-                <p className="mt-1 text-xl font-extrabold text-violet-200">{summary.topCategory || "-"}</p>
+                <div className="mt-1 flex items-center gap-2">
+                  <CategoryIcon
+                    categoryName={topCategoryItem?.category || summary.topCategory || "Sem categoria"}
+                    iconName={topCategoryItem?.categoryIconName}
+                    iconColor={topCategoryItem?.categoryIconColor}
+                    size={14}
+                    circleSize={30}
+                  />
+                  <p className="text-xl font-extrabold text-violet-200">{summary.topCategory || "-"}</p>
+                </div>
                 <p className="text-xs text-slate-400">{formatCurrency(summary.topCategoryTotal)}</p>
               </div>
               <div className="rounded-2xl border border-violet-300/20 bg-[linear-gradient(160deg,rgba(34,18,61,0.88),rgba(12,9,31,0.9))] p-4">
@@ -446,7 +465,6 @@ export default function RelatorioPage() {
                             borderRadius: "12px",
                           }}
                         />
-                        <Legend />
                       </PieChart>
                     </ResponsiveContainer>
                   ) : (
@@ -455,6 +473,28 @@ export default function RelatorioPage() {
                     </div>
                   )}
                 </div>
+                {pieData.length ? (
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {pieData.slice(0, 8).map((item) => (
+                      <div
+                        key={item.name}
+                        className="flex items-center justify-between rounded-xl border border-white/10 bg-slate-900/50 px-3 py-2"
+                      >
+                        <div className="flex min-w-0 items-center gap-2">
+                          <CategoryIcon
+                            categoryName={item.name}
+                            iconName={item.iconName}
+                            iconColor={item.iconColor}
+                            size={12}
+                            circleSize={24}
+                          />
+                          <p className="truncate text-xs text-slate-200">{item.name}</p>
+                        </div>
+                        <p className="text-xs font-semibold text-slate-300">{item.percent.toFixed(1).replace(".", ",")}%</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
 
               <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-4">
@@ -471,9 +511,20 @@ export default function RelatorioPage() {
                           <p className="truncate text-sm font-semibold text-slate-100">
                             {index + 1}. {row.description}
                           </p>
-                          <p className="text-xs text-slate-400">
-                            {row.category} | {formatDateLabel(row.date)} | {row.expenseType}
-                          </p>
+                          <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
+                            <CategoryIcon
+                              categoryName={row.category}
+                              iconName={row.categoryIconName}
+                              iconColor={row.categoryIconColor}
+                              size={11}
+                              circleSize={20}
+                            />
+                            <span>{row.category}</span>
+                            <span>|</span>
+                            <span>{formatDateLabel(row.date)}</span>
+                            <span>|</span>
+                            <span>{row.expenseType}</span>
+                          </div>
                         </div>
                         <p className="text-sm font-extrabold text-rose-300">{formatCurrency(row.amount)}</p>
                       </div>
@@ -507,7 +558,18 @@ export default function RelatorioPage() {
                         <tr key={row.id} className="border-b border-white/5">
                           <td className="px-3 py-2 text-slate-300">{formatDateLabel(row.date)}</td>
                           <td className="px-3 py-2 text-slate-100">{row.description}</td>
-                          <td className="px-3 py-2 text-slate-300">{row.category}</td>
+                          <td className="px-3 py-2 text-slate-300">
+                            <div className="flex items-center gap-2">
+                              <CategoryIcon
+                                categoryName={row.category}
+                                iconName={row.categoryIconName}
+                                iconColor={row.categoryIconColor}
+                                size={11}
+                                circleSize={22}
+                              />
+                              <span>{row.category}</span>
+                            </div>
+                          </td>
                           <td className="px-3 py-2 text-slate-300">{row.expenseType}</td>
                           <td className="px-3 py-2 text-right font-semibold text-rose-300">{formatCurrency(row.amount)}</td>
                         </tr>

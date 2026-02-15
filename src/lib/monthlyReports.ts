@@ -1,6 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import * as XLSX from "xlsx";
 import { toNumber } from "@/lib/money";
+import {
+  buildCategoryMetadataLookup,
+  ensureCategoryMetadataForNames,
+} from "@/lib/categoryMetadata";
+import {
+  normalizeCategoryKey,
+  resolveCategoryVisual,
+} from "@/lib/categoryVisuals";
 
 type TransactionExpenseRow = {
   id: string;
@@ -30,6 +38,8 @@ export type MonthlyExpenseRow = {
   date: string;
   description: string;
   category: string;
+  categoryIconName: string;
+  categoryIconColor: string;
   amount: number;
   expenseType: string;
   source: "transacao" | "investimento";
@@ -37,6 +47,8 @@ export type MonthlyExpenseRow = {
 
 export type MonthlyCategoryTotal = {
   category: string;
+  categoryIconName: string;
+  categoryIconColor: string;
   total: number;
   percent: number;
 };
@@ -178,12 +190,16 @@ const mapTransactionsToExpenseRows = (rows: TransactionExpenseRow[]): MonthlyExp
   for (const row of rows) {
     const amount = Math.abs(toNumber(row.amount));
     if (!Number.isFinite(amount) || amount <= 0) continue;
+    const category = (row.category || "Sem categoria").trim() || "Sem categoria";
+    const visual = resolveCategoryVisual({ categoryName: category });
 
     mapped.push({
       id: row.id,
       date: row.occurred_at,
       description: (row.description || "Lancamento").trim(),
-      category: (row.category || "Sem categoria").trim() || "Sem categoria",
+      category,
+      categoryIconName: visual.iconName,
+      categoryIconColor: visual.iconColor,
       amount: roundCurrency(amount),
       expenseType: classifyExpenseType(row),
       source: "transacao",
@@ -204,12 +220,16 @@ const mapInvestmentsToExpenseRows = (rows: InvestmentExpenseRow[]): MonthlyExpen
     const asset = (row.asset_name || row.investment_type || "Investimento").trim();
     const operation = normalizeText(row.operation || "compra");
     const description = operation === "venda" ? `Venda ${asset}` : `Aporte ${asset}`;
+    const category = (row.category || "Investimentos").trim() || "Investimentos";
+    const visual = resolveCategoryVisual({ categoryName: category });
 
     mapped.push({
       id: row.id,
       date,
       description,
-      category: (row.category || "Investimentos").trim() || "Investimentos",
+      category,
+      categoryIconName: visual.iconName,
+      categoryIconColor: visual.iconColor,
       amount: roundCurrency(amount),
       expenseType: "investimento",
       source: "investimento",
@@ -276,18 +296,33 @@ const fetchMonthlyExpenseRowsForRange = async ({
 
 const buildCategoryTotals = (rows: MonthlyExpenseRow[]) => {
   const total = rows.reduce((sum, row) => sum + row.amount, 0);
-  const byCategory = new Map<string, number>();
+  const byCategory = new Map<
+    string,
+    { total: number; categoryIconName: string; categoryIconColor: string }
+  >();
 
   rows.forEach((row) => {
     const key = row.category || "Sem categoria";
-    byCategory.set(key, roundCurrency((byCategory.get(key) || 0) + row.amount));
+    const curr = byCategory.get(key);
+    const visual = resolveCategoryVisual({
+      categoryName: key,
+      iconName: row.categoryIconName,
+      iconColor: row.categoryIconColor,
+    });
+    byCategory.set(key, {
+      total: roundCurrency((curr?.total || 0) + row.amount),
+      categoryIconName: curr?.categoryIconName || visual.iconName,
+      categoryIconColor: curr?.categoryIconColor || visual.iconColor,
+    });
   });
 
   const categories = Array.from(byCategory.entries())
     .map(([category, value]) => ({
       category,
-      total: roundCurrency(value),
-      percent: total > 0 ? roundCurrency((value / total) * 100) : 0,
+      categoryIconName: value.categoryIconName,
+      categoryIconColor: value.categoryIconColor,
+      total: roundCurrency(value.total),
+      percent: total > 0 ? roundCurrency((value.total / total) * 100) : 0,
     }))
     .sort((a, b) => b.total - a.total);
 
@@ -295,6 +330,33 @@ const buildCategoryTotals = (rows: MonthlyExpenseRow[]) => {
     total: roundCurrency(total),
     categories,
   };
+};
+
+const applyCategoryMetadata = ({
+  rows,
+  metadataRows,
+}: {
+  rows: MonthlyExpenseRow[];
+  metadataRows: Array<{
+    name: string;
+    icon_name: string | null;
+    icon_color: string | null;
+  }>;
+}) => {
+  const metadataByKey = buildCategoryMetadataLookup(metadataRows);
+  return rows.map((row) => {
+    const metadata = metadataByKey.get(normalizeCategoryKey(row.category));
+    const visual = resolveCategoryVisual({
+      categoryName: row.category,
+      iconName: metadata?.icon_name || row.categoryIconName,
+      iconColor: metadata?.icon_color || row.categoryIconColor,
+    });
+    return {
+      ...row,
+      categoryIconName: visual.iconName,
+      categoryIconColor: visual.iconColor,
+    };
+  });
 };
 
 const detectSubscriptionSpend = (rows: MonthlyExpenseRow[]) => {
@@ -520,8 +582,40 @@ export const buildMonthlyReportData = async ({
     }),
   ]);
 
-  const rows = currentRes.rows;
-  const previousRows = previousRes.rows;
+  const allCategoryNames = [
+    ...currentRes.rows.map((row) => row.category),
+    ...previousRes.rows.map((row) => row.category),
+  ];
+
+  let categoryMetadataRows: Array<{
+    name: string;
+    icon_name: string | null;
+    icon_color: string | null;
+  }> = [];
+  const warnings = [...currentRes.warnings, ...previousRes.warnings];
+
+  try {
+    const metadataResult = await ensureCategoryMetadataForNames({
+      client,
+      userId,
+      names: allCategoryNames,
+    });
+    categoryMetadataRows = metadataResult.rows;
+    if (!metadataResult.tableAvailable) {
+      warnings.push("Tabela transaction_categories nao encontrada. Icones padrao aplicados.");
+    }
+  } catch (error) {
+    warnings.push(error instanceof Error ? error.message : "Falha ao carregar metadados de categoria.");
+  }
+
+  const rows = applyCategoryMetadata({
+    rows: currentRes.rows,
+    metadataRows: categoryMetadataRows,
+  });
+  const previousRows = applyCategoryMetadata({
+    rows: previousRes.rows,
+    metadataRows: categoryMetadataRows,
+  });
 
   const currentTotals = buildCategoryTotals(rows);
   const previousTotals = buildCategoryTotals(previousRows);
@@ -570,7 +664,7 @@ export const buildMonthlyReportData = async ({
       insights,
       aiInsights,
       heuristicInsights,
-      warnings: dedupeLines([...currentRes.warnings, ...previousRes.warnings]),
+      warnings: dedupeLines(warnings),
     },
     period: {
       startDate: ranges.startDate,
@@ -598,6 +692,8 @@ export const createMonthlyWorkbookBuffer = (report: MonthlyReportData) => {
     Data: formatDatePt(row.date),
     Descricao: row.description,
     Categoria: row.category,
+    IconeCategoria: row.categoryIconName,
+    CorIcone: row.categoryIconColor,
     Valor: row.amount,
     Tipo: row.expenseType,
   }));
@@ -606,6 +702,8 @@ export const createMonthlyWorkbookBuffer = (report: MonthlyReportData) => {
     Data: "",
     Descricao: "TOTAL GERAL",
     Categoria: "",
+    IconeCategoria: "",
+    CorIcone: "",
     Valor: summary.total,
     Tipo: "",
   });
@@ -615,10 +713,12 @@ export const createMonthlyWorkbookBuffer = (report: MonthlyReportData) => {
     { wch: 14 },
     { wch: 48 },
     { wch: 24 },
+    { wch: 16 },
+    { wch: 14 },
     { wch: 18 },
     { wch: 18 },
   ];
-  setCurrencyFormatOnColumn(detailSheet, "D", 2, detailRows.length + 1);
+  setCurrencyFormatOnColumn(detailSheet, "F", 2, detailRows.length + 1);
 
   const summaryAoa: Array<Array<string | number>> = [
     ["Resumo financeiro mensal", ""],
@@ -630,17 +730,25 @@ export const createMonthlyWorkbookBuffer = (report: MonthlyReportData) => {
     ["Categoria com maior gasto", summary.topCategory || "-"],
     ["Valor da maior categoria", summary.topCategoryTotal],
     [],
-    ["Totais por categoria", "", ""],
-    ["Categoria", "Total", "Percentual"],
-    ...summary.categoryTotals.map((item) => [item.category, item.total, item.percent / 100]),
+    ["Totais por categoria", "", "", "", ""],
+    ["Categoria", "Icone", "Cor", "Total", "Percentual"],
+    ...summary.categoryTotals.map((item) => [
+      item.category,
+      item.categoryIconName,
+      item.categoryIconColor,
+      item.total,
+      item.percent / 100,
+    ]),
     [],
-    ["Insights automaticos", "", ""],
+    ["Insights automaticos", "", "", "", ""],
     ...summary.insights.map((item) => [item]),
   ];
 
   const summarySheet = XLSX.utils.aoa_to_sheet(summaryAoa);
   summarySheet["!cols"] = [
     { wch: 42 },
+    { wch: 16 },
+    { wch: 14 },
     { wch: 22 },
     { wch: 16 },
   ];
@@ -649,9 +757,9 @@ export const createMonthlyWorkbookBuffer = (report: MonthlyReportData) => {
   const categoryStartRow = 12;
   const categoryEndRow = categoryStartRow + summary.categoryTotals.length - 1;
   if (summary.categoryTotals.length > 0) {
-    setCurrencyFormatOnColumn(summarySheet, "B", categoryStartRow, categoryEndRow);
+    setCurrencyFormatOnColumn(summarySheet, "D", categoryStartRow, categoryEndRow);
     for (let row = categoryStartRow; row <= categoryEndRow; row += 1) {
-      const pctCell = summarySheet[`C${row}`];
+      const pctCell = summarySheet[`E${row}`];
       if (pctCell && typeof pctCell.v === "number") {
         pctCell.t = "n";
         pctCell.z = "0.00%";
