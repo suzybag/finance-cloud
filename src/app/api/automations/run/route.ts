@@ -38,6 +38,7 @@ const mapTableHint = (message?: string | null) => {
   if (/relation .*automations/i.test(text)) return "Tabela automations nao encontrada.";
   if (/relation .*insights/i.test(text)) return "Tabela insights nao encontrada.";
   if (/relation .*recurring_subscriptions/i.test(text)) return "Tabela recurring_subscriptions nao encontrada.";
+  if (/relation .*recurring_subscription_payments/i.test(text)) return "Tabela recurring_subscription_payments nao encontrada.";
   if (/relation .*subscriptions/i.test(text)) return "Tabela subscriptions nao encontrada.";
   if (/relation .*alerts/i.test(text)) return "Tabela alerts nao encontrada.";
   return null;

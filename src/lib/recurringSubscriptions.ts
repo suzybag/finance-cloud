@@ -1,4 +1,12 @@
-import { addDays, addMonths, addYears, differenceInCalendarDays } from "date-fns";
+import {
+  addDays,
+  addMonths,
+  addYears,
+  differenceInCalendarDays,
+  subDays,
+  subMonths,
+  subYears,
+} from "date-fns";
 import { toNumber } from "@/lib/money";
 
 export type BillingCycle = "monthly" | "annual" | "weekly";
@@ -106,6 +114,13 @@ const clampBillingCycle = (value?: string | null): BillingCycle => {
   return "monthly";
 };
 
+const normalizeText = (value?: string | null) =>
+  (value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
 const clampBillingDay = (value: unknown, cycle: BillingCycle) => {
   const parsed = Math.round(toNumber(value));
   if (cycle === "weekly") return Math.max(0, Math.min(6, parsed));
@@ -149,6 +164,12 @@ const addBillingCycle = (value: Date, cycle: BillingCycle) => {
   if (cycle === "weekly") return asDateStart(addDays(value, 7));
   if (cycle === "annual") return asDateStart(addYears(value, 1));
   return asDateStart(addMonths(value, 1));
+};
+
+const subtractBillingCycle = (value: Date, cycle: BillingCycle) => {
+  if (cycle === "weekly") return asDateStart(subDays(value, 7));
+  if (cycle === "annual") return asDateStart(subYears(value, 1));
+  return asDateStart(subMonths(value, 1));
 };
 
 const isCurrentCyclePaid = (row: RecurringSubscriptionRow, currentDueDate: Date) => {
@@ -229,6 +250,75 @@ export const normalizeRecurringSubscriptionRow = (
     updated_at: row.updated_at || null,
   };
 };
+
+export const inferRecurringSubscriptionCategory = (serviceName?: string | null, fallback?: string | null) => {
+  const fallbackValue = (fallback || "").trim();
+  if (fallbackValue) return fallbackValue;
+  const normalized = normalizeText(serviceName);
+  if (!normalized) return "Assinaturas";
+  if (
+    normalized.includes("netflix")
+    || normalized.includes("spotify")
+    || normalized.includes("prime")
+    || normalized.includes("disney")
+    || normalized.includes("hbo")
+    || normalized.includes("youtube")
+    || normalized.includes("stream")
+  ) {
+    return "Streaming";
+  }
+  if (
+    normalized.includes("icloud")
+    || normalized.includes("google drive")
+    || normalized.includes("drive")
+    || normalized.includes("dropbox")
+    || normalized.includes("onedrive")
+  ) {
+    return "Cloud";
+  }
+  if (normalized.includes("academia") || normalized.includes("gym")) {
+    return "Fitness";
+  }
+  if (
+    normalized.includes("figma")
+    || normalized.includes("notion")
+    || normalized.includes("adobe")
+    || normalized.includes("chatgpt")
+  ) {
+    return "Produtividade";
+  }
+  return "Assinaturas";
+};
+
+export const buildRecurringSubscriptionExternalId = (subscriptionId: string, chargeDate: string) =>
+  `recurring-subscription:${String(subscriptionId || "").trim()}:${String(chargeDate || "").trim()}`;
+
+export const getLatestRecurringDueDate = (
+  subscription: RecurringSubscriptionRow | Partial<RecurringSubscriptionRow>,
+  now = new Date(),
+) => {
+  const row = normalizeRecurringSubscriptionRow(subscription);
+  const today = asDateStart(now);
+  let dueDate = getCurrentCycleDueDate(row, today);
+  if (dueDate.getTime() > today.getTime()) {
+    dueDate = subtractBillingCycle(dueDate, row.billing_cycle);
+  }
+  const startDate = parseDateOnly(row.start_date);
+  if (dueDate.getTime() < startDate.getTime()) return null;
+  return dueDate;
+};
+
+export const isRecurringChargeCovered = (
+  subscription: RecurringSubscriptionRow | Partial<RecurringSubscriptionRow>,
+  dueDate: Date,
+) => {
+  const row = normalizeRecurringSubscriptionRow(subscription);
+  if (!row.last_charge_date) return false;
+  const lastCharge = parseDateOnly(row.last_charge_date);
+  return asDateStart(lastCharge).getTime() >= asDateStart(dueDate).getTime();
+};
+
+export const toRecurringIsoDate = (value: Date) => toIsoDate(asDateStart(value));
 
 export const normalizeRecurringSubscriptionPaymentRow = (
   row: Partial<RecurringSubscriptionPaymentRow>,
@@ -346,4 +436,3 @@ export const summarizeRecurringSubscriptions = (
     projected30Days: estimateProjectedCost(normalizedRows, 30, now),
   };
 };
-

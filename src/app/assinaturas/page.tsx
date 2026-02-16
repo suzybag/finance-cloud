@@ -24,7 +24,9 @@ import {
 import { AppShell } from "@/components/AppShell";
 import { brl, toNumber } from "@/lib/money";
 import {
+  buildRecurringSubscriptionExternalId,
   computeRecurringSubscriptionMetrics,
+  inferRecurringSubscriptionCategory,
   normalizeRecurringSubscriptionPaymentRow,
   normalizeRecurringSubscriptionRow,
   summarizeRecurringSubscriptions,
@@ -111,6 +113,16 @@ const formatShortDate = (value?: Date | null) => {
   return value.toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "2-digit",
+  });
+};
+
+const formatMonthYear = (value?: string | Date | null) => {
+  if (!value) return "--";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "--";
+  return date.toLocaleDateString("pt-BR", {
+    month: "short",
+    year: "numeric",
   });
 };
 
@@ -293,7 +305,7 @@ export default function AssinaturasPage() {
     const price = Math.max(0, round2(toNumber(form.priceMasked)));
     const chargeDate = form.chargeDate || new Date().toISOString().slice(0, 10);
     const chargeDateParsed = new Date(`${chargeDate}T12:00:00`);
-    const category = form.category.trim() || null;
+    const category = inferRecurringSubscriptionCategory(name, form.category.trim() || null);
     const paymentMethod = form.paymentMethod.trim() || null;
     const notes = form.notes.trim() || null;
 
@@ -327,6 +339,7 @@ export default function AssinaturasPage() {
       category,
       payment_method: paymentMethod,
       notes,
+      last_charge_date: chargeDate,
       active: true,
     };
 
@@ -336,9 +349,8 @@ export default function AssinaturasPage() {
       .select("*")
       .single();
 
-    setSaving(false);
-
     if (error || !data) {
+      setSaving(false);
       setFeedback(
         isMissingRecurringSubscriptionsTableError(error?.message)
           ? "Tabela recurring_subscriptions nao encontrada. Rode o supabase.sql atualizado."
@@ -347,22 +359,99 @@ export default function AssinaturasPage() {
       return;
     }
 
-    setSubscriptions((prev) => [
-      normalizeRecurringSubscriptionRow(data as Partial<RecurringSubscriptionRow>),
-      ...prev,
+    const insertedSubscription = normalizeRecurringSubscriptionRow(data as Partial<RecurringSubscriptionRow>);
+    const externalId = buildRecurringSubscriptionExternalId(insertedSubscription.id, chargeDate);
+
+    const [paymentRes, existingTxRes] = await Promise.all([
+      supabase
+        .from("recurring_subscription_payments")
+        .upsert(
+          {
+            subscription_id: insertedSubscription.id,
+            user_id: userId,
+            charge_date: chargeDate,
+            amount: price,
+            status: "paid",
+          },
+          { onConflict: "subscription_id,charge_date" },
+        )
+        .select("*")
+        .single(),
+      supabase
+        .from("transactions")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("external_id", externalId)
+        .maybeSingle(),
     ]);
+
+    if (paymentRes.error) {
+      setSaving(false);
+      setFeedback(`Assinatura salva, mas falhou ao registrar historico: ${paymentRes.error.message}`);
+      setSubscriptions((prev) => [insertedSubscription, ...prev]);
+      return;
+    }
+
+    if (existingTxRes.error) {
+      setSaving(false);
+      setFeedback(`Assinatura salva, mas falhou ao verificar gasto existente: ${existingTxRes.error.message}`);
+      setSubscriptions((prev) => [insertedSubscription, ...prev]);
+      const normalizedPayment = normalizeRecurringSubscriptionPaymentRow(
+        paymentRes.data as Partial<RecurringSubscriptionPaymentRow>,
+      );
+      setPayments((prev) => [normalizedPayment, ...prev]);
+      return;
+    }
+
+    if (!existingTxRes.data?.id) {
+      const txRes = await supabase.from("transactions").insert({
+        user_id: userId,
+        type: "expense",
+        occurred_at: chargeDate,
+        description: `${insertedSubscription.name} - assinatura`,
+        category,
+        amount: price,
+        account_id: null,
+        to_account_id: null,
+        card_id: null,
+        transaction_type: "despesa",
+        tags: ["assinatura", "recorrente", form.billingCycle],
+        note: `Cobranca automatica (${cycleLabel[form.billingCycle].toLowerCase()})`,
+        external_id: externalId,
+      });
+
+      if (txRes.error) {
+        setSaving(false);
+        setFeedback(`Assinatura salva, mas falhou ao gerar gasto automatico: ${txRes.error.message}`);
+        setSubscriptions((prev) => [insertedSubscription, ...prev]);
+        const normalizedPayment = normalizeRecurringSubscriptionPaymentRow(
+          paymentRes.data as Partial<RecurringSubscriptionPaymentRow>,
+        );
+        setPayments((prev) => [normalizedPayment, ...prev]);
+        return;
+      }
+    }
+
+    setSaving(false);
+    const normalizedPayment = normalizeRecurringSubscriptionPaymentRow(
+      paymentRes.data as Partial<RecurringSubscriptionPaymentRow>,
+    );
+    setSubscriptions((prev) => [insertedSubscription, ...prev]);
+    setPayments((prev) => [normalizedPayment, ...prev]);
     setForm((prev) => ({ ...emptyForm(), chargeDate: prev.chargeDate || emptyForm().chargeDate }));
-    setFeedback("Assinatura cadastrada com sucesso.");
+    setFeedback("Assinatura cadastrada com gasto automatico e historico inicial.");
   };
 
   const handleRegisterPayment = async (row: RecurringSubscriptionRow) => {
     if (!userId || !row.active) return;
     const chargeDate = new Date().toISOString().slice(0, 10);
+    const category = inferRecurringSubscriptionCategory(row.name, row.category);
+    const externalId = buildRecurringSubscriptionExternalId(row.id, chargeDate);
 
     setSaving(true);
     setFeedback(null);
 
-    const [paymentRes, updateSubscriptionRes] = await Promise.all([
+    const [paymentRes, updateSubscriptionRes, existingTxRes] = await Promise.all([
       supabase
         .from("recurring_subscription_payments")
         .upsert(
@@ -382,6 +471,12 @@ export default function AssinaturasPage() {
         .update({ last_charge_date: chargeDate })
         .eq("id", row.id)
         .eq("user_id", userId),
+      supabase
+        .from("transactions")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("external_id", externalId)
+        .maybeSingle(),
     ]);
 
     setSaving(false);
@@ -393,6 +488,34 @@ export default function AssinaturasPage() {
     if (updateSubscriptionRes.error) {
       setFeedback(`Pagamento registrado, mas falhou ao atualizar assinatura: ${updateSubscriptionRes.error.message}`);
       return;
+    }
+
+    if (existingTxRes.error) {
+      setFeedback(`Pagamento registrado, mas falhou ao verificar gasto existente: ${existingTxRes.error.message}`);
+      return;
+    }
+
+    if (!existingTxRes.data?.id) {
+      const txRes = await supabase.from("transactions").insert({
+        user_id: userId,
+        type: "expense",
+        occurred_at: chargeDate,
+        description: `${row.name} - assinatura`,
+        category,
+        amount: row.price,
+        account_id: null,
+        to_account_id: null,
+        card_id: null,
+        transaction_type: "despesa",
+        tags: ["assinatura", "recorrente", row.billing_cycle],
+        note: `Pagamento manual em ${chargeDate}`,
+        external_id: externalId,
+      });
+
+      if (txRes.error) {
+        setFeedback(`Pagamento registrado, mas falhou ao gerar gasto em transacoes: ${txRes.error.message}`);
+        return;
+      }
     }
 
     const normalizedPayment = normalizeRecurringSubscriptionPaymentRow(
@@ -699,7 +822,10 @@ export default function AssinaturasPage() {
               ) : (
                 subscriptionsSorted.map((row) => {
                   const metrics = computeRecurringSubscriptionMetrics(row);
-                  const history = (paymentsBySubscription.get(row.id) || []).slice(0, 3);
+                  const history = [...(paymentsBySubscription.get(row.id) || [])]
+                    .sort((left, right) => new Date(right.charge_date).getTime() - new Date(left.charge_date).getTime());
+                  const paidHistory = history.filter((payment) => payment.status === "paid");
+                  const totalSpent = paidHistory.reduce((sum, payment) => sum + payment.amount, 0);
                   const serviceVisual = getServiceVisual(row.name);
                   const Icon = serviceVisual.icon;
                   const monthlyShare = summary.monthlyTotal > 0
@@ -791,15 +917,31 @@ export default function AssinaturasPage() {
                       ) : null}
 
                       <div className="mt-3 rounded-lg border border-cyan-300/15 bg-black/20 p-3">
-                        <p className="text-xs font-medium text-cyan-100/85">Historico de pagamentos</p>
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-medium text-cyan-100/85">Extrato de renovacoes</p>
+                          <span className="text-[11px] text-cyan-100/65">{paidHistory.length} pagamento(s)</span>
+                        </div>
+                        <div className="mt-2 grid gap-2 text-xs text-cyan-100/75 sm:grid-cols-2">
+                          <div className="rounded-md border border-cyan-300/15 bg-black/30 px-2.5 py-1.5">
+                            <p className="text-cyan-100/55">Total acumulado</p>
+                            <p className="font-semibold text-cyan-50">{brl(totalSpent)}</p>
+                          </div>
+                          <div className="rounded-md border border-cyan-300/15 bg-black/30 px-2.5 py-1.5">
+                            <p className="text-cyan-100/55">Ultima renovacao</p>
+                            <p className="font-semibold text-cyan-50">{history[0] ? formatDate(history[0].charge_date) : "--"}</p>
+                          </div>
+                        </div>
                         {!history.length ? (
                           <p className="mt-1 text-xs text-cyan-100/65">Sem pagamentos registrados.</p>
                         ) : (
-                          <div className="mt-2 space-y-1.5">
+                          <div className="mt-2 max-h-44 space-y-1.5 overflow-y-auto pr-1">
                             {history.map((payment) => (
-                              <div key={payment.id} className="flex items-center justify-between text-xs text-cyan-100/75">
-                                <span>{formatDate(payment.charge_date)}</span>
-                                <span>{brl(payment.amount)}</span>
+                              <div key={payment.id} className="flex items-center justify-between gap-2 text-xs text-cyan-100/75">
+                                <div className="min-w-0">
+                                  <p className="truncate font-medium text-cyan-50">{formatMonthYear(payment.charge_date)}</p>
+                                  <p className="text-[11px] text-cyan-100/60">{formatDate(payment.charge_date)}</p>
+                                </div>
+                                <span className="font-medium text-cyan-50">{brl(payment.amount)}</span>
                                 <span className="uppercase tracking-wide">{payment.status}</span>
                               </div>
                             ))}

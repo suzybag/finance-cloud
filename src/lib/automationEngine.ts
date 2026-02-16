@@ -3,7 +3,13 @@ import { differenceInCalendarDays } from "date-fns";
 import { computeCardSummary, type Card, type Transaction } from "@/lib/finance";
 import { computeAutoPaidInstallments, normalizeInstallmentRow, type InstallmentRow } from "@/lib/installments";
 import {
+  buildRecurringSubscriptionExternalId,
+  getLatestRecurringDueDate,
+  inferRecurringSubscriptionCategory,
+  isRecurringChargeCovered,
+  normalizeRecurringSubscriptionRow,
   summarizeRecurringSubscriptions,
+  toRecurringIsoDate,
   type RecurringSubscriptionRow,
 } from "@/lib/recurringSubscriptions";
 import { toNumber } from "@/lib/money";
@@ -560,6 +566,124 @@ const syncInstallmentsProgress = async ({
   return updated;
 };
 
+const isMissingRecurringSubscriptionsTableError = (message?: string | null) =>
+  /relation .*recurring_subscriptions/i.test(message || "")
+  || /schema cache/i.test((message || "").toLowerCase());
+
+const isMissingRecurringPaymentsTableError = (message?: string | null) =>
+  /relation .*recurring_subscription_payments/i.test(message || "")
+  || /schema cache/i.test((message || "").toLowerCase());
+
+const syncRecurringSubscriptionsCharges = async ({
+  admin,
+  userId,
+  now,
+}: {
+  admin: SupabaseClient;
+  userId: string;
+  now: Date;
+}) => {
+  const rowsRes = await admin
+    .from("recurring_subscriptions")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("active", true);
+
+  if (rowsRes.error) {
+    if (isMissingRecurringSubscriptionsTableError(rowsRes.error.message)) {
+      return 0;
+    }
+    throw new Error(`Falha ao sincronizar assinaturas recorrentes: ${rowsRes.error.message}`);
+  }
+
+  const rows = ((rowsRes.data || []) as Partial<RecurringSubscriptionRow>[])
+    .map((row) => normalizeRecurringSubscriptionRow(row))
+    .filter((row) => row.id && row.user_id);
+
+  if (!rows.length) return 0;
+
+  let synced = 0;
+  for (const row of rows) {
+    const dueDate = getLatestRecurringDueDate(row, now);
+    if (!dueDate || isRecurringChargeCovered(row, dueDate)) {
+      continue;
+    }
+
+    const chargeDate = toRecurringIsoDate(dueDate);
+    const category = inferRecurringSubscriptionCategory(row.name, row.category);
+    const externalId = buildRecurringSubscriptionExternalId(row.id, chargeDate);
+
+    const paymentRes = await admin
+      .from("recurring_subscription_payments")
+      .upsert(
+        {
+          subscription_id: row.id,
+          user_id: userId,
+          charge_date: chargeDate,
+          amount: row.price,
+          status: "paid",
+        },
+        { onConflict: "subscription_id,charge_date" },
+      );
+
+    if (paymentRes.error) {
+      if (isMissingRecurringPaymentsTableError(paymentRes.error.message)) {
+        return synced;
+      }
+      throw new Error(`Falha ao registrar historico de assinatura: ${paymentRes.error.message}`);
+    }
+
+    const existingTxRes = await admin
+      .from("transactions")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("external_id", externalId)
+      .maybeSingle();
+
+    if (existingTxRes.error) {
+      throw new Error(`Falha ao verificar transacao de assinatura: ${existingTxRes.error.message}`);
+    }
+
+    if (!existingTxRes.data?.id) {
+      const txRes = await admin
+        .from("transactions")
+        .insert({
+          user_id: userId,
+          occurred_at: chargeDate,
+          type: "expense",
+          transaction_type: "despesa",
+          description: `${row.name} - assinatura`,
+          category,
+          amount: row.price,
+          account_id: null,
+          to_account_id: null,
+          card_id: null,
+          tags: ["assinatura", "recorrente", row.billing_cycle],
+          note: `Renovacao automatica (${row.billing_cycle})`,
+          external_id: externalId,
+        });
+
+      if (txRes.error) {
+        throw new Error(`Falha ao criar gasto automatico de assinatura: ${txRes.error.message}`);
+      }
+    }
+
+    const updateRes = await admin
+      .from("recurring_subscriptions")
+      .update({ last_charge_date: chargeDate })
+      .eq("id", row.id)
+      .eq("user_id", userId);
+
+    if (updateRes.error) {
+      throw new Error(`Falha ao atualizar assinatura recorrente: ${updateRes.error.message}`);
+    }
+
+    synced += 1;
+  }
+
+  return synced;
+};
+
 const createInternalAlert = async ({
   admin,
   userId,
@@ -644,6 +768,7 @@ export const runUserAutomation = async ({
 }): Promise<RunUserAutomationResult> => {
   const now = new Date();
   await syncInstallmentsProgress({ admin, userId, now });
+  await syncRecurringSubscriptionsCharges({ admin, userId, now });
 
   const categorized = await autoCategorizeTransactions({ admin, userId });
   const currentMonth = normalizeMonthKey();
