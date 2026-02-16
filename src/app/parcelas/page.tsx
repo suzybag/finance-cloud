@@ -366,23 +366,23 @@ export default function ParcelasPage() {
           </section>
 
           <section className="parcelas-explain-card">
-            <div className="flex items-start gap-4">
+            <div className="flex items-start gap-3">
               <div className="parcelas-explain-icon">
-                <Smartphone className="h-5 w-5" />
+                <Smartphone className="h-4 w-4" />
               </div>
               <div className="min-w-0">
-                <p className="text-3xl font-semibold tracking-tight text-white">Parcelas</p>
-                <p className="text-sm text-orange-200/80">Gerencie compras parceladas com progresso visual</p>
+                <p className="text-2xl font-semibold tracking-tight text-white">Parcelas</p>
+                <p className="text-xs text-violet-200/80">Gerencie compras parceladas com progresso visual</p>
               </div>
             </div>
 
             <div className="parcelas-explain-item">
               <div className="mb-2 flex items-center justify-between gap-2">
                 <div>
-                  <p className="line-clamp-1 text-lg font-semibold text-white">{explainCard.title}</p>
-                  <p className="text-sm text-slate-300/80">{explainCard.paid}/{explainCard.total} parcelas</p>
+                  <p className="line-clamp-1 text-base font-semibold text-white">{explainCard.title}</p>
+                  <p className="text-xs text-slate-300/80">{explainCard.paid}/{explainCard.total} parcelas</p>
                 </div>
-                <p className="text-3xl font-bold tracking-tight text-white">{brl(explainCard.installmentValue)}</p>
+                <p className="text-2xl font-bold tracking-tight text-white">{brl(explainCard.installmentValue)}</p>
               </div>
               <div className="parcelas-explain-track">
                 <div
