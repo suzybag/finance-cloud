@@ -16,6 +16,7 @@ import {
   Plane,
   Plus,
   ShoppingBag,
+  Smartphone,
   Trash2,
   Utensils,
 } from "lucide-react";
@@ -186,6 +187,26 @@ export default function ParcelasPage() {
     [summary.active],
   );
 
+  const explainCard = useMemo(() => {
+    const firstActive = summary.active[0];
+    if (firstActive) {
+      return {
+        title: firstActive.row.name,
+        paid: firstActive.metrics.paidInstallments,
+        total: firstActive.metrics.installmentCount,
+        installmentValue: firstActive.metrics.installmentValue,
+        progress: firstActive.metrics.percentagePaid,
+      };
+    }
+    return {
+      title: "iPhone 15",
+      paid: 5,
+      total: 12,
+      installmentValue: 499,
+      progress: (5 / 12) * 100,
+    };
+  }, [summary.active]);
+
   const handleCreateInstallment = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!userId) return;
@@ -342,6 +363,34 @@ export default function ParcelasPage() {
               <p className="mt-2 text-2xl font-bold text-cyan-50">{summary.overdue.length + nearDueAlerts.length}</p>
               <p className="mt-1 text-xs text-cyan-100/65">Atrasadas ou vencendo em ate 3 dias</p>
             </article>
+          </section>
+
+          <section className="parcelas-explain-card">
+            <div className="flex items-start gap-4">
+              <div className="parcelas-explain-icon">
+                <Smartphone className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-3xl font-semibold tracking-tight text-white">Parcelas</p>
+                <p className="text-sm text-orange-200/80">Gerencie compras parceladas com progresso visual</p>
+              </div>
+            </div>
+
+            <div className="parcelas-explain-item">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div>
+                  <p className="line-clamp-1 text-lg font-semibold text-white">{explainCard.title}</p>
+                  <p className="text-sm text-slate-300/80">{explainCard.paid}/{explainCard.total} parcelas</p>
+                </div>
+                <p className="text-3xl font-bold tracking-tight text-white">{brl(explainCard.installmentValue)}</p>
+              </div>
+              <div className="parcelas-explain-track">
+                <div
+                  className="parcelas-explain-fill"
+                  style={{ width: `${Math.max(0, Math.min(100, explainCard.progress)).toFixed(2)}%` }}
+                />
+              </div>
+            </div>
           </section>
 
           <div className="grid gap-4 xl:grid-cols-[380px_1fr]">
@@ -516,11 +565,13 @@ export default function ParcelasPage() {
                           <span>{metrics.paidInstallments}/{metrics.installmentCount} parcelas</span>
                           <span>{metrics.percentagePaid.toFixed(1).replace(".", ",")}% pago</span>
                         </div>
-                        <div className="h-2.5 overflow-hidden rounded-full border border-cyan-300/20 bg-[#09111d]">
+                        <div className="relative h-2.5 overflow-hidden rounded-full border border-cyan-300/20 bg-[#09111d]">
                           <div
-                            className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-400 transition-[width] duration-700"
+                            className="parcelas-progress-fill h-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-400 transition-[width] duration-700"
                             style={{ width: progressWidth }}
-                          />
+                          >
+                            <span className="parcelas-progress-shine" />
+                          </div>
                         </div>
                       </div>
 
