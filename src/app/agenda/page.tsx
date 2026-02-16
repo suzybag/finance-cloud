@@ -13,6 +13,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { VanishList } from "@/components/agenda/VanishList";
 import { supabase } from "@/lib/supabaseClient";
 
 type AgendaEventRow = {
@@ -662,6 +663,8 @@ export default function AgendaPage() {
               </div>
             )}
           </section>
+
+          <VanishList />
         </div>
       )}
 
