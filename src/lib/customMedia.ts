@@ -86,11 +86,11 @@ type SubscriptionLogoRule = {
 
 const SUBSCRIPTION_LOGO_RULES: SubscriptionLogoRule[] = [
   {
-    terms: ["netflix"],
+    terms: ["netflix assinatura", "assinatura netflix", "netflix"],
     path: CUSTOM_MEDIA_ASSETS.netflixRoundAlt,
   },
   {
-    terms: ["hbo", "hbo max"],
+    terms: ["hbo max sem assinatura", "hbo max assinatura", "hbo max", "hbomax", "hbo"],
     path: CUSTOM_MEDIA_ASSETS.hboMaxSquare,
   },
   {

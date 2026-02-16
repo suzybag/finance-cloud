@@ -533,6 +533,10 @@ set logo = '/custom/icons/caixa-para-economizar-dinheiro-3d-icon-png-download-52
 where lower(name) = lower('Caixinha Nubank');
 
 update public.assets
+set logo = '/custom/icons/caixa-para-economizar-dinheiro-3d-icon-png-download-5298710.webp'
+where lower(name) like '%caixinha%';
+
+update public.assets
 set logo = '/custom/icons/pix-banco-central-logo-png-seeklogo-388843.png'
 where lower(name) = lower('Pix');
 
@@ -546,6 +550,17 @@ where i.asset_id = a.id
     or trim(i.asset_logo_url) = ''
     or i.asset_logo_url like 'https://assets.coincap.io/assets/icons/%'
   );
+
+update public.investments
+set asset_logo_url = '/custom/icons/barras-de-ouro.png'
+where lower(coalesce(asset_name, '')) like '%ouro%'
+   or lower(coalesce(investment_type, '')) like '%ouro%'
+   or lower(coalesce(investment_type, '')) like '%xau%';
+
+update public.investments
+set asset_logo_url = '/custom/icons/caixa-para-economizar-dinheiro-3d-icon-png-download-5298710.webp'
+where lower(coalesce(asset_name, '')) like '%caixinha%'
+   or lower(coalesce(investment_type, '')) like '%caixinha%';
 
 update public.investments set updated_at = now() where updated_at is null;
 
@@ -1954,6 +1969,32 @@ select distinct i.user_id, trim(i.category)
 from public.investments i
 where coalesce(trim(i.category), '') <> ''
 on conflict (user_id, name) do nothing;
+
+update public.transaction_categories
+set icon_name = 'MoneySafe3D',
+    icon_color = '#4ade80'
+where lower(name) like '%caixinha investimento%'
+   or lower(name) like '%caixinha%';
+
+update public.transaction_categories
+set icon_name = 'Home3D',
+    icon_color = '#3b82f6'
+where lower(name) like '%planejamento casa%'
+   or (lower(name) like '%planejamento%' and lower(name) like '%casa%');
+
+update public.transaction_categories
+set icon_name = 'NetflixLogo',
+    icon_color = '#e11d48'
+where lower(name) like '%netflix assinatura%'
+   or lower(name) like '%assinatura netflix%'
+   or lower(name) = 'netflix';
+
+update public.transaction_categories
+set icon_name = 'HboMaxLogo',
+    icon_color = '#4338ca'
+where lower(name) like '%hbo max%'
+   or lower(name) like '%hbomax%'
+   or lower(name) = 'hbo';
 
 create table if not exists public.alerts (
   id uuid primary key default gen_random_uuid(),

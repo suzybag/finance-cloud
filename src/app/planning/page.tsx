@@ -8,11 +8,11 @@ import {
   Loader2,
   Pencil,
   Plus,
-  Target,
   Trash2,
   Trophy,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { CategoryIcon } from "@/components/CategoryIcon";
 import { brl, toNumber } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -533,7 +533,11 @@ export default function PlanningPage() {
                   </h2>
                 </div>
                 <div className="rounded-xl border border-violet-300/25 bg-black/25 p-2">
-                  <Target className="h-5 w-5 text-violet-200" />
+                  <CategoryIcon
+                    categoryName={highlightedGoal?.goal_name || "Planejamento"}
+                    size={14}
+                    circleSize={28}
+                  />
                 </div>
               </div>
 
@@ -713,7 +717,12 @@ export default function PlanningPage() {
                         key={goal.id}
                         className="rounded-2xl border border-violet-300/20 bg-black/25 text-sm text-slate-100"
                       >
-                        <td className="rounded-l-xl px-3 py-3 font-semibold">{goal.goal_name}</td>
+                        <td className="rounded-l-xl px-3 py-3 font-semibold">
+                          <div className="flex items-center gap-2">
+                            <CategoryIcon categoryName={goal.goal_name} size={12} circleSize={24} />
+                            <span>{goal.goal_name}</span>
+                          </div>
+                        </td>
                         <td className="px-3 py-3">{brl(goal.goal_amount)}</td>
                         <td className="px-3 py-3">{brl(goal.current_amount)}</td>
                         <td className="px-3 py-3">{brl(goal.metrics.valueRestante)}</td>
@@ -797,7 +806,10 @@ export default function PlanningPage() {
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-sm font-bold text-emerald-100">{goal.goal_name}</p>
+                        <div className="flex items-center gap-2">
+                          <CategoryIcon categoryName={goal.goal_name} size={12} circleSize={24} />
+                          <p className="text-sm font-bold text-emerald-100">{goal.goal_name}</p>
+                        </div>
                         <p className="mt-1 text-xs text-emerald-100/85">
                           Concluida em {formatDate(goal.completed_at || goal.created_at)}
                         </p>

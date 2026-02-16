@@ -49,6 +49,9 @@ const statusStyles: Record<ReturnType<typeof calculateInvestmentStatus>, string>
 const resolveFallbackLogo = (item: InvestmentCardItem) => {
   const key = `${item.category} ${item.investment_type} ${item.asset_name}`.toLowerCase();
 
+  if (key.includes("caixinha")) {
+    return "/custom/icons/caixa-para-economizar-dinheiro-3d-icon-png-download-5298710.webp";
+  }
   if (key.includes("cripto") || key.includes("bitcoin") || key.includes("btc") || key.includes("eth")) {
     return "/custom/icons/bitcoin.png";
   }
@@ -69,8 +72,7 @@ const resolveFallbackLogo = (item: InvestmentCardItem) => {
     key.includes("tesouro") ||
     key.includes("selic") ||
     key.includes("ipca") ||
-    key.includes("poup") ||
-    key.includes("caixinha")
+    key.includes("poup")
   ) {
     return "/custom/icons/tesouro-direto.png";
   }

@@ -14,12 +14,14 @@ const DEFAULT_CATEGORY_VISUAL: CategoryVisual = {
 };
 
 const CATEGORY_VISUAL_RULES: CategoryRule[] = [
+  { terms: ["caixinha investimento", "caixinha de investimento", "caixinha", "cofrinho"], visual: { iconName: "MoneySafe3D", iconColor: "#4ade80" } },
+  { terms: ["planejamento casa", "meta casa", "objetivo casa propria", "casa propria"], visual: { iconName: "Home3D", iconColor: "#3b82f6" } },
   { terms: ["pix", "transferencia pix", "chave pix"], visual: { iconName: "PixLogo", iconColor: "#14b8a6" } },
   { terms: ["tesouro selic", "tesouro ipca", "tesouro"], visual: { iconName: "TesouroDiretoLogo", iconColor: "#1e3a8a" } },
   { terms: ["ouro", "commodities", "xau"], visual: { iconName: "GoldBars3D", iconColor: "#f59e0b" } },
   { terms: ["bitcoin", "btc", "cripto"], visual: { iconName: "BitcoinCoin3D", iconColor: "#f59e0b" } },
-  { terms: ["netflix"], visual: { iconName: "NetflixLogo", iconColor: "#e11d48" } },
-  { terms: ["hbo", "hbo max"], visual: { iconName: "HboMaxLogo", iconColor: "#4338ca" } },
+  { terms: ["netflix assinatura", "assinatura netflix", "netflix"], visual: { iconName: "NetflixLogo", iconColor: "#e11d48" } },
+  { terms: ["hbo max sem assinatura", "hbo max", "hbomax", "hbo"], visual: { iconName: "HboMaxLogo", iconColor: "#4338ca" } },
   { terms: ["prime video", "amazon prime"], visual: { iconName: "PrimeVideoLogo", iconColor: "#0ea5e9" } },
   { terms: ["chatgpt", "openai"], visual: { iconName: "OpenAiLogo", iconColor: "#334155" } },
   { terms: ["shopee"], visual: { iconName: "ShopeeLogo", iconColor: "#f97316" } },

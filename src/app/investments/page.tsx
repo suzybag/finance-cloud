@@ -165,6 +165,13 @@ const normalizeInvestment = (
   const startDate = row.start_date || new Date().toISOString().slice(0, 10);
   const broker = (row.broker || bankLookup?.name || "Nao informado").trim() || "Nao informado";
   const assetName = (row.asset_name || assetLookup?.name || investmentType).trim() || investmentType;
+  const assetNameLower = assetName.toLowerCase();
+  const investmentTypeLower = investmentType.toLowerCase();
+  const isCaixinhaAsset = assetNameLower.includes("caixinha")
+    || investmentTypeLower.includes("caixinha");
+  const isGoldAsset = assetNameLower.includes("ouro")
+    || investmentTypeLower.includes("ouro")
+    || investmentTypeLower.includes("xau");
 
   let quantity = Math.abs(toNumber(row.quantity));
   let averagePrice = toNumber(row.average_price);
@@ -218,6 +225,12 @@ const normalizeInvestment = (
   investedAmount = roundCurrency((quantity * averagePrice) + costs);
   currentAmount = roundCurrency(quantity * currentPrice);
 
+  const resolvedAssetLogo = isGoldAsset
+    ? "/custom/icons/barras-de-ouro.png"
+    : isCaixinhaAsset
+      ? "/custom/icons/caixa-para-economizar-dinheiro-3d-icon-png-download-5298710.webp"
+      : row.asset_logo_url?.trim() || assetLookup?.logo || bankLookup?.logo || null;
+
   return {
     id: row.id,
     user_id: row.user_id,
@@ -228,7 +241,7 @@ const normalizeInvestment = (
     costs,
     dividends_received: dividendsReceived,
     asset_name: assetName,
-    asset_logo_url: row.asset_logo_url?.trim() || assetLookup?.logo || bankLookup?.logo || null,
+    asset_logo_url: resolvedAssetLogo,
     quantity: roundCurrency(quantity),
     average_price: roundCurrency(averagePrice),
     current_price: roundCurrency(currentPrice),
