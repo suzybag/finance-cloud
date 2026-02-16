@@ -63,7 +63,7 @@ const EMPTY_MARKET: MarketOverviewPayload = {
   warnings: [],
 };
 
-const MARKET_POLL_INTERVAL_MS = 1000;
+const MARKET_POLL_INTERVAL_MS = 30_000;
 
 type InvestmentPositionRow = {
   category?: string | null;
