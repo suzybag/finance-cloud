@@ -2,6 +2,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { differenceInCalendarDays } from "date-fns";
 import { computeCardSummary, type Card, type Transaction } from "@/lib/finance";
 import { computeAutoPaidInstallments, normalizeInstallmentRow, type InstallmentRow } from "@/lib/installments";
+import {
+  summarizeRecurringSubscriptions,
+  type RecurringSubscriptionRow,
+} from "@/lib/recurringSubscriptions";
 import { toNumber } from "@/lib/money";
 import { sendEmailAlert } from "@/lib/emailAlerts";
 import { sendPushToUser } from "@/lib/pushServer";
@@ -55,7 +59,10 @@ type AutomationEvent = {
     | "investment_drop"
     | "dollar_threshold"
     | "spending_spike"
-    | "forecast_warning";
+    | "forecast_warning"
+    | "subscription_due_soon"
+    | "subscription_due_today"
+    | "subscription_unused";
   title: string;
   body: string;
   dueAt?: string | null;
@@ -838,6 +845,57 @@ export const runUserAutomation = async ({
         alertType: "investment_drop",
         title: `Queda em ${label}`,
         body: `${label} caiu ${formatPercent(Math.abs(worst.pct))} no periodo recente.`,
+      });
+    }
+  }
+
+  const recurringRes = await admin
+    .from("recurring_subscriptions")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("active", true);
+
+  if (recurringRes.error) {
+    const message = recurringRes.error.message || "";
+    const isMissingRelation = /relation .*recurring_subscriptions/i.test(message)
+      || /schema cache/i.test(message.toLowerCase());
+    if (!isMissingRelation) {
+      throw new Error(`Falha ao processar assinaturas recorrentes: ${message}`);
+    }
+  } else {
+    const recurringRows = (recurringRes.data || []) as Partial<RecurringSubscriptionRow>[];
+    const recurringSummary = summarizeRecurringSubscriptions(recurringRows, now, 15);
+
+    recurringSummary.dueSoon
+      .filter((item) => item.metrics.daysUntilCurrentDue > 0 && item.metrics.daysUntilCurrentDue <= 3)
+      .slice(0, 10)
+      .forEach((item) => {
+        events.push({
+          alertType: "subscription_due_soon",
+          title: `Assinatura ${item.row.name} vence em breve`,
+          body: `Cobranca em ${item.metrics.daysUntilCurrentDue} dia(s): ${formatCurrency(item.row.price)}.`,
+          dueAt: item.metrics.currentDueDate.toISOString().slice(0, 10),
+        });
+      });
+
+    recurringSummary.dueToday.slice(0, 10).forEach((item) => {
+      events.push({
+        alertType: "subscription_due_today",
+        title: `Assinatura ${item.row.name} vence hoje`,
+        body: `Pagamento previsto hoje no valor de ${formatCurrency(item.row.price)}.`,
+        dueAt: item.metrics.currentDueDate.toISOString().slice(0, 10),
+      });
+    });
+
+    if (recurringSummary.underused.length) {
+      const names = recurringSummary.underused
+        .slice(0, 3)
+        .map((item) => item.row.name)
+        .join(", ");
+      events.push({
+        alertType: "subscription_unused",
+        title: "Assinaturas com pouco uso",
+        body: `Reveja assinaturas sem uso recente: ${names}.`,
       });
     }
   }

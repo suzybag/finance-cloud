@@ -814,6 +814,9 @@ begin
   alter type public.alert_type add value if not exists 'dollar_threshold';
   alter type public.alert_type add value if not exists 'spending_spike';
   alter type public.alert_type add value if not exists 'forecast_warning';
+  alter type public.alert_type add value if not exists 'subscription_due_soon';
+  alter type public.alert_type add value if not exists 'subscription_due_today';
+  alter type public.alert_type add value if not exists 'subscription_unused';
   alter type public.alert_type add value if not exists 'relationship_delay_risk';
   alter type public.alert_type add value if not exists 'relationship_limit_high';
   alter type public.alert_type add value if not exists 'relationship_score_drop';
@@ -983,6 +986,243 @@ drop trigger if exists trg_installments_set_updated_at on public.installments;
 create trigger trg_installments_set_updated_at
 before update on public.installments
 for each row execute function public.set_installments_updated_at();
+
+create table if not exists public.recurring_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  price numeric not null default 0,
+  billing_day int not null default 1,
+  billing_cycle text not null default 'monthly',
+  start_date date not null default current_date,
+  category text,
+  payment_method text,
+  notes text,
+  last_charge_date date,
+  last_used_at date,
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.recurring_subscriptions add column if not exists user_id uuid;
+alter table public.recurring_subscriptions add column if not exists name text;
+alter table public.recurring_subscriptions add column if not exists price numeric not null default 0;
+alter table public.recurring_subscriptions add column if not exists billing_day int not null default 1;
+alter table public.recurring_subscriptions add column if not exists billing_cycle text not null default 'monthly';
+alter table public.recurring_subscriptions add column if not exists start_date date not null default current_date;
+alter table public.recurring_subscriptions add column if not exists category text;
+alter table public.recurring_subscriptions add column if not exists payment_method text;
+alter table public.recurring_subscriptions add column if not exists notes text;
+alter table public.recurring_subscriptions add column if not exists last_charge_date date;
+alter table public.recurring_subscriptions add column if not exists last_used_at date;
+alter table public.recurring_subscriptions add column if not exists active boolean not null default true;
+alter table public.recurring_subscriptions add column if not exists created_at timestamptz not null default now();
+alter table public.recurring_subscriptions add column if not exists updated_at timestamptz not null default now();
+
+update public.recurring_subscriptions
+set name = 'Assinatura'
+where name is null or trim(name) = '';
+
+update public.recurring_subscriptions
+set price = 0
+where price is null or price < 0;
+
+update public.recurring_subscriptions
+set billing_cycle = 'monthly'
+where lower(coalesce(billing_cycle, '')) not in ('monthly', 'annual', 'weekly');
+
+update public.recurring_subscriptions
+set billing_day = case
+  when lower(billing_cycle) = 'weekly' then greatest(0, least(6, coalesce(billing_day, 0)))
+  else greatest(1, least(31, coalesce(billing_day, 1)))
+end
+where billing_day is null
+   or billing_day < 0
+   or (lower(coalesce(billing_cycle, 'monthly')) = 'weekly' and billing_day > 6)
+   or (lower(coalesce(billing_cycle, 'monthly')) in ('monthly', 'annual') and billing_day > 31);
+
+update public.recurring_subscriptions
+set start_date = current_date
+where start_date is null;
+
+update public.recurring_subscriptions
+set active = true
+where active is null;
+
+alter table public.recurring_subscriptions alter column user_id set not null;
+alter table public.recurring_subscriptions alter column name set not null;
+alter table public.recurring_subscriptions alter column price set not null;
+alter table public.recurring_subscriptions alter column billing_day set not null;
+alter table public.recurring_subscriptions alter column billing_cycle set not null;
+alter table public.recurring_subscriptions alter column start_date set not null;
+alter table public.recurring_subscriptions alter column active set not null;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'recurring_subscriptions_user_id_fkey'
+      and conrelid = 'public.recurring_subscriptions'::regclass
+  ) then
+    alter table public.recurring_subscriptions
+    add constraint recurring_subscriptions_user_id_fkey
+    foreign key (user_id) references auth.users(id) on delete cascade;
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'recurring_subscriptions_name_not_blank'
+      and conrelid = 'public.recurring_subscriptions'::regclass
+  ) then
+    alter table public.recurring_subscriptions
+    add constraint recurring_subscriptions_name_not_blank
+    check (char_length(trim(name)) > 0);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'recurring_subscriptions_price_non_negative'
+      and conrelid = 'public.recurring_subscriptions'::regclass
+  ) then
+    alter table public.recurring_subscriptions
+    add constraint recurring_subscriptions_price_non_negative
+    check (price >= 0);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'recurring_subscriptions_billing_cycle_check'
+      and conrelid = 'public.recurring_subscriptions'::regclass
+  ) then
+    alter table public.recurring_subscriptions
+    add constraint recurring_subscriptions_billing_cycle_check
+    check (billing_cycle in ('monthly', 'annual', 'weekly'));
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'recurring_subscriptions_billing_day_range'
+      and conrelid = 'public.recurring_subscriptions'::regclass
+  ) then
+    alter table public.recurring_subscriptions
+    add constraint recurring_subscriptions_billing_day_range
+    check (
+      (billing_cycle = 'weekly' and billing_day between 0 and 6)
+      or (billing_cycle in ('monthly', 'annual') and billing_day between 1 and 31)
+    );
+  end if;
+end
+$$;
+
+create or replace function public.set_recurring_subscriptions_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end
+$$;
+
+drop trigger if exists trg_recurring_subscriptions_set_updated_at on public.recurring_subscriptions;
+create trigger trg_recurring_subscriptions_set_updated_at
+before update on public.recurring_subscriptions
+for each row execute function public.set_recurring_subscriptions_updated_at();
+
+create table if not exists public.recurring_subscription_payments (
+  id uuid primary key default gen_random_uuid(),
+  subscription_id uuid not null references public.recurring_subscriptions(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  charge_date date not null default current_date,
+  amount numeric not null default 0,
+  status text not null default 'paid',
+  created_at timestamptz not null default now()
+);
+
+alter table public.recurring_subscription_payments add column if not exists subscription_id uuid;
+alter table public.recurring_subscription_payments add column if not exists user_id uuid;
+alter table public.recurring_subscription_payments add column if not exists charge_date date not null default current_date;
+alter table public.recurring_subscription_payments add column if not exists amount numeric not null default 0;
+alter table public.recurring_subscription_payments add column if not exists status text not null default 'paid';
+alter table public.recurring_subscription_payments add column if not exists created_at timestamptz not null default now();
+
+update public.recurring_subscription_payments
+set amount = 0
+where amount is null or amount < 0;
+
+update public.recurring_subscription_payments
+set status = 'paid'
+where lower(coalesce(status, '')) not in ('paid', 'pending', 'skipped');
+
+alter table public.recurring_subscription_payments alter column subscription_id set not null;
+alter table public.recurring_subscription_payments alter column user_id set not null;
+alter table public.recurring_subscription_payments alter column charge_date set not null;
+alter table public.recurring_subscription_payments alter column amount set not null;
+alter table public.recurring_subscription_payments alter column status set not null;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'recurring_subscription_payments_subscription_id_fkey'
+      and conrelid = 'public.recurring_subscription_payments'::regclass
+  ) then
+    alter table public.recurring_subscription_payments
+    add constraint recurring_subscription_payments_subscription_id_fkey
+    foreign key (subscription_id) references public.recurring_subscriptions(id) on delete cascade;
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'recurring_subscription_payments_user_id_fkey'
+      and conrelid = 'public.recurring_subscription_payments'::regclass
+  ) then
+    alter table public.recurring_subscription_payments
+    add constraint recurring_subscription_payments_user_id_fkey
+    foreign key (user_id) references auth.users(id) on delete cascade;
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'recurring_subscription_payments_amount_non_negative'
+      and conrelid = 'public.recurring_subscription_payments'::regclass
+  ) then
+    alter table public.recurring_subscription_payments
+    add constraint recurring_subscription_payments_amount_non_negative
+    check (amount >= 0);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'recurring_subscription_payments_status_check'
+      and conrelid = 'public.recurring_subscription_payments'::regclass
+  ) then
+    alter table public.recurring_subscription_payments
+    add constraint recurring_subscription_payments_status_check
+    check (status in ('paid', 'pending', 'skipped'));
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'recurring_subscription_payments_unique_charge'
+      and conrelid = 'public.recurring_subscription_payments'::regclass
+  ) then
+    alter table public.recurring_subscription_payments
+    add constraint recurring_subscription_payments_unique_charge unique (subscription_id, charge_date);
+  end if;
+end
+$$;
 
 create table if not exists public.email_alert_rules (
   id uuid primary key default gen_random_uuid(),
@@ -1717,6 +1957,8 @@ alter table public.transactions enable row level security;
 alter table public.transaction_categories enable row level security;
 alter table public.financial_planning enable row level security;
 alter table public.installments enable row level security;
+alter table public.recurring_subscriptions enable row level security;
+alter table public.recurring_subscription_payments enable row level security;
 alter table public.email_alert_rules enable row level security;
 alter table public.monthly_report_deliveries enable row level security;
 alter table public.agenda_events enable row level security;
@@ -1870,6 +2112,28 @@ begin
 
   if not exists (
     select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'recurring_subscriptions' and policyname = 'recurring_subscriptions_crud_own'
+  ) then
+    create policy recurring_subscriptions_crud_own
+    on public.recurring_subscriptions
+    for all
+    using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'recurring_subscription_payments' and policyname = 'recurring_subscription_payments_crud_own'
+  ) then
+    create policy recurring_subscription_payments_crud_own
+    on public.recurring_subscription_payments
+    for all
+    using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
     where schemaname = 'public' and tablename = 'email_alert_rules' and policyname = 'email_alert_rules_crud_own'
   ) then
     create policy email_alert_rules_crud_own
@@ -1985,6 +2249,10 @@ create index if not exists idx_financial_planning_user_created on public.financi
 create index if not exists idx_financial_planning_user_completed on public.financial_planning(user_id, is_completed, created_at desc);
 create index if not exists idx_installments_user_created on public.installments(user_id, created_at desc);
 create index if not exists idx_installments_user_due on public.installments(user_id, start_date, paid_installments, installments);
+create index if not exists idx_recurring_subscriptions_user_active on public.recurring_subscriptions(user_id, active, billing_cycle);
+create index if not exists idx_recurring_subscriptions_due on public.recurring_subscriptions(user_id, billing_day, billing_cycle);
+create index if not exists idx_recurring_subscription_payments_user_date on public.recurring_subscription_payments(user_id, charge_date desc);
+create index if not exists idx_recurring_subscription_payments_subscription on public.recurring_subscription_payments(subscription_id, charge_date desc);
 create index if not exists idx_email_alert_rules_user_active on public.email_alert_rules(user_id, ativo_boolean, tipo_alerta);
 create index if not exists idx_email_alert_rules_last_triggered on public.email_alert_rules(last_triggered_at);
 create index if not exists idx_monthly_report_deliveries_user_month on public.monthly_report_deliveries(user_id, reference_month desc);

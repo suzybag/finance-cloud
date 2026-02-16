@@ -10,10 +10,18 @@ import {
 } from "@/core/finance/dashboardSummary";
 import { loadDashboardData } from "@/data/dashboard/loadDashboardData";
 import { normalizeInstallmentRow, type InstallmentRow } from "@/lib/installments";
+import {
+  normalizeRecurringSubscriptionRow,
+  type RecurringSubscriptionRow,
+} from "@/lib/recurringSubscriptions";
 import { supabase } from "@/lib/supabaseClient";
 
 const isMissingInstallmentsTableError = (message?: string | null) =>
   /relation .*installments/i.test(message || "")
+  || /schema cache/i.test((message || "").toLowerCase());
+
+const isMissingRecurringSubscriptionsTableError = (message?: string | null) =>
+  /relation .*recurring_subscriptions/i.test(message || "")
   || /schema cache/i.test((message || "").toLowerCase());
 
 export const useDashboardSummary = () => {
@@ -21,6 +29,7 @@ export const useDashboardSummary = () => {
   const [cards, setCards] = useState<Card[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [installments, setInstallments] = useState<InstallmentRow[]>([]);
+  const [recurringSubscriptions, setRecurringSubscriptions] = useState<RecurringSubscriptionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [period, setPeriod] = useState(monthInputValue());
@@ -29,9 +38,10 @@ export const useDashboardSummary = () => {
     setLoading(true);
     setMessage(null);
 
-    const [result, installmentRes] = await Promise.all([
+    const [result, installmentRes, recurringRes] = await Promise.all([
       loadDashboardData(),
       supabase.from("installments").select("*").order("created_at", { ascending: false }),
+      supabase.from("recurring_subscriptions").select("*").order("created_at", { ascending: false }),
     ]);
 
     if (installmentRes.error) {
@@ -44,6 +54,22 @@ export const useDashboardSummary = () => {
         .map((row) => normalizeInstallmentRow(row))
         .filter((row) => row.id && row.user_id);
       setInstallments(normalized);
+    }
+
+    if (recurringRes.error) {
+      setRecurringSubscriptions([]);
+      if (!isMissingRecurringSubscriptionsTableError(recurringRes.error.message)) {
+        setMessage((prev) =>
+          prev
+            ? `${prev} | Assinaturas indisponiveis: ${recurringRes.error?.message}`
+            : `Assinaturas indisponiveis: ${recurringRes.error?.message}`,
+        );
+      }
+    } else {
+      const normalized = ((recurringRes.data || []) as Partial<RecurringSubscriptionRow>[])
+        .map((row) => normalizeRecurringSubscriptionRow(row))
+        .filter((row) => row.id && row.user_id);
+      setRecurringSubscriptions(normalized);
     }
 
     if (result.error || !result.data) {
@@ -76,6 +102,7 @@ export const useDashboardSummary = () => {
     cards,
     transactions,
     installments,
+    recurringSubscriptions,
     summary,
     setPeriod,
     refresh,

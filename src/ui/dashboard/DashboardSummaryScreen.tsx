@@ -8,6 +8,7 @@ import { CategoryIcon } from "@/components/CategoryIcon";
 import { getBankIconPath } from "@/lib/bankIcons";
 import { normalizeCategoryKey } from "@/lib/categoryVisuals";
 import { summarizeInstallments } from "@/lib/installments";
+import { summarizeRecurringSubscriptions } from "@/lib/recurringSubscriptions";
 import { brl, formatPercent } from "@/lib/money";
 import { computeAccountBalances, computeCardSummary, groupByCategory } from "@/lib/finance";
 import { useCategoryMetadata } from "@/lib/useCategoryMetadata";
@@ -22,6 +23,7 @@ import {
   Circle,
   ExternalLink,
   Layers,
+  Repeat2,
   RefreshCcw,
 } from "lucide-react";
 
@@ -96,6 +98,13 @@ const formatShortDate = (value?: Date | null) => {
     day: "2-digit",
     month: "2-digit",
   });
+};
+
+const formatBillingCycleLabel = (cycle?: string | null) => {
+  const normalized = String(cycle || "").toLowerCase();
+  if (normalized === "annual") return "anual";
+  if (normalized === "weekly") return "semanal";
+  return "mensal";
 };
 
 const MarketIndicatorCard = ({
@@ -177,6 +186,7 @@ export const DashboardSummaryScreen = () => {
     cards,
     transactions,
     installments,
+    recurringSubscriptions,
     summary,
     setPeriod,
     refresh,
@@ -217,6 +227,14 @@ export const DashboardSummaryScreen = () => {
         })
         .slice(0, 4),
     [installmentSummary.active],
+  );
+  const recurringSummary = useMemo(
+    () => summarizeRecurringSubscriptions(recurringSubscriptions, new Date(), 10),
+    [recurringSubscriptions],
+  );
+  const recurringUpcoming = useMemo(
+    () => recurringSummary.upcoming.slice(0, 4),
+    [recurringSummary.upcoming],
   );
   const marketTimeLabel = market.updatedAt
     ? new Date(market.updatedAt).toLocaleTimeString("pt-BR", {
@@ -557,6 +575,96 @@ export const DashboardSummaryScreen = () => {
                         <span className="inline-flex items-center gap-1">
                           <CalendarDays className="h-3.5 w-3.5" />
                           {formatShortDate(item.metrics.nextDueDate)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              )}
+            </section>
+
+          <section className="rounded-2xl border border-white/5 bg-slate-900/60 p-5 shadow-lg shadow-black/40">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-100">Assinaturas recorrentes</h2>
+                <p className="text-xs text-slate-400">Resumo de assinaturas, cobrancas e pouco uso</p>
+              </div>
+              <Link
+                href="/assinaturas"
+                className="inline-flex items-center gap-2 rounded-lg border border-cyan-300/25 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/20"
+              >
+                <Repeat2 className="h-3.5 w-3.5" />
+                Abrir Assinaturas
+              </Link>
+            </div>
+
+            <div className="mb-4 grid gap-3 sm:grid-cols-4">
+              <div className="rounded-xl border border-cyan-300/20 bg-cyan-500/10 p-3">
+                <p className="text-[11px] uppercase tracking-[0.12em] text-cyan-100/70">Total mensal</p>
+                <p className="mt-1 text-lg font-semibold text-cyan-50">{brl(recurringSummary.monthlyTotal)}</p>
+              </div>
+              <div className="rounded-xl border border-cyan-300/20 bg-cyan-500/10 p-3">
+                <p className="text-[11px] uppercase tracking-[0.12em] text-cyan-100/70">Proximas</p>
+                <p className="mt-1 text-lg font-semibold text-cyan-50">{recurringSummary.upcoming.length}</p>
+              </div>
+              <div className="rounded-xl border border-cyan-300/20 bg-cyan-500/10 p-3">
+                <p className="text-[11px] uppercase tracking-[0.12em] text-cyan-100/70">Esquecidas</p>
+                <p className="mt-1 text-lg font-semibold text-cyan-50">{recurringSummary.underused.length}</p>
+              </div>
+              <div className="rounded-xl border border-cyan-300/20 bg-cyan-500/10 p-3">
+                <p className="text-[11px] uppercase tracking-[0.12em] text-cyan-100/70">Previsao 12m</p>
+                <p className="mt-1 text-lg font-semibold text-cyan-50">{brl(recurringSummary.forecast12Months)}</p>
+              </div>
+            </div>
+
+            {!recurringUpcoming.length ? (
+              <p className="text-sm text-slate-400">Sem assinaturas ativas no momento.</p>
+            ) : (
+              <div className="grid gap-2 lg:grid-cols-2">
+                {recurringUpcoming.map((item) => {
+                  const urgency = item.metrics.daysUntilCharge;
+                  const badgeClass = urgency < 0
+                    ? "border-rose-300/35 bg-rose-500/15 text-rose-100"
+                    : urgency <= 3
+                      ? "border-amber-300/35 bg-amber-500/15 text-amber-100"
+                      : "border-cyan-300/35 bg-cyan-500/15 text-cyan-100";
+
+                  return (
+                    <div
+                      key={item.row.id}
+                      className="rounded-xl border border-white/10 bg-slate-900/70 p-3"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-sm font-semibold text-slate-100">{item.row.name}</p>
+                        <span className={`rounded-full border px-2 py-0.5 text-[11px] ${badgeClass}`}>
+                          {urgency < 0 ? `${Math.abs(urgency)} dia(s) atrasado` : `${urgency} dia(s)`}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-400">
+                        {brl(item.row.price)} / {formatBillingCycleLabel(item.row.billing_cycle)}
+                      </p>
+                      <div className="mt-2 h-2 overflow-hidden rounded-full border border-white/10 bg-slate-800">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-400 transition-[width] duration-700"
+                          style={{
+                            width: `${Math.max(
+                              0,
+                              Math.min(
+                                100,
+                                recurringSummary.monthlyTotal > 0
+                                  ? (item.metrics.monthlyEquivalent / recurringSummary.monthlyTotal) * 100
+                                  : 0,
+                              ),
+                            ).toFixed(2)}%`,
+                          }}
+                        />
+                      </div>
+                      <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
+                        <span>{brl(item.metrics.monthlyEquivalent)} / mes</span>
+                        <span className="inline-flex items-center gap-1">
+                          <CalendarDays className="h-3.5 w-3.5" />
+                          {formatShortDate(item.metrics.nextChargeDate)}
                         </span>
                       </div>
                     </div>
