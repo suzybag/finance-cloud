@@ -43,6 +43,15 @@ type NotesStorePayload = {
   notes: NoteRow[];
 };
 
+type NotePersistRow = {
+  id: string;
+  user_id: string;
+  title: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+};
+
 const PRIMARY_BUCKET = "note-files";
 const FALLBACK_BUCKET = "avatars";
 const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
@@ -156,6 +165,38 @@ const saveStoreToBucket = async (userId: string, bucket: string, notes: NoteRow[
   return { ok: !error, error: error?.message || null };
 };
 
+const mapNotesToPersistRows = (userId: string, notes: NoteRow[]): NotePersistRow[] =>
+  notes.map((note) => ({
+    id: note.id,
+    user_id: userId,
+    title: note.title || "",
+    content: note.content || "",
+    created_at: note.created_at,
+    updated_at: note.updated_at,
+  }));
+
+const saveStoreToDatabase = async (userId: string, notes: NoteRow[]) => {
+  const payload = mapNotesToPersistRows(userId, notes);
+  const { error } = await supabase
+    .from("notes")
+    .upsert(payload, { onConflict: "id" });
+  return { ok: !error, error: error?.message || null };
+};
+
+const loadStoreFromDatabase = async (userId: string) => {
+  const { data, error } = await supabase
+    .from("notes")
+    .select("id, user_id, title, content, created_at, updated_at")
+    .eq("user_id", userId)
+    .order("updated_at", { ascending: false });
+
+  if (error) return { notes: [] as NoteRow[], error: error.message };
+  return {
+    notes: normalizeNotes(userId, data ?? []),
+    error: null as string | null,
+  };
+};
+
 const resolveAttachmentUrl = async (bucket: string, filePath: string) => {
   const { data: signed, error: signedError } = await supabase
     .storage
@@ -236,8 +277,15 @@ export default function NotesPage() {
         }
       }
 
+      const dbTry = await saveStoreToDatabase(userId, nextNotes);
+      if (dbTry.ok) {
+        setFeedback("Storage indisponivel no momento. Notas salvas no banco de dados.");
+        setSaveState("saved");
+        return true;
+      }
+
       setSaveState("error");
-      setFeedback(`Nao foi possivel salvar: ${firstTry.error || "erro desconhecido"}`);
+      setFeedback(`Nao foi possivel salvar: ${firstTry.error || dbTry.error || "erro desconhecido"}`);
       return false;
     },
     [bucketName, userId],
@@ -295,16 +343,28 @@ export default function NotesPage() {
       .download(getStorePath(user.id));
 
     let initialNotes: NoteRow[] = [];
+    let storageLoadFailed = false;
     if (loadError) {
-      if (!isStorageMissingError(loadError.message)) {
-        setFeedback(`Falha ao carregar notas: ${loadError.message}`);
-      }
+      storageLoadFailed = !isStorageMissingError(loadError.message);
     } else {
       try {
         const parsed = JSON.parse(await storeFile.text()) as Partial<NotesStorePayload>;
         initialNotes = normalizeNotes(user.id, parsed.notes);
       } catch {
         initialNotes = [];
+        storageLoadFailed = true;
+      }
+    }
+
+    if (!initialNotes.length) {
+      const dbLoad = await loadStoreFromDatabase(user.id);
+      if (dbLoad.notes.length) {
+        initialNotes = dbLoad.notes;
+        if (storageLoadFailed) {
+          setFeedback("Storage indisponivel. Notas carregadas do banco de dados.");
+        }
+      } else if (dbLoad.error && storageLoadFailed) {
+        setFeedback(`Falha ao carregar notas: ${dbLoad.error}`);
       }
     }
 
@@ -317,10 +377,20 @@ export default function NotesPage() {
           setBucketName(FALLBACK_BUCKET);
           setFeedback("Storage principal indisponivel. Usando bucket de fallback.");
         } else {
-          setFeedback(`Nao foi possivel inicializar notas: ${firstWrite.error || "erro desconhecido"}`);
+          const dbWrite = await saveStoreToDatabase(user.id, initialNotes);
+          if (dbWrite.ok) {
+            setFeedback("Storage indisponivel. Nota inicial salva no banco de dados.");
+          } else {
+            setFeedback(`Nao foi possivel inicializar notas: ${firstWrite.error || dbWrite.error || "erro desconhecido"}`);
+          }
         }
       } else if (!firstWrite.ok) {
-        setFeedback(`Nao foi possivel inicializar notas: ${firstWrite.error || "erro desconhecido"}`);
+        const dbWrite = await saveStoreToDatabase(user.id, initialNotes);
+        if (dbWrite.ok) {
+          setFeedback("Storage indisponivel. Nota inicial salva no banco de dados.");
+        } else {
+          setFeedback(`Nao foi possivel inicializar notas: ${firstWrite.error || dbWrite.error || "erro desconhecido"}`);
+        }
       }
     }
 
@@ -461,6 +531,12 @@ export default function NotesPage() {
       supabase.storage.from(bucket).remove(paths),
     );
     await Promise.all(removeJobs);
+
+    await supabase
+      .from("notes")
+      .delete()
+      .eq("id", selectedNote.id)
+      .eq("user_id", userId);
 
     let remaining = latestNotesRef.current.filter((note) => note.id !== selectedNote.id);
     if (!remaining.length) {
