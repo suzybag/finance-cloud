@@ -19,10 +19,17 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   CalendarDays,
+  Clapperboard,
   ChevronRight,
   Circle,
+  Cloud,
+  CreditCard,
+  Dumbbell,
   ExternalLink,
+  Laptop,
   Layers,
+  Music2,
+  PlayCircle,
   Repeat2,
   RefreshCcw,
 } from "lucide-react";
@@ -105,6 +112,50 @@ const formatBillingCycleLabel = (cycle?: string | null) => {
   if (normalized === "annual") return "anual";
   if (normalized === "weekly") return "semanal";
   return "mensal";
+};
+
+const normalizeServiceName = (value?: string | null) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+const getServiceVisual = (name?: string | null) => {
+  const normalized = normalizeServiceName(name);
+  if (
+    normalized.includes("netflix")
+    || normalized.includes("disney")
+    || normalized.includes("hbo")
+    || normalized.includes("prime video")
+  ) {
+    return { icon: Clapperboard, tone: "border-rose-300/30 bg-rose-500/10 text-rose-100" };
+  }
+  if (
+    normalized.includes("spotify")
+    || normalized.includes("deezer")
+    || normalized.includes("apple music")
+  ) {
+    return { icon: Music2, tone: "border-emerald-300/30 bg-emerald-500/10 text-emerald-100" };
+  }
+  if (
+    normalized.includes("google drive")
+    || normalized.includes("drive")
+    || normalized.includes("icloud")
+    || normalized.includes("dropbox")
+  ) {
+    return { icon: Cloud, tone: "border-sky-300/30 bg-sky-500/10 text-sky-100" };
+  }
+  if (normalized.includes("academia") || normalized.includes("gym")) {
+    return { icon: Dumbbell, tone: "border-amber-300/30 bg-amber-500/10 text-amber-100" };
+  }
+  if (normalized.includes("youtube")) {
+    return { icon: PlayCircle, tone: "border-red-300/30 bg-red-500/10 text-red-100" };
+  }
+  if (normalized.includes("adobe") || normalized.includes("figma") || normalized.includes("notion")) {
+    return { icon: Laptop, tone: "border-violet-300/30 bg-violet-500/10 text-violet-100" };
+  }
+  return { icon: CreditCard, tone: "border-cyan-300/30 bg-cyan-500/10 text-cyan-100" };
 };
 
 const MarketIndicatorCard = ({
@@ -235,6 +286,13 @@ export const DashboardSummaryScreen = () => {
   const recurringUpcoming = useMemo(
     () => recurringSummary.upcoming.slice(0, 4),
     [recurringSummary.upcoming],
+  );
+  const recurringTopSubscriptions = useMemo(
+    () =>
+      [...recurringSummary.active]
+        .sort((a, b) => b.metrics.monthlyEquivalent - a.metrics.monthlyEquivalent)
+        .slice(0, 4),
+    [recurringSummary.active],
   );
   const marketTimeLabel = market.updatedAt
     ? new Date(market.updatedAt).toLocaleTimeString("pt-BR", {
@@ -588,7 +646,7 @@ export const DashboardSummaryScreen = () => {
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-sm font-semibold text-slate-100">Assinaturas recorrentes</h2>
-                <p className="text-xs text-slate-400">Resumo de assinaturas, cobrancas e pouco uso</p>
+                <p className="text-xs text-slate-400">Resumo visual de gastos recorrentes</p>
               </div>
               <Link
                 href="/assinaturas"
@@ -597,6 +655,48 @@ export const DashboardSummaryScreen = () => {
                 <Repeat2 className="h-3.5 w-3.5" />
                 Abrir Assinaturas
               </Link>
+            </div>
+
+            <div className="mb-4 rounded-2xl border border-cyan-400/30 bg-[linear-gradient(145deg,rgba(7,26,58,0.85),rgba(10,20,48,0.9))] p-4 shadow-[0_18px_36px_rgba(0,8,25,0.45)]">
+              <div className="flex items-center gap-3">
+                <div className="grid h-12 w-12 place-items-center rounded-2xl border border-indigo-300/35 bg-[linear-gradient(150deg,#3158ff,#406fff)] text-indigo-100 shadow-[0_10px_24px_rgba(38,76,255,0.35)]">
+                  <CalendarDays className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-2xl font-semibold tracking-tight text-slate-50">Assinaturas</p>
+                  <p className="text-sm text-cyan-200/85">Gastos recorrentes</p>
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/40 p-3">
+                {!recurringTopSubscriptions.length ? (
+                  <p className="text-sm text-slate-300">Sem assinaturas ativas no momento.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {recurringTopSubscriptions.map((item) => {
+                      const visual = getServiceVisual(item.row.name);
+                      const Icon = visual.icon;
+                      return (
+                        <div key={item.row.id} className="flex items-center justify-between gap-2 rounded-lg px-1 py-0.5">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <div className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg border ${visual.tone}`}>
+                              <Icon className="h-4 w-4" />
+                            </div>
+                            <p className="truncate text-sm text-slate-100">{item.row.name}</p>
+                          </div>
+                          <p className="text-sm font-semibold text-cyan-100">{brl(item.metrics.monthlyEquivalent)}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className="my-3 border-t border-white/10" />
+                <div className="flex items-center justify-between text-sm">
+                  <p className="text-slate-400">Total/mês</p>
+                  <p className="text-2xl font-semibold tracking-tight text-cyan-100">{brl(recurringSummary.monthlyTotal)}</p>
+                </div>
+              </div>
             </div>
 
             <div className="mb-4 grid gap-3 sm:grid-cols-4">
@@ -629,6 +729,8 @@ export const DashboardSummaryScreen = () => {
                     : urgency <= 3
                       ? "border-amber-300/35 bg-amber-500/15 text-amber-100"
                       : "border-cyan-300/35 bg-cyan-500/15 text-cyan-100";
+                  const visual = getServiceVisual(item.row.name);
+                  const Icon = visual.icon;
 
                   return (
                     <div
@@ -636,14 +738,21 @@ export const DashboardSummaryScreen = () => {
                       className="rounded-xl border border-white/10 bg-slate-900/70 p-3"
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <p className="truncate text-sm font-semibold text-slate-100">{item.row.name}</p>
+                        <div className="flex min-w-0 items-center gap-2">
+                          <div className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg border ${visual.tone}`}>
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-slate-100">{item.row.name}</p>
+                            <p className="truncate text-xs text-slate-400">
+                              {brl(item.row.price)} / {formatBillingCycleLabel(item.row.billing_cycle)}
+                            </p>
+                          </div>
+                        </div>
                         <span className={`rounded-full border px-2 py-0.5 text-[11px] ${badgeClass}`}>
                           {urgency < 0 ? `${Math.abs(urgency)} dia(s) atrasado` : `${urgency} dia(s)`}
                         </span>
                       </div>
-                      <p className="mt-1 text-xs text-slate-400">
-                        {brl(item.row.price)} / {formatBillingCycleLabel(item.row.billing_cycle)}
-                      </p>
                       <div className="mt-2 h-2 overflow-hidden rounded-full border border-white/10 bg-slate-800">
                         <div
                           className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-400 transition-[width] duration-700"
