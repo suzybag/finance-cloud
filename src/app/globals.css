@@ -189,6 +189,45 @@ body.theme-night-pro .dashboard-cosmic::after {
   animation: none !important;
 }
 
+body.theme-night-pro .parcelas-explain-card {
+  border-color: var(--surface-border) !important;
+  background: var(--bg-card) !important;
+  box-shadow: var(--surface-shadow) !important;
+  animation: none !important;
+}
+
+body.theme-night-pro .parcelas-explain-card::before {
+  display: none !important;
+}
+
+body.theme-night-pro .parcelas-explain-icon {
+  color: var(--text-primary) !important;
+  border: 1px solid var(--surface-border);
+  background: color-mix(in srgb, var(--bg-card) 88%, #1f2937 12%) !important;
+  box-shadow: none !important;
+}
+
+body.theme-night-pro .parcelas-explain-item {
+  border-color: var(--surface-border) !important;
+  background: color-mix(in srgb, var(--bg-card) 94%, #ffffff 6%) !important;
+}
+
+body.theme-night-pro .parcelas-explain-track {
+  border-color: var(--surface-border) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+body.theme-night-pro .parcelas-explain-fill,
+body.theme-night-pro .parcelas-progress-fill {
+  background: #334155 !important;
+  box-shadow: none !important;
+}
+
+body.theme-night-pro .parcelas-explain-fill::after,
+body.theme-night-pro .parcelas-progress-shine {
+  display: none !important;
+}
+
 body.theme-reading :where([class*="text-white"], [class*="text-slate-100"], [class*="text-slate-200"], [class*="text-violet-100"], [class*="text-violet-50"], [class*="text-violet-200"]) {
   color: var(--text-primary) !important;
 }
