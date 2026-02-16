@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { brl, toNumber } from "@/lib/money";
+import { getSubscriptionLogoPath } from "@/lib/customMedia";
 import {
   buildRecurringSubscriptionExternalId,
   computeRecurringSubscriptionMetrics,
@@ -141,20 +142,21 @@ const billingDayLabel = (cycle: BillingCycle, dateRaw: string) => {
 
 const getServiceVisual = (name?: string | null) => {
   const normalized = normalizeText(name);
+  const logoSrc = getSubscriptionLogoPath(name);
   if (
     normalized.includes("netflix")
     || normalized.includes("disney")
     || normalized.includes("hbo")
     || normalized.includes("prime video")
   ) {
-    return { icon: Tv, tone: "border-rose-300/30 bg-rose-500/10 text-rose-100" };
+    return { icon: Tv, tone: "border-rose-300/30 bg-rose-500/10 text-rose-100", logoSrc };
   }
   if (
     normalized.includes("spotify")
     || normalized.includes("deezer")
     || normalized.includes("apple music")
   ) {
-    return { icon: Music2, tone: "border-emerald-300/30 bg-emerald-500/10 text-emerald-100" };
+    return { icon: Music2, tone: "border-emerald-300/30 bg-emerald-500/10 text-emerald-100", logoSrc };
   }
   if (
     normalized.includes("google drive")
@@ -162,18 +164,18 @@ const getServiceVisual = (name?: string | null) => {
     || normalized.includes("icloud")
     || normalized.includes("dropbox")
   ) {
-    return { icon: Cloud, tone: "border-sky-300/30 bg-sky-500/10 text-sky-100" };
+    return { icon: Cloud, tone: "border-sky-300/30 bg-sky-500/10 text-sky-100", logoSrc };
   }
   if (normalized.includes("academia") || normalized.includes("gym")) {
-    return { icon: Dumbbell, tone: "border-amber-300/30 bg-amber-500/10 text-amber-100" };
+    return { icon: Dumbbell, tone: "border-amber-300/30 bg-amber-500/10 text-amber-100", logoSrc };
   }
   if (normalized.includes("youtube")) {
-    return { icon: PlayCircle, tone: "border-red-300/30 bg-red-500/10 text-red-100" };
+    return { icon: PlayCircle, tone: "border-red-300/30 bg-red-500/10 text-red-100", logoSrc };
   }
   if (normalized.includes("adobe") || normalized.includes("figma") || normalized.includes("notion")) {
-    return { icon: Laptop, tone: "border-violet-300/30 bg-violet-500/10 text-violet-100" };
+    return { icon: Laptop, tone: "border-violet-300/30 bg-violet-500/10 text-violet-100", logoSrc };
   }
-  return { icon: Repeat2, tone: "border-cyan-300/30 bg-cyan-500/10 text-cyan-100" };
+  return { icon: Repeat2, tone: "border-cyan-300/30 bg-cyan-500/10 text-cyan-100", logoSrc };
 };
 
 const isMissingRecurringSubscriptionsTableError = (message?: string | null) =>
@@ -854,7 +856,17 @@ export default function AssinaturasPage() {
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="flex min-w-0 items-start gap-3">
                           <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl border ${serviceVisual.tone}`}>
-                            <Icon className="h-5 w-5" />
+                            {serviceVisual.logoSrc ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={serviceVisual.logoSrc}
+                                alt=""
+                                className="h-6 w-6 rounded object-contain"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <Icon className="h-5 w-5" />
+                            )}
                           </div>
                           <div className="min-w-0">
                             <h3 className="truncate text-base font-semibold text-cyan-50">{row.name}</h3>

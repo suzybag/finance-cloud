@@ -12,6 +12,7 @@ import { summarizeRecurringSubscriptions } from "@/lib/recurringSubscriptions";
 import { brl, formatPercent } from "@/lib/money";
 import { computeAccountBalances, computeCardSummary, groupByCategory } from "@/lib/finance";
 import { useCategoryMetadata } from "@/lib/useCategoryMetadata";
+import { getSubscriptionLogoPath } from "@/lib/customMedia";
 import { monthInputValue, normalizePeriod } from "@/core/finance/dashboardSummary";
 import { useDashboardSummary } from "./useDashboardSummary";
 import { useMarketOverview } from "./useMarketOverview";
@@ -123,20 +124,21 @@ const normalizeServiceName = (value?: string | null) =>
 
 const getServiceVisual = (name?: string | null) => {
   const normalized = normalizeServiceName(name);
+  const logoSrc = getSubscriptionLogoPath(name);
   if (
     normalized.includes("netflix")
     || normalized.includes("disney")
     || normalized.includes("hbo")
     || normalized.includes("prime video")
   ) {
-    return { icon: Clapperboard, tone: "border-rose-300/30 bg-rose-500/10 text-rose-100" };
+    return { icon: Clapperboard, tone: "border-rose-300/30 bg-rose-500/10 text-rose-100", logoSrc };
   }
   if (
     normalized.includes("spotify")
     || normalized.includes("deezer")
     || normalized.includes("apple music")
   ) {
-    return { icon: Music2, tone: "border-emerald-300/30 bg-emerald-500/10 text-emerald-100" };
+    return { icon: Music2, tone: "border-emerald-300/30 bg-emerald-500/10 text-emerald-100", logoSrc };
   }
   if (
     normalized.includes("google drive")
@@ -144,18 +146,18 @@ const getServiceVisual = (name?: string | null) => {
     || normalized.includes("icloud")
     || normalized.includes("dropbox")
   ) {
-    return { icon: Cloud, tone: "border-sky-300/30 bg-sky-500/10 text-sky-100" };
+    return { icon: Cloud, tone: "border-sky-300/30 bg-sky-500/10 text-sky-100", logoSrc };
   }
   if (normalized.includes("academia") || normalized.includes("gym")) {
-    return { icon: Dumbbell, tone: "border-amber-300/30 bg-amber-500/10 text-amber-100" };
+    return { icon: Dumbbell, tone: "border-amber-300/30 bg-amber-500/10 text-amber-100", logoSrc };
   }
   if (normalized.includes("youtube")) {
-    return { icon: PlayCircle, tone: "border-red-300/30 bg-red-500/10 text-red-100" };
+    return { icon: PlayCircle, tone: "border-red-300/30 bg-red-500/10 text-red-100", logoSrc };
   }
   if (normalized.includes("adobe") || normalized.includes("figma") || normalized.includes("notion")) {
-    return { icon: Laptop, tone: "border-violet-300/30 bg-violet-500/10 text-violet-100" };
+    return { icon: Laptop, tone: "border-violet-300/30 bg-violet-500/10 text-violet-100", logoSrc };
   }
-  return { icon: CreditCard, tone: "border-cyan-300/30 bg-cyan-500/10 text-cyan-100" };
+  return { icon: CreditCard, tone: "border-cyan-300/30 bg-cyan-500/10 text-cyan-100", logoSrc };
 };
 
 const MarketIndicatorCard = ({
@@ -486,6 +488,7 @@ export const DashboardSummaryScreen = () => {
                 playsInline
               >
                 <source src="/intro/intro-3d.mp4" type="video/mp4" />
+                <source src="/custom/icons/uber.mp4" type="video/mp4" />
               </video>
               <div className="absolute inset-0 bg-gradient-to-br from-[#120026]/85 via-[#070013]/70 to-black/80" />
             </div>
@@ -680,7 +683,17 @@ export const DashboardSummaryScreen = () => {
                         <div key={item.row.id} className="flex items-center justify-between gap-2 rounded-lg px-1 py-0.5">
                           <div className="flex min-w-0 items-center gap-2">
                             <div className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg border ${visual.tone}`}>
-                              <Icon className="h-4 w-4" />
+                              {visual.logoSrc ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={visual.logoSrc}
+                                  alt=""
+                                  className="h-5 w-5 rounded object-contain"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <Icon className="h-4 w-4" />
+                              )}
                             </div>
                             <p className="truncate text-sm text-slate-100">{item.row.name}</p>
                           </div>
@@ -740,7 +753,17 @@ export const DashboardSummaryScreen = () => {
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex min-w-0 items-center gap-2">
                           <div className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg border ${visual.tone}`}>
-                            <Icon className="h-4 w-4" />
+                            {visual.logoSrc ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={visual.logoSrc}
+                                alt=""
+                                className="h-5 w-5 rounded object-contain"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <Icon className="h-4 w-4" />
+                            )}
                           </div>
                           <div className="min-w-0">
                             <p className="truncate text-sm font-semibold text-slate-100">{item.row.name}</p>

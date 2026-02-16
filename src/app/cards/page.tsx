@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   Archive,
   Calendar,
+  CircleDollarSign,
   CreditCard,
   Pencil,
   ShieldCheck,
@@ -143,6 +144,18 @@ const parsePositiveAmountInput = (rawValue?: string | null) => {
   return amount;
 };
 
+type CardQuickActionState =
+  | {
+      type: "set_limit_used";
+      card: Card;
+      currentUsed: number;
+    }
+  | {
+      type: "add_spend";
+      card: Card;
+      currentUsed: number;
+    };
+
 const riskBadgeClass = (level: "excelente" | "bom" | "atencao" | "alto_risco") => {
   if (level === "excelente") return "border-emerald-400/40 bg-emerald-500/15 text-emerald-200";
   if (level === "bom") return "border-cyan-400/40 bg-cyan-500/15 text-cyan-200";
@@ -191,6 +204,10 @@ export default function CardsPage() {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [supportsCardStyleFields, setSupportsCardStyleFields] = useState(true);
   const [supportsCardBankScoreField, setSupportsCardBankScoreField] = useState(true);
+  const [quickAction, setQuickAction] = useState<CardQuickActionState | null>(null);
+  const [quickAmount, setQuickAmount] = useState("");
+  const [quickDescription, setQuickDescription] = useState("Gasto no cartao");
+  const [quickSaving, setQuickSaving] = useState(false);
 
   const [paymentCard, setPaymentCard] = useState("");
   const [paymentAccount, setPaymentAccount] = useState("");
@@ -280,6 +297,17 @@ export default function CardsPage() {
     resetForm();
     prepareModalViewport();
     setIsFormOpen(true);
+  };
+
+  const resetQuickAction = () => {
+    setQuickAction(null);
+    setQuickAmount("");
+    setQuickDescription("Gasto no cartao");
+  };
+
+  const closeQuickActionModal = () => {
+    if (quickSaving) return;
+    resetQuickAction();
   };
 
   const ensureUserId = async () => {
@@ -691,72 +719,75 @@ export default function CardsPage() {
     return true;
   };
 
-  const handleAddCardSpend = async (card: Card) => {
-    try {
-      setFeedback(null);
-      const amountInput = window.prompt(`Quanto voce gastou no cartao "${card.name}"?`, "");
-      if (amountInput === null) return;
-
-      const amount = parsePositiveAmountInput(amountInput);
-      if (!amount) {
-        setFeedback("Informe um valor valido maior que zero.");
-        return;
-      }
-
-      const descriptionInput = window.prompt(
-        "Descricao do gasto (opcional):",
-        "Gasto no cartao",
-      );
-      const description = (descriptionInput || "Gasto no cartao").trim() || "Gasto no cartao";
-
-      setBusyCardId(card.id);
-      const ok = await insertCardExpense({ card, amount, description });
-      setBusyCardId(null);
-      if (!ok) return;
-
-      setFeedback(`Gasto de ${brl(amount)} adicionado no cartao ${card.name}.`);
-      await loadData();
-    } catch (error) {
-      setBusyCardId(null);
-      setFeedback(`Falha inesperada ao adicionar gasto: ${error instanceof Error ? error.message : "erro desconhecido"}`);
-    }
+  const handleAddCardSpend = (card: Card) => {
+    setFeedback(null);
+    prepareModalViewport();
+    setQuickAction({
+      type: "add_spend",
+      card,
+      currentUsed: 0,
+    });
+    setQuickAmount("");
+    setQuickDescription("Gasto no cartao");
   };
 
-  const handleSetLimitUsed = async (card: Card, currentUsed: number) => {
-    try {
-      setFeedback(null);
-      const targetInput = window.prompt(
-        `Limite usado atual: ${brl(currentUsed)}\nInforme o novo limite usado total:`,
-        String(Math.round(currentUsed)),
-      );
-      if (targetInput === null) return;
+  const handleSetLimitUsed = (card: Card, currentUsed: number) => {
+    setFeedback(null);
+    prepareModalViewport();
+    setQuickAction({
+      type: "set_limit_used",
+      card,
+      currentUsed,
+    });
+    setQuickAmount(String(currentUsed.toFixed(2)));
+    setQuickDescription("Ajuste limite usado");
+  };
 
-      const target = parsePositiveAmountInput(targetInput);
-      if (!target) {
-        setFeedback("Informe um valor valido maior que zero.");
-        return;
-      }
+  const handleSubmitQuickAction = async () => {
+    if (!quickAction) return;
 
-      const delta = target - currentUsed;
+    const parsedAmount = parsePositiveAmountInput(quickAmount);
+    if (!parsedAmount) {
+      setFeedback("Informe um valor valido maior que zero.");
+      return;
+    }
+
+    let amountToInsert = parsedAmount;
+    let descriptionToSave = (quickDescription || "").trim() || "Gasto no cartao";
+    if (quickAction.type === "set_limit_used") {
+      const delta = parsedAmount - quickAction.currentUsed;
       if (delta <= 0) {
         setFeedback("Esse botao adiciona gasto. Informe um valor maior que o limite usado atual.");
         return;
       }
+      amountToInsert = delta;
+      descriptionToSave = "Ajuste limite usado";
+    }
 
-      setBusyCardId(card.id);
+    try {
+      setFeedback(null);
+      setQuickSaving(true);
+      setBusyCardId(quickAction.card.id);
       const ok = await insertCardExpense({
-        card,
-        amount: delta,
-        description: "Ajuste limite usado",
+        card: quickAction.card,
+        amount: amountToInsert,
+        description: descriptionToSave,
       });
       setBusyCardId(null);
+      setQuickSaving(false);
       if (!ok) return;
 
-      setFeedback(`Limite usado atualizado. Foi adicionado ${brl(delta)} no cartao ${card.name}.`);
+      const message =
+        quickAction.type === "set_limit_used"
+          ? `Limite usado atualizado. Foi adicionado ${brl(amountToInsert)} no cartao ${quickAction.card.name}.`
+          : `Gasto de ${brl(amountToInsert)} adicionado no cartao ${quickAction.card.name}.`;
+      resetQuickAction();
+      setFeedback(message);
       await loadData();
     } catch (error) {
       setBusyCardId(null);
-      setFeedback(`Falha inesperada ao ajustar limite usado: ${error instanceof Error ? error.message : "erro desconhecido"}`);
+      setQuickSaving(false);
+      setFeedback(`Falha inesperada ao salvar acao no cartao: ${error instanceof Error ? error.message : "erro desconhecido"}`);
     }
   };
 

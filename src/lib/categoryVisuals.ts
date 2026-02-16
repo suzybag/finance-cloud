@@ -14,18 +14,30 @@ const DEFAULT_CATEGORY_VISUAL: CategoryVisual = {
 };
 
 const CATEGORY_VISUAL_RULES: CategoryRule[] = [
-  { terms: ["casa", "moradia", "aluguel", "condominio", "energia", "luz", "agua"], visual: { iconName: "Home", iconColor: "#3b82f6" } },
+  { terms: ["pix", "transferencia pix", "chave pix"], visual: { iconName: "PixLogo", iconColor: "#14b8a6" } },
+  { terms: ["tesouro selic", "tesouro ipca", "tesouro"], visual: { iconName: "TesouroDiretoLogo", iconColor: "#1e3a8a" } },
+  { terms: ["ouro", "commodities", "xau"], visual: { iconName: "GoldBars3D", iconColor: "#f59e0b" } },
+  { terms: ["bitcoin", "btc", "cripto"], visual: { iconName: "BitcoinCoin3D", iconColor: "#f59e0b" } },
+  { terms: ["netflix"], visual: { iconName: "NetflixLogo", iconColor: "#e11d48" } },
+  { terms: ["hbo", "hbo max"], visual: { iconName: "HboMaxLogo", iconColor: "#4338ca" } },
+  { terms: ["prime video", "amazon prime"], visual: { iconName: "PrimeVideoLogo", iconColor: "#0ea5e9" } },
+  { terms: ["chatgpt", "openai"], visual: { iconName: "OpenAiLogo", iconColor: "#334155" } },
+  { terms: ["shopee"], visual: { iconName: "ShopeeLogo", iconColor: "#f97316" } },
+  { terms: ["mercado livre", "mercadolivre"], visual: { iconName: "MercadoLivreLogo", iconColor: "#facc15" } },
+  { terms: ["agenda", "planejamento", "checklist", "tarefa", "todo"], visual: { iconName: "Checklist3D", iconColor: "#6366f1" } },
+  { terms: ["assinatura", "recorrente", "contrato"], visual: { iconName: "Contract3D", iconColor: "#8b5cf6" } },
+  { terms: ["casa", "moradia", "aluguel", "condominio", "energia", "luz", "agua"], visual: { iconName: "Home3D", iconColor: "#3b82f6" } },
+  { terms: ["imovel", "reforma", "lar"], visual: { iconName: "HomeRound3D", iconColor: "#2563eb" } },
   { terms: ["supermercado", "mercado", "feira", "compras"], visual: { iconName: "ShoppingCart", iconColor: "#ef4444" } },
-  { terms: ["alimentacao", "restaurante", "ifood", "delivery", "lanche", "padaria"], visual: { iconName: "UtensilsCrossed", iconColor: "#f97316" } },
+  { terms: ["alimentacao", "restaurante", "ifood", "delivery", "lanche", "padaria"], visual: { iconName: "FoodCourt3D", iconColor: "#f97316" } },
   { terms: ["transporte", "uber", "combustivel", "gasolina", "estacionamento", "pedagio"], visual: { iconName: "Car", iconColor: "#8b5cf6" } },
   { terms: ["saude", "farmacia", "medico", "hospital"], visual: { iconName: "HeartPulse", iconColor: "#ec4899" } },
   { terms: ["educacao", "curso", "faculdade", "escola"], visual: { iconName: "GraduationCap", iconColor: "#0ea5e9" } },
-  { terms: ["lazer", "cinema", "show", "viagem"], visual: { iconName: "Clapperboard", iconColor: "#a855f7" } },
-  { terms: ["invest", "acao", "fii", "cripto", "bitcoin", "cdb", "tesouro"], visual: { iconName: "PiggyBank", iconColor: "#10b981" } },
+  { terms: ["lazer", "cinema", "show", "viagem"], visual: { iconName: "Cinema3D", iconColor: "#a855f7" } },
+  { terms: ["invest", "acao", "fii", "cdb"], visual: { iconName: "MarketGrowth3D", iconColor: "#10b981" } },
   { terms: ["cartao", "fatura", "credito"], visual: { iconName: "CreditCard", iconColor: "#6366f1" } },
-  { terms: ["pix", "transferencia", "ted", "doc"], visual: { iconName: "Repeat", iconColor: "#06b6d4" } },
+  { terms: ["transferencia", "ted", "doc"], visual: { iconName: "Repeat", iconColor: "#06b6d4" } },
   { terms: ["salario", "receita", "bonus"], visual: { iconName: "CircleDollarSign", iconColor: "#22c55e" } },
-  { terms: ["assinatura", "netflix", "spotify", "prime", "hbo"], visual: { iconName: "Receipt", iconColor: "#f43f5e" } },
 ];
 
 export const normalizeCategoryKey = (value?: string | null) =>

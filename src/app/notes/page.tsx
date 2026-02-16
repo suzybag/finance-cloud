@@ -1,5 +1,4 @@
 "use client";
-/* eslint-disable react-hooks/set-state-in-effect */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
@@ -9,6 +8,7 @@ import {
   Paperclip,
   Pencil,
   Plus,
+  Save,
   Trash2,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
@@ -223,6 +223,7 @@ export default function NotesPage() {
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [manualSaving, setManualSaving] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
 
   const editorRef = useRef<HTMLTextAreaElement | null>(null);
@@ -310,6 +311,21 @@ export default function NotesPage() {
     saveTimerRef.current = null;
     await persistStore(latestNotesRef.current);
   }, [persistStore]);
+
+  const handleManualSave = useCallback(async () => {
+    if (!userId) return;
+    setFeedback(null);
+    setManualSaving(true);
+    try {
+      if (saveTimerRef.current) {
+        await flushPendingSave();
+      } else {
+        await persistStore(latestNotesRef.current);
+      }
+    } finally {
+      setManualSaving(false);
+    }
+  }, [flushPendingSave, persistStore, userId]);
 
   const setDraftFromNote = useCallback((note: NoteRow) => {
     setDraftTitle(note.title || "");
@@ -758,6 +774,15 @@ export default function NotesPage() {
                 {getSaveLabel(saveState)}
               </div>
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 rounded-lg border border-emerald-300/35 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-60"
+                  onClick={() => void handleManualSave()}
+                  disabled={!selectedNoteId || manualSaving || saveState === "saving"}
+                >
+                  {manualSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                  Salvar
+                </button>
                 <button
                   type="button"
                   className="inline-flex items-center gap-2 rounded-lg border border-slate-600/50 bg-slate-800/70 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-700/80 disabled:opacity-60"

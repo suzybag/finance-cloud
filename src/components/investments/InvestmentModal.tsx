@@ -71,7 +71,7 @@ const FALLBACK_ASSETS: AssetOption[] = [
   {
     id: "local-asset-btc",
     name: "Bitcoin (BTC)",
-    logo: "https://assets.coincap.io/assets/icons/btc@2x.png",
+    logo: "/custom/icons/bitcoin.png",
     category: "cripto",
     type_id: "local-type-btc",
   },
@@ -99,9 +99,30 @@ const FALLBACK_ASSETS: AssetOption[] = [
   {
     id: "local-asset-ouro",
     name: "Ouro",
-    logo: null,
+    logo: "/custom/icons/barras-de-ouro.png",
     category: "commodities",
     type_id: "local-type-ouro",
+  },
+  {
+    id: "local-asset-tesouro-selic",
+    name: "Tesouro Selic",
+    logo: "/custom/icons/tesouro-direto.png",
+    category: "renda_fixa",
+    type_id: "local-type-selic",
+  },
+  {
+    id: "local-asset-tesouro-ipca",
+    name: "Tesouro IPCA+",
+    logo: "/custom/icons/tesouro-direto.png",
+    category: "renda_fixa",
+    type_id: "local-type-ipca",
+  },
+  {
+    id: "local-asset-caixinha",
+    name: "Caixinha Nubank",
+    logo: "/custom/icons/caixa-para-economizar-dinheiro-3d-icon-png-download-5298710.webp",
+    category: "renda_fixa",
+    type_id: "local-type-caixinha",
   },
 ];
 

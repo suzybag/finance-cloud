@@ -50,7 +50,7 @@ const resolveFallbackLogo = (item: InvestmentCardItem) => {
   const key = `${item.category} ${item.investment_type} ${item.asset_name}`.toLowerCase();
 
   if (key.includes("cripto") || key.includes("bitcoin") || key.includes("btc") || key.includes("eth")) {
-    return "/investments/crypto.svg";
+    return "/custom/icons/bitcoin.png";
   }
   if (
     key.includes("acao") ||
@@ -72,10 +72,10 @@ const resolveFallbackLogo = (item: InvestmentCardItem) => {
     key.includes("poup") ||
     key.includes("caixinha")
   ) {
-    return "/investments/fixed.svg";
+    return "/custom/icons/tesouro-direto.png";
   }
   if (key.includes("ouro") || key.includes("commodities")) {
-    return "/investments/commodities.svg";
+    return "/custom/icons/barras-de-ouro.png";
   }
 
   return "/investments/other.svg";
@@ -97,7 +97,7 @@ export function InvestmentCard({ item, deleting, editing, onEdit, onDelete }: In
             <img
               src={logoUrl}
               alt={item.asset_name}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-contain"
               loading="lazy"
             />
           </div>

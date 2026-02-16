@@ -515,6 +515,38 @@ update public.investment_types set symbol = 'ETH', is_variable = true where lowe
 update public.investment_types set symbol = 'XRP', is_variable = true where lower(name) = lower('XRP');
 update public.investment_types set symbol = 'USDC', is_variable = true where lower(name) = lower('USDC');
 
+-- local logos imported into public/custom/icons
+update public.assets
+set logo = '/custom/icons/bitcoin.png'
+where lower(name) = lower('Bitcoin (BTC)');
+
+update public.assets
+set logo = '/custom/icons/barras-de-ouro.png'
+where lower(name) = lower('Ouro');
+
+update public.assets
+set logo = '/custom/icons/tesouro-direto.png'
+where lower(name) in (lower('Tesouro Selic'), lower('Tesouro IPCA+'));
+
+update public.assets
+set logo = '/custom/icons/caixa-para-economizar-dinheiro-3d-icon-png-download-5298710.webp'
+where lower(name) = lower('Caixinha Nubank');
+
+update public.assets
+set logo = '/custom/icons/pix-banco-central-logo-png-seeklogo-388843.png'
+where lower(name) = lower('Pix');
+
+update public.investments i
+set asset_logo_url = a.logo
+from public.assets a
+where i.asset_id = a.id
+  and a.logo is not null
+  and (
+    i.asset_logo_url is null
+    or trim(i.asset_logo_url) = ''
+    or i.asset_logo_url like 'https://assets.coincap.io/assets/icons/%'
+  );
+
 update public.investments set updated_at = now() where updated_at is null;
 
 create or replace function public.set_investments_updated_at()

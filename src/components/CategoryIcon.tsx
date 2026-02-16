@@ -2,35 +2,60 @@
 
 import type { LucideIcon } from "lucide-react";
 import {
+  BadgeCheck,
+  Bitcoin,
   Briefcase,
   Car,
+  ChartColumnIncreasing,
   CircleDollarSign,
   Clapperboard,
   CreditCard,
+  FileCheck,
+  Gem,
   GraduationCap,
+  HandCoins,
   HeartPulse,
   Home,
+  House,
+  HousePlus,
   Landmark,
+  NotebookPen,
+  NotebookTabs,
   PiggyBank,
+  Popcorn,
   Receipt,
   Repeat,
   ShoppingCart,
   Smartphone,
   Tag,
+  Utensils,
   UtensilsCrossed,
   Wallet,
 } from "lucide-react";
+import { getCategoryImageIconPath } from "@/lib/customMedia";
 import { resolveCategoryVisual } from "@/lib/categoryVisuals";
 
 const ICONS: Record<string, LucideIcon> = {
   Tag,
   Home,
+  House,
+  HousePlus,
   ShoppingCart,
+  Utensils,
   UtensilsCrossed,
   Car,
   HeartPulse,
   GraduationCap,
   Clapperboard,
+  ChartColumnIncreasing,
+  NotebookPen,
+  NotebookTabs,
+  BadgeCheck,
+  FileCheck,
+  HandCoins,
+  Bitcoin,
+  Gem,
+  Popcorn,
   PiggyBank,
   CreditCard,
   Repeat,
@@ -40,6 +65,49 @@ const ICONS: Record<string, LucideIcon> = {
   Landmark,
   Briefcase,
   Smartphone,
+  HomeOutline: House,
+  FoodSquare: Utensils,
+  ChecklistBook: NotebookPen,
+  GrowthChart: ChartColumnIncreasing,
+  BitcoinBadge: Bitcoin,
+  SweetHome: HousePlus,
+  HomeRound: Home,
+  AgendaBook: NotebookTabs,
+  TodoList: BadgeCheck,
+  CryptoHand: HandCoins,
+  ContractDoc: FileCheck,
+  BitcoinCoin: Bitcoin,
+  GoldBars: Gem,
+  PopcornCinema: Popcorn,
+  Agenda3D: NotebookTabs,
+  BitcoinCoin3D: Bitcoin,
+  BitcoinCoinDark: Bitcoin,
+  BuildingBadge: Landmark,
+  Checklist3D: BadgeCheck,
+  Cinema3D: Popcorn,
+  Contract3D: FileCheck,
+  CryptoHand3D: HandCoins,
+  FoodCourt3D: UtensilsCrossed,
+  GoldBars3D: Gem,
+  HboMaxLogo: Clapperboard,
+  Home3D: HousePlus,
+  HomeOutline3D: House,
+  HomeRound3D: Home,
+  IPhoneBadge: Smartphone,
+  MarketGrowth3D: ChartColumnIncreasing,
+  MercadoLivreLogo: ShoppingCart,
+  MoneySafe3D: Wallet,
+  NetflixLogo: Clapperboard,
+  NetflixLogoAlt: Clapperboard,
+  OpenAiLogo: Briefcase,
+  Planner3D: NotebookPen,
+  Pix3D: Repeat,
+  PixLogo: Repeat,
+  PrimeVideoLogo: Clapperboard,
+  ShopeeLogo: ShoppingCart,
+  ShopeeLogoAlt: ShoppingCart,
+  TesouroDiretoLogo: Landmark,
+  WalletSafe3D: Wallet,
 };
 
 const hexToRgba = (hex: string, alpha: number) => {
@@ -83,10 +151,13 @@ export function CategoryIcon({
     iconColor,
   });
 
-  const Icon = ICONS[visual.iconName] || Tag;
+  const guessedVisual = resolveCategoryVisual({ categoryName });
+  const imageIconPath = getCategoryImageIconPath(visual.iconName);
+  const Icon = ICONS[visual.iconName] || ICONS[guessedVisual.iconName] || Tag;
   const solidColor = visual.iconColor;
   const bg = hexToRgba(solidColor, 0.17) || "rgba(15, 23, 42, 0.55)";
   const border = hexToRgba(solidColor, 0.36) || "rgba(148, 163, 184, 0.3)";
+  const imageSize = Math.max(12, size + 4);
 
   return (
     <span
@@ -100,7 +171,18 @@ export function CategoryIcon({
       }}
       aria-hidden="true"
     >
-      <Icon size={size} strokeWidth={2.1} />
+      {imageIconPath ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={imageIconPath}
+          alt=""
+          className="rounded-sm object-contain"
+          style={{ width: imageSize, height: imageSize }}
+          loading="lazy"
+        />
+      ) : (
+        <Icon size={size} strokeWidth={2.1} />
+      )}
     </span>
   );
 }
