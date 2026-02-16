@@ -836,6 +836,154 @@ create trigger trg_financial_planning_set_updated_at
 before update on public.financial_planning
 for each row execute function public.set_financial_planning_updated_at();
 
+create table if not exists public.installments (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  total_value numeric not null default 0,
+  installments int not null default 1,
+  paid_installments int not null default 0,
+  installment_value numeric not null default 0,
+  start_date date not null default current_date,
+  category text,
+  observation text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.installments add column if not exists user_id uuid;
+alter table public.installments add column if not exists name text;
+alter table public.installments add column if not exists total_value numeric not null default 0;
+alter table public.installments add column if not exists installments int not null default 1;
+alter table public.installments add column if not exists paid_installments int not null default 0;
+alter table public.installments add column if not exists installment_value numeric not null default 0;
+alter table public.installments add column if not exists start_date date not null default current_date;
+alter table public.installments add column if not exists category text;
+alter table public.installments add column if not exists observation text;
+alter table public.installments add column if not exists created_at timestamptz not null default now();
+alter table public.installments add column if not exists updated_at timestamptz not null default now();
+
+update public.installments
+set name = 'Compra parcelada'
+where name is null or trim(name) = '';
+
+update public.installments
+set installments = 1
+where installments is null or installments <= 0;
+
+update public.installments
+set paid_installments = 0
+where paid_installments is null or paid_installments < 0;
+
+update public.installments
+set paid_installments = least(paid_installments, installments)
+where paid_installments > installments;
+
+update public.installments
+set total_value = 0
+where total_value is null or total_value < 0;
+
+update public.installments
+set installment_value = total_value / nullif(installments, 0)
+where installment_value is null or installment_value <= 0;
+
+update public.installments
+set start_date = current_date
+where start_date is null;
+
+alter table public.installments alter column user_id set not null;
+alter table public.installments alter column name set not null;
+alter table public.installments alter column total_value set not null;
+alter table public.installments alter column installments set not null;
+alter table public.installments alter column paid_installments set not null;
+alter table public.installments alter column installment_value set not null;
+alter table public.installments alter column start_date set not null;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'installments_user_id_fkey'
+      and conrelid = 'public.installments'::regclass
+  ) then
+    alter table public.installments
+    add constraint installments_user_id_fkey
+    foreign key (user_id) references auth.users(id) on delete cascade;
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'installments_name_not_blank'
+      and conrelid = 'public.installments'::regclass
+  ) then
+    alter table public.installments
+    add constraint installments_name_not_blank
+    check (char_length(trim(name)) > 0);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'installments_total_value_non_negative'
+      and conrelid = 'public.installments'::regclass
+  ) then
+    alter table public.installments
+    add constraint installments_total_value_non_negative
+    check (total_value >= 0);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'installments_installments_positive'
+      and conrelid = 'public.installments'::regclass
+  ) then
+    alter table public.installments
+    add constraint installments_installments_positive
+    check (installments > 0);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'installments_paid_installments_range'
+      and conrelid = 'public.installments'::regclass
+  ) then
+    alter table public.installments
+    add constraint installments_paid_installments_range
+    check (paid_installments >= 0 and paid_installments <= installments);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'installments_installment_value_non_negative'
+      and conrelid = 'public.installments'::regclass
+  ) then
+    alter table public.installments
+    add constraint installments_installment_value_non_negative
+    check (installment_value >= 0);
+  end if;
+end
+$$;
+
+create or replace function public.set_installments_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end
+$$;
+
+drop trigger if exists trg_installments_set_updated_at on public.installments;
+create trigger trg_installments_set_updated_at
+before update on public.installments
+for each row execute function public.set_installments_updated_at();
+
 create table if not exists public.email_alert_rules (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -1568,6 +1716,7 @@ alter table public.investments enable row level security;
 alter table public.transactions enable row level security;
 alter table public.transaction_categories enable row level security;
 alter table public.financial_planning enable row level security;
+alter table public.installments enable row level security;
 alter table public.email_alert_rules enable row level security;
 alter table public.monthly_report_deliveries enable row level security;
 alter table public.agenda_events enable row level security;
@@ -1710,6 +1859,17 @@ begin
 
   if not exists (
     select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'installments' and policyname = 'installments_crud_own'
+  ) then
+    create policy installments_crud_own
+    on public.installments
+    for all
+    using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
     where schemaname = 'public' and tablename = 'email_alert_rules' and policyname = 'email_alert_rules_crud_own'
   ) then
     create policy email_alert_rules_crud_own
@@ -1823,6 +1983,8 @@ create index if not exists idx_transaction_categories_user on public.transaction
 create index if not exists idx_transaction_categories_name on public.transaction_categories(user_id, name);
 create index if not exists idx_financial_planning_user_created on public.financial_planning(user_id, created_at desc);
 create index if not exists idx_financial_planning_user_completed on public.financial_planning(user_id, is_completed, created_at desc);
+create index if not exists idx_installments_user_created on public.installments(user_id, created_at desc);
+create index if not exists idx_installments_user_due on public.installments(user_id, start_date, paid_installments, installments);
 create index if not exists idx_email_alert_rules_user_active on public.email_alert_rules(user_id, ativo_boolean, tipo_alerta);
 create index if not exists idx_email_alert_rules_last_triggered on public.email_alert_rules(last_triggered_at);
 create index if not exists idx_monthly_report_deliveries_user_month on public.monthly_report_deliveries(user_id, reference_month desc);

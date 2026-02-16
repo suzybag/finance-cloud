@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { differenceInCalendarDays } from "date-fns";
 import { computeCardSummary, type Card, type Transaction } from "@/lib/finance";
+import { computeAutoPaidInstallments, normalizeInstallmentRow, type InstallmentRow } from "@/lib/installments";
 import { toNumber } from "@/lib/money";
 import { sendEmailAlert } from "@/lib/emailAlerts";
 import { sendPushToUser } from "@/lib/pushServer";
@@ -505,6 +506,53 @@ const fetchMonthExpenses = async ({
   };
 };
 
+const syncInstallmentsProgress = async ({
+  admin,
+  userId,
+  now,
+}: {
+  admin: SupabaseClient;
+  userId: string;
+  now: Date;
+}) => {
+  const rowsRes = await admin
+    .from("installments")
+    .select("*")
+    .eq("user_id", userId);
+
+  if (rowsRes.error) {
+    const message = rowsRes.error.message || "";
+    if (/relation .*installments/i.test(message) || /schema cache/i.test(message.toLowerCase())) {
+      return 0;
+    }
+    throw new Error(`Falha ao atualizar parcelas: ${message}`);
+  }
+
+  const rows = ((rowsRes.data || []) as Partial<InstallmentRow>[])
+    .map((row) => normalizeInstallmentRow(row))
+    .filter((row) => row.id);
+
+  if (!rows.length) return 0;
+
+  let updated = 0;
+  for (const row of rows) {
+    const progress = computeAutoPaidInstallments(row, now);
+    if (progress.advanced <= 0 || progress.nextPaidInstallments === row.paid_installments) {
+      continue;
+    }
+
+    const updateRes = await admin
+      .from("installments")
+      .update({ paid_installments: progress.nextPaidInstallments })
+      .eq("id", row.id)
+      .eq("user_id", userId);
+
+    if (!updateRes.error) updated += 1;
+  }
+
+  return updated;
+};
+
 const createInternalAlert = async ({
   admin,
   userId,
@@ -587,9 +635,10 @@ export const runUserAutomation = async ({
   settings: ReturnType<typeof normalizeAutomationSettings>;
   dollarBid: number;
 }): Promise<RunUserAutomationResult> => {
-  const categorized = await autoCategorizeTransactions({ admin, userId });
-
   const now = new Date();
+  await syncInstallmentsProgress({ admin, userId, now });
+
+  const categorized = await autoCategorizeTransactions({ admin, userId });
   const currentMonth = normalizeMonthKey();
   const range = getMonthRanges(currentMonth);
 

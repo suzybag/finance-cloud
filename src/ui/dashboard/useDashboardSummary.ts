@@ -9,11 +9,18 @@ import {
   normalizePeriod,
 } from "@/core/finance/dashboardSummary";
 import { loadDashboardData } from "@/data/dashboard/loadDashboardData";
+import { normalizeInstallmentRow, type InstallmentRow } from "@/lib/installments";
+import { supabase } from "@/lib/supabaseClient";
+
+const isMissingInstallmentsTableError = (message?: string | null) =>
+  /relation .*installments/i.test(message || "")
+  || /schema cache/i.test((message || "").toLowerCase());
 
 export const useDashboardSummary = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [cards, setCards] = useState<Card[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [installments, setInstallments] = useState<InstallmentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [period, setPeriod] = useState(monthInputValue());
@@ -22,10 +29,26 @@ export const useDashboardSummary = () => {
     setLoading(true);
     setMessage(null);
 
-    const result = await loadDashboardData();
+    const [result, installmentRes] = await Promise.all([
+      loadDashboardData(),
+      supabase.from("installments").select("*").order("created_at", { ascending: false }),
+    ]);
+
+    if (installmentRes.error) {
+      setInstallments([]);
+      if (!isMissingInstallmentsTableError(installmentRes.error.message)) {
+        setMessage(`Parcelas indisponiveis: ${installmentRes.error.message}`);
+      }
+    } else {
+      const normalized = ((installmentRes.data || []) as Partial<InstallmentRow>[])
+        .map((row) => normalizeInstallmentRow(row))
+        .filter((row) => row.id && row.user_id);
+      setInstallments(normalized);
+    }
 
     if (result.error || !result.data) {
-      setMessage(result.error ?? "Falha ao carregar dados.");
+      const baseError = result.error || "Falha ao carregar dados.";
+      setMessage((prev) => (prev ? `${baseError} | ${prev}` : baseError));
       setLoading(false);
       return;
     }
@@ -52,6 +75,7 @@ export const useDashboardSummary = () => {
     accounts,
     cards,
     transactions,
+    installments,
     summary,
     setPeriod,
     refresh,

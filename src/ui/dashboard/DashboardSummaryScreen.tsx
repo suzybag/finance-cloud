@@ -1,11 +1,13 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { BankLogo } from "@/components/BankLogo";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { getBankIconPath } from "@/lib/bankIcons";
 import { normalizeCategoryKey } from "@/lib/categoryVisuals";
+import { summarizeInstallments } from "@/lib/installments";
 import { brl, formatPercent } from "@/lib/money";
 import { computeAccountBalances, computeCardSummary, groupByCategory } from "@/lib/finance";
 import { useCategoryMetadata } from "@/lib/useCategoryMetadata";
@@ -15,9 +17,11 @@ import { useMarketOverview } from "./useMarketOverview";
 import {
   ArrowDownRight,
   ArrowUpRight,
+  CalendarDays,
   ChevronRight,
   Circle,
   ExternalLink,
+  Layers,
   RefreshCcw,
 } from "lucide-react";
 
@@ -82,6 +86,15 @@ const formatUpdatedTime = (value?: string) => {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
+  });
+};
+
+const formatShortDate = (value?: Date | null) => {
+  if (!value) return "--";
+  if (Number.isNaN(value.getTime())) return "--";
+  return value.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
   });
 };
 
@@ -163,6 +176,7 @@ export const DashboardSummaryScreen = () => {
     accounts,
     cards,
     transactions,
+    installments,
     summary,
     setPeriod,
     refresh,
@@ -181,6 +195,29 @@ export const DashboardSummaryScreen = () => {
   const monthName = new Date(`${periodLabel}-01T00:00:00`).toLocaleDateString("pt-BR", {
     month: "long",
   });
+  const installmentSummary = useMemo(
+    () => summarizeInstallments(installments, new Date(), 10),
+    [installments],
+  );
+  const installmentAlerts = useMemo(
+    () => [
+      ...installmentSummary.overdue,
+      ...installmentSummary.dueSoon.filter((item) => (item.metrics.daysUntilDue ?? 99) <= 3),
+    ],
+    [installmentSummary.dueSoon, installmentSummary.overdue],
+  );
+  const upcomingInstallments = useMemo(
+    () =>
+      installmentSummary.active
+        .filter((item) => !!item.metrics.nextDueDate)
+        .sort((a, b) => {
+          const left = a.metrics.nextDueDate?.getTime() ?? Number.MAX_SAFE_INTEGER;
+          const right = b.metrics.nextDueDate?.getTime() ?? Number.MAX_SAFE_INTEGER;
+          return left - right;
+        })
+        .slice(0, 4),
+    [installmentSummary.active],
+  );
   const marketTimeLabel = market.updatedAt
     ? new Date(market.updatedAt).toLocaleTimeString("pt-BR", {
         hour: "2-digit",
@@ -449,6 +486,84 @@ export const DashboardSummaryScreen = () => {
               icon={<Circle className="h-5 w-5" />}
               footer="Saldo considerando o periodo."
             />
+          </section>
+
+          <section className="rounded-2xl border border-white/5 bg-slate-900/60 p-5 shadow-lg shadow-black/40">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-100">Parcelas ativas</h2>
+                <p className="text-xs text-slate-400">Resumo de compras parceladas e vencimentos</p>
+              </div>
+              <Link
+                href="/parcelas"
+                className="inline-flex items-center gap-2 rounded-lg border border-cyan-300/25 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/20"
+              >
+                <Layers className="h-3.5 w-3.5" />
+                Abrir Parcelas
+              </Link>
+            </div>
+
+            <div className="mb-4 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border border-cyan-300/20 bg-cyan-500/10 p-3">
+                <p className="text-[11px] uppercase tracking-[0.12em] text-cyan-100/70">Total ativo</p>
+                <p className="mt-1 text-lg font-semibold text-cyan-50">
+                  {brl(installmentSummary.activeTotalRemaining)}
+                </p>
+              </div>
+              <div className="rounded-xl border border-cyan-300/20 bg-cyan-500/10 p-3">
+                <p className="text-[11px] uppercase tracking-[0.12em] text-cyan-100/70">Proximos 10 dias</p>
+                <p className="mt-1 text-lg font-semibold text-cyan-50">{installmentSummary.dueSoon.length}</p>
+              </div>
+              <div className="rounded-xl border border-cyan-300/20 bg-cyan-500/10 p-3">
+                <p className="text-[11px] uppercase tracking-[0.12em] text-cyan-100/70">Alertas</p>
+                <p className="mt-1 text-lg font-semibold text-cyan-50">{installmentAlerts.length}</p>
+              </div>
+            </div>
+
+            {!upcomingInstallments.length ? (
+              <p className="text-sm text-slate-400">Sem parcelamentos ativos no momento.</p>
+            ) : (
+              <div className="grid gap-2 lg:grid-cols-2">
+                {upcomingInstallments.map((item) => {
+                  const urgency = item.metrics.daysUntilDue ?? 999;
+                  const badgeClass = urgency < 0
+                    ? "border-rose-300/35 bg-rose-500/15 text-rose-100"
+                    : urgency <= 3
+                      ? "border-amber-300/35 bg-amber-500/15 text-amber-100"
+                      : "border-cyan-300/35 bg-cyan-500/15 text-cyan-100";
+
+                  return (
+                    <div
+                      key={item.row.id}
+                      className="rounded-xl border border-white/10 bg-slate-900/70 p-3"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-sm font-semibold text-slate-100">{item.row.name}</p>
+                        <span className={`rounded-full border px-2 py-0.5 text-[11px] ${badgeClass}`}>
+                          {urgency < 0 ? `${Math.abs(urgency)} dia(s) atrasado` : `${urgency} dia(s)`}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-400">
+                        {item.metrics.paidInstallments}/{item.metrics.installmentCount} parcelas
+                      </p>
+                      <div className="mt-2 h-2 overflow-hidden rounded-full border border-white/10 bg-slate-800">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-400 transition-[width] duration-700"
+                          style={{ width: `${item.metrics.percentagePaid.toFixed(2)}%` }}
+                        />
+                      </div>
+                      <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
+                        <span>{brl(item.metrics.installmentValue)} por parcela</span>
+                        <span className="inline-flex items-center gap-1">
+                          <CalendarDays className="h-3.5 w-3.5" />
+                          {formatShortDate(item.metrics.nextDueDate)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </section>
 
           <section className="rounded-2xl border border-white/5 bg-slate-900/60 p-5 shadow-lg shadow-black/40">
