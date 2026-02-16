@@ -1,47 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+import { getUserFromRequest } from "@/lib/apiAuth";
 
 const MAX_SIZE_BYTES = 2 * 1024 * 1024;
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const MAX_FORM_SIZE_BYTES = (MAX_SIZE_BYTES + 256 * 1024);
+const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
-const getAuthToken = (req: NextRequest) => {
-  const authHeader = req.headers.get("authorization") || "";
-  return authHeader.replace("Bearer ", "").trim();
-};
-
-const getClientForToken = (token: string) => {
-  if (!supabaseUrl) {
-    return { client: null, error: "NEXT_PUBLIC_SUPABASE_URL nao configurada." };
-  }
-  if (!token) {
-    return { client: null, error: "Token ausente." };
-  }
-
-  const keyToUse = serviceRole || supabaseAnonKey;
-  if (!keyToUse) {
-    return { client: null, error: "SUPABASE_SERVICE_ROLE_KEY ou NEXT_PUBLIC_SUPABASE_ANON_KEY nao configurada." };
-  }
-
-  const client = createClient(supabaseUrl, keyToUse, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-  });
-
-  return { client, error: null };
-};
-
-const getUserFromRequest = async (req: NextRequest) => {
-  const token = getAuthToken(req);
-  const { client, error } = getClientForToken(token);
-  if (!client || error) return { user: null, error, client: null };
-
-  const { data, error: userError } = await client.auth.getUser(token);
-  if (userError || !data.user) return { user: null, error: "Token invalido.", client: null };
-
-  return { user: data.user, error: null, client };
+const getSafeExtension = (mimeType: string) => {
+  const maybeExt = mimeType.split("/")[1]?.toLowerCase() || "jpg";
+  return /^[a-z0-9]+$/.test(maybeExt) ? maybeExt : "jpg";
 };
 
 export async function POST(req: NextRequest) {
@@ -50,13 +16,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, message: error }, { status: 401 });
   }
 
-  const form = await req.formData();
+  const contentLength = Number(req.headers.get("content-length") || "0");
+  if (Number.isFinite(contentLength) && contentLength > MAX_FORM_SIZE_BYTES) {
+    return NextResponse.json({ ok: false, message: "Arquivo muito grande." }, { status: 413 });
+  }
+
+  const form = await req.formData().catch(() => null);
+  if (!form) {
+    return NextResponse.json({ ok: false, message: "Payload invalido." }, { status: 400 });
+  }
+
   const file = form.get("file");
   if (!(file instanceof File)) {
     return NextResponse.json({ ok: false, message: "Arquivo invalido." }, { status: 400 });
   }
 
-  if (!ALLOWED_TYPES.includes(file.type)) {
+  const mimeType = String(file.type || "").toLowerCase();
+  if (!ALLOWED_TYPES.has(mimeType)) {
     return NextResponse.json({ ok: false, message: "Formato invalido. Use JPG, PNG ou WebP." }, { status: 400 });
   }
 
@@ -64,14 +40,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, message: "Arquivo acima de 2MB." }, { status: 400 });
   }
 
-  const extension = file.type.split("/")[1] || "jpg";
+  const extension = getSafeExtension(mimeType);
   const path = `${user.id}/avatar.${extension}`;
   const bytes = new Uint8Array(await file.arrayBuffer());
 
   const { error: uploadError } = await client
     .storage
     .from("avatars")
-    .upload(path, bytes, { upsert: true, contentType: file.type });
+    .upload(path, bytes, { upsert: true, contentType: mimeType });
 
   if (uploadError) {
     return NextResponse.json({ ok: false, message: uploadError.message }, { status: 500 });

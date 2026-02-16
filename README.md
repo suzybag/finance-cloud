@@ -92,6 +92,25 @@ Acesse `http://localhost:3000`.
 - Compras no cartao sao transacoes com `card_id`.
 - Pagamento de fatura cria transacao `card_payment` na conta bancaria.
 
+## Seguranca bancaria (checklist)
+- Login:
+  - Token JWT validado no backend (`src/lib/apiAuth.ts`).
+  - Bloqueio de tentativas no login web (5 tentativas, 15 min) em `src/app/page.tsx`.
+  - Habilite MFA/2FA no Supabase Auth para codigo por app autenticador.
+- API e app:
+  - Headers de seguranca ativos em `next.config.ts`.
+  - Rate limit global de API via `middleware.ts` + `src/lib/security/rateLimit.ts`.
+  - Sanitizacao de input em `src/lib/security/input.ts`.
+- Auditoria:
+  - Tabela `public.security_events` em `supabase.sql` para eventos de autenticacao e seguranca.
+  - RLS habilitado, leitura apenas do proprio usuario.
+- Dados financeiros:
+  - RLS ativa nas tabelas financeiras.
+  - Nao armazenar CVV/senha de cartao; use tokenizacao no provedor de pagamento.
+- Backups:
+  - Ative backup diario e PITR no Supabase (Project Settings -> Database -> Backups).
+  - Teste restore periodicamente em ambiente de homologacao.
+
 Boa evolucao para fase 2:
 - OFX/PDF (OCR)
 - Categorizacao por IA em batch

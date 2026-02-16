@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserFromRequest } from "@/lib/apiAuth";
 import { toNumber } from "@/lib/money";
+import { sanitizeFreeText } from "@/lib/security/input";
 
 type ChatTurn = {
   role: "user" | "assistant";
@@ -17,6 +18,10 @@ type ModelAttemptResult =
   | { ok: false; status: number; details: string };
 
 const normalizeSpace = (value: string) => value.replace(/\s+/g, " ").trim();
+const MAX_CHAT_TEXT_LENGTH = 1200;
+const MAX_CHAT_HISTORY_TURNS = 12;
+const MAX_CHAT_HISTORY_TEXT_LENGTH = 700;
+const MAX_BODY_SIZE_BYTES = 64 * 1024;
 
 const normalizeForMatch = (value: string) =>
   normalizeSpace(
@@ -332,12 +337,12 @@ const parseHistory = (rawHistory: unknown): ChatTurn[] => {
       if (!item || typeof item !== "object") return null;
       const maybe = item as Record<string, unknown>;
       const role = maybe.role === "assistant" ? "assistant" : "user";
-      const turnText = normalizeSpace(String(maybe.text ?? ""));
+      const turnText = sanitizeFreeText(maybe.text, MAX_CHAT_HISTORY_TEXT_LENGTH);
       if (!turnText) return null;
       return { role, text: turnText } as ChatTurn;
     })
     .filter((item: ChatTurn | null): item is ChatTurn => !!item)
-    .slice(-10);
+    .slice(-MAX_CHAT_HISTORY_TURNS);
 };
 
 const normalizeModelName = (value: string) => value.replace(/^models\//i, "").trim();
@@ -492,8 +497,13 @@ const chatWithOpenAI = async (text: string, history: ChatTurn[], apiKey: string)
 };
 
 export async function POST(req: NextRequest) {
+  const contentLength = Number(req.headers.get("content-length") || "0");
+  if (Number.isFinite(contentLength) && contentLength > MAX_BODY_SIZE_BYTES) {
+    return NextResponse.json({ message: "Payload muito grande." }, { status: 413 });
+  }
+
   const body = await req.json().catch(() => null);
-  const text = normalizeSpace(String(body?.text ?? ""));
+  const text = sanitizeFreeText(body?.text, MAX_CHAT_TEXT_LENGTH);
   const history = parseHistory(body?.history);
 
   if (!text) {

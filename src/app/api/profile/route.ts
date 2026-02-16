@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getUserFromRequest } from "@/lib/apiAuth";
+import { sanitizeFreeText } from "@/lib/security/input";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+const MAX_BODY_SIZE_BYTES = 8 * 1024;
 
 const normalizeDisplayName = (value: string) => value.replace(/\s+/g, " ").trim();
 const validateDisplayName = (value: string) => {
@@ -12,42 +11,6 @@ const validateDisplayName = (value: string) => {
   if (!/\p{L}/u.test(value)) return "Use pelo menos uma letra.";
   if (/[^0-9\p{L}\s.'-]/u.test(value)) return "Use apenas letras, numeros, espacos, ponto, apostrofo ou hifen.";
   return null;
-};
-
-const getAuthToken = (req: NextRequest) => {
-  const authHeader = req.headers.get("authorization") || "";
-  return authHeader.replace("Bearer ", "").trim();
-};
-
-const getClientForToken = (token: string) => {
-  if (!supabaseUrl) {
-    return { client: null, error: "NEXT_PUBLIC_SUPABASE_URL nao configurada." };
-  }
-  if (!token) {
-    return { client: null, error: "Token ausente." };
-  }
-
-  const keyToUse = serviceRole || supabaseAnonKey;
-  if (!keyToUse) {
-    return { client: null, error: "SUPABASE_SERVICE_ROLE_KEY ou NEXT_PUBLIC_SUPABASE_ANON_KEY nao configurada." };
-  }
-
-  const client = createClient(supabaseUrl, keyToUse, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-  });
-
-  return { client, error: null };
-};
-
-const getUserFromRequest = async (req: NextRequest) => {
-  const token = getAuthToken(req);
-  const { client, error } = getClientForToken(token);
-  if (!client || error) return { user: null, error, client: null };
-
-  const { data, error: userError } = await client.auth.getUser(token);
-  if (userError || !data.user) return { user: null, error: "Token invalido.", client: null };
-
-  return { user: data.user, error: null, client };
 };
 
 export async function GET(req: NextRequest) {
@@ -84,9 +47,14 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ ok: false, message: error }, { status: 401 });
   }
 
+  const contentLength = Number(req.headers.get("content-length") || "0");
+  if (Number.isFinite(contentLength) && contentLength > MAX_BODY_SIZE_BYTES) {
+    return NextResponse.json({ ok: false, message: "Payload muito grande." }, { status: 413 });
+  }
+
   const body = await req.json().catch(() => null);
-  const rawName = body?.display_name ?? body?.name ?? "";
-  const normalized = normalizeDisplayName(String(rawName));
+  const rawName = sanitizeFreeText(body?.display_name ?? body?.name ?? "", 40);
+  const normalized = normalizeDisplayName(rawName);
 
   const validationError = validateDisplayName(normalized);
   if (validationError) {

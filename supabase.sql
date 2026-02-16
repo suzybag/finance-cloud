@@ -244,6 +244,113 @@ begin
 end
 $$;
 
+create table if not exists public.security_events (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete set null,
+  event_type text not null,
+  severity text not null default 'info',
+  message text not null default '',
+  ip_address text,
+  user_agent text,
+  path text,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+alter table public.security_events add column if not exists user_id uuid;
+alter table public.security_events add column if not exists event_type text;
+alter table public.security_events add column if not exists severity text not null default 'info';
+alter table public.security_events add column if not exists message text not null default '';
+alter table public.security_events add column if not exists ip_address text;
+alter table public.security_events add column if not exists user_agent text;
+alter table public.security_events add column if not exists path text;
+alter table public.security_events add column if not exists metadata jsonb not null default '{}'::jsonb;
+alter table public.security_events add column if not exists created_at timestamptz not null default now();
+
+update public.security_events
+set severity = 'info'
+where severity is null or trim(severity) = '';
+
+update public.security_events
+set event_type = 'unknown'
+where event_type is null or trim(event_type) = '';
+
+update public.security_events
+set message = 'Evento de seguranca.'
+where message is null or trim(message) = '';
+
+alter table public.security_events alter column event_type set not null;
+alter table public.security_events alter column severity set not null;
+alter table public.security_events alter column message set not null;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'security_events_user_id_fkey'
+      and conrelid = 'public.security_events'::regclass
+  ) then
+    alter table public.security_events
+    add constraint security_events_user_id_fkey
+    foreign key (user_id) references auth.users(id) on delete set null;
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'security_events_event_type_not_blank'
+      and conrelid = 'public.security_events'::regclass
+  ) then
+    alter table public.security_events
+    add constraint security_events_event_type_not_blank
+    check (char_length(trim(event_type)) > 0);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'security_events_message_not_blank'
+      and conrelid = 'public.security_events'::regclass
+  ) then
+    alter table public.security_events
+    add constraint security_events_message_not_blank
+    check (char_length(trim(message)) > 0);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'security_events_severity_check'
+      and conrelid = 'public.security_events'::regclass
+  ) then
+    alter table public.security_events
+    add constraint security_events_severity_check
+    check (severity in ('info', 'warning', 'critical'));
+  end if;
+end
+$$;
+
+alter table public.security_events enable row level security;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'security_events' and policyname = 'security_events_select_own'
+  ) then
+    create policy security_events_select_own
+    on public.security_events
+    for select
+    using (auth.uid() = user_id);
+  end if;
+end
+$$;
+
+create index if not exists idx_security_events_user_created on public.security_events(user_id, created_at desc);
+create index if not exists idx_security_events_event_type on public.security_events(event_type, created_at desc);
+create index if not exists idx_security_events_created on public.security_events(created_at desc);
+
 create table if not exists public.banks (
   id uuid primary key default gen_random_uuid(),
   name text not null,

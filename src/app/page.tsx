@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import DotGrid from "@/components/DotGrid";
 import { getAuthStorageMode, setAuthStorageMode, supabase } from "@/lib/supabaseClient";
+import { sanitizeEmail } from "@/lib/security/input";
 
 type AuthMode = "login" | "signup";
 
@@ -15,6 +16,11 @@ type Ripple = {
 
 const REMEMBER_LOGIN_KEY = "finance_remember_login";
 const REMEMBER_EMAIL_KEY = "finance_remember_email";
+const LOGIN_ATTEMPTS_KEY = "finance_login_attempts_v1";
+const LOGIN_LOCK_UNTIL_KEY = "finance_login_lock_until_v1";
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_MINUTES = 15;
+const LOGIN_GENERIC_ERROR = "Email ou senha invalidos.";
 
 const getInitialRememberLogin = () => {
   if (typeof window === "undefined") return true;
@@ -25,6 +31,45 @@ const getInitialRememberLogin = () => {
 const getInitialRememberedEmail = () => {
   if (typeof window === "undefined") return "";
   return window.localStorage.getItem(REMEMBER_EMAIL_KEY) ?? "";
+};
+
+const getInitialLockUntil = () => {
+  if (typeof window === "undefined") return 0;
+  const raw = Number(window.localStorage.getItem(LOGIN_LOCK_UNTIL_KEY) || "0");
+  if (!Number.isFinite(raw) || raw <= Date.now()) {
+    window.localStorage.removeItem(LOGIN_LOCK_UNTIL_KEY);
+    return 0;
+  }
+  return raw;
+};
+
+const clearLoginFailureState = () => {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(LOGIN_ATTEMPTS_KEY);
+  window.localStorage.removeItem(LOGIN_LOCK_UNTIL_KEY);
+};
+
+const registerLoginFailure = () => {
+  if (typeof window === "undefined") {
+    return { locked: false, remainingAttempts: MAX_LOGIN_ATTEMPTS - 1, lockUntil: 0 };
+  }
+
+  const currentAttempts = Number(window.localStorage.getItem(LOGIN_ATTEMPTS_KEY) || "0");
+  const nextAttempts = Number.isFinite(currentAttempts) ? currentAttempts + 1 : 1;
+
+  if (nextAttempts >= MAX_LOGIN_ATTEMPTS) {
+    const lockUntil = Date.now() + LOCKOUT_MINUTES * 60 * 1000;
+    window.localStorage.setItem(LOGIN_ATTEMPTS_KEY, "0");
+    window.localStorage.setItem(LOGIN_LOCK_UNTIL_KEY, String(lockUntil));
+    return { locked: true, remainingAttempts: 0, lockUntil };
+  }
+
+  window.localStorage.setItem(LOGIN_ATTEMPTS_KEY, String(nextAttempts));
+  return {
+    locked: false,
+    remainingAttempts: Math.max(MAX_LOGIN_ATTEMPTS - nextAttempts, 0),
+    lockUntil: 0,
+  };
 };
 
 export default function LoginPage() {
@@ -40,6 +85,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [ripple, setRipple] = useState<Ripple | null>(null);
+  const [lockUntil, setLockUntil] = useState<number>(getInitialLockUntil);
 
   useEffect(() => {
     setAuthStorageMode(rememberLogin);
@@ -48,6 +94,17 @@ export default function LoginPage() {
       if (data.session) router.replace("/dashboard");
     });
   }, [rememberLogin, router]);
+
+  useEffect(() => {
+    if (!lockUntil) return;
+    const timer = window.setInterval(() => {
+      if (Date.now() >= lockUntil) {
+        setLockUntil(0);
+        clearLoginFailureState();
+      }
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [lockUntil]);
 
   const handlePanelMove = (event: React.MouseEvent<HTMLElement>) => {
     const panel = panelRef.current;
@@ -102,8 +159,17 @@ export default function LoginPage() {
     setError(null);
     setMessage(null);
 
-    if (!email || !password) {
+    const sanitizedEmail = sanitizeEmail(email);
+    if (!sanitizedEmail || !password) {
       setError("Informe email e senha.");
+      setLoading(false);
+      return;
+    }
+
+    if (mode === "login" && lockUntil && Date.now() < lockUntil) {
+      const seconds = Math.max(Math.ceil((lockUntil - Date.now()) / 1000), 1);
+      const minutes = Math.ceil(seconds / 60);
+      setError(`Login temporariamente bloqueado. Tente novamente em ${minutes} minuto(s).`);
       setLoading(false);
       return;
     }
@@ -112,24 +178,38 @@ export default function LoginPage() {
       setAuthStorageMode(rememberLogin);
       window.localStorage.setItem(REMEMBER_LOGIN_KEY, rememberLogin ? "1" : "0");
       if (rememberLogin) {
-        window.localStorage.setItem(REMEMBER_EMAIL_KEY, email);
+        window.localStorage.setItem(REMEMBER_EMAIL_KEY, sanitizedEmail);
       } else {
         window.localStorage.removeItem(REMEMBER_EMAIL_KEY);
       }
 
       const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
+        email: sanitizedEmail,
         password,
       });
 
       if (signInError) {
-        setError(signInError.message);
+        const lockState = registerLoginFailure();
+        if (lockState.locked) {
+          setLockUntil(lockState.lockUntil);
+          setError(`Muitas tentativas invalidas. Bloqueado por ${LOCKOUT_MINUTES} minutos.`);
+        } else {
+          setError(`${LOGIN_GENERIC_ERROR} Tentativas restantes: ${lockState.remainingAttempts}.`);
+        }
       } else {
+        clearLoginFailureState();
+        setLockUntil(0);
         router.push("/dashboard");
       }
     } else {
+      if (password.length < 8) {
+        setError("A senha deve ter ao menos 8 caracteres.");
+        setLoading(false);
+        return;
+      }
+
       const { error: signUpError } = await supabase.auth.signUp({
-        email,
+        email: sanitizedEmail,
         password,
       });
 
@@ -248,6 +328,11 @@ export default function LoginPage() {
                   </label>
 
                   {error ? <p className="feedback error">{error}</p> : null}
+                  {!error && lockUntil ? (
+                    <p className="feedback error">
+                      Login bloqueado temporariamente por seguranca.
+                    </p>
+                  ) : null}
                   {message ? <p className="feedback success">{message}</p> : null}
 
                   <div className="row">
