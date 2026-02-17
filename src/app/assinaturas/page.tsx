@@ -581,7 +581,7 @@ export default function AssinaturasPage() {
       {loading ? (
         <div className={CARD_CLASS}>Carregando assinaturas...</div>
       ) : (
-        <div className={`${inter.className} space-y-6`}>
+        <div className={`${inter.className} assinaturas-night-sync space-y-6`}>
           <section className="rounded-3xl border border-cyan-200/20 bg-[linear-gradient(140deg,rgba(7,14,30,0.68),rgba(7,11,22,0.78))] p-6 backdrop-blur-xl shadow-[0_24px_56px_rgba(0,0,0,0.45),0_0_30px_rgba(34,211,238,0.12)]">
             <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-cyan-200/70">Total mensal</p>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3">

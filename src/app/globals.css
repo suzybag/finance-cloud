@@ -228,6 +228,44 @@ body.theme-night-pro .parcelas-progress-shine {
   display: none !important;
 }
 
+body.theme-night-pro .assinaturas-premium-bg::before {
+  background: #080808 !important;
+}
+
+body.theme-night-pro .assinaturas-night-sync :where([class*="text-cyan"]) {
+  color: var(--text-primary) !important;
+}
+
+body.theme-night-pro .assinaturas-night-sync :where([class*="border-cyan"]) {
+  border-color: var(--surface-border) !important;
+}
+
+body.theme-night-pro .assinaturas-night-sync :where([class*="bg-cyan"]) {
+  background: var(--bg-card) !important;
+}
+
+body.theme-night-pro .assinaturas-night-sync .subscription-row-card {
+  border-color: var(--surface-border) !important;
+  background: var(--bg-card) !important;
+  box-shadow: var(--surface-shadow) !important;
+}
+
+body.theme-night-pro .assinaturas-night-sync .subscription-row-card:hover {
+  border-color: color-mix(in srgb, var(--surface-border) 75%, #ffffff 25%) !important;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.34) !important;
+}
+
+body.theme-night-pro .assinaturas-night-sync .subscription-icon-orb {
+  border-color: var(--surface-border) !important;
+  background: color-mix(in srgb, var(--bg-card) 88%, #111827 12%) !important;
+  box-shadow: none !important;
+}
+
+body.theme-night-pro .assinaturas-night-sync .subscription-price {
+  color: var(--text-primary) !important;
+  text-shadow: none !important;
+}
+
 body.theme-reading :where([class*="text-white"], [class*="text-slate-100"], [class*="text-slate-200"], [class*="text-violet-100"], [class*="text-violet-50"], [class*="text-violet-200"]) {
   color: var(--text-primary) !important;
 }
