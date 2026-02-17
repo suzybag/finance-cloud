@@ -40,7 +40,7 @@ const getTransactionImageIcon = (tx: Transaction) => {
   const normalized = normalizeText(context);
 
   if (normalized.includes("netflix") || normalized.includes("netlix") || normalized.includes("netflx")) {
-    return "/icons/Netflix.png";
+    return "/icons/netflix.png";
   }
   if (normalized.includes("hbo") || normalized.includes("hbomax") || normalized.includes("hbo max") || normalized.includes("htbo")) {
     return "/icons/hbo-max.png";
@@ -48,13 +48,16 @@ const getTransactionImageIcon = (tx: Transaction) => {
   if (normalized.includes("mercadopago") || normalized.includes("mercado pago") || normalized.includes("mercadolivre") || normalized.includes("mercado livre")) {
     return "/icons/Mercado-Pago.png";
   }
+  if (normalized.includes("uber one") || normalized.includes("uber eats") || normalized.includes("uber")) {
+    return "/icons/Uber.png";
+  }
   if (normalized.includes("spotify")) return "/icons/spotify.png";
   if (normalized.includes("amazon") || normalized.includes("prime")) return "/icons/Prime-video.png";
   if (normalized.includes("disney")) return "/icons/disney.png";
 
   const guessed = getCategoryFallbackVisual(context);
   const guessedImage = getCategoryImageIconPath(guessed.iconName);
-  return guessedImage || "/icons/Prime-video.png";
+  return guessedImage || "/icons/Cinema.png";
 };
 
 export default function GastosPage() {
@@ -370,7 +373,7 @@ export default function GastosPage() {
                           className="expense-icon-img"
                           loading="lazy"
                           onError={(event) => {
-                            event.currentTarget.src = "/icons/Prime-video.png";
+                            event.currentTarget.src = "/icons/Cinema.png";
                           }}
                         />
                       </span>

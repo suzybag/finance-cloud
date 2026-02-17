@@ -20,24 +20,24 @@ export const CUSTOM_MEDIA_ASSETS = {
   moneySafe3d: "/custom/icons/CDB-Caixinha.webp",
   houseStar: "/custom/icons/casa-nova.png",
   marketGrowth: "/custom/icons/crescimento-de-mercado.png",
-  netflixRound: "/icons/Netflix.png",
+  netflixRound: "/icons/netflix.png",
   homeOutline: "/custom/icons/casa-nova.png",
   shopeeDecor: "/custom/icons/Shopee.png",
   iphoneImage: "/custom/icons/Icloud.png",
-  buildingRound: "/custom/icons/7544981.png",
+  buildingRound: "/custom/icons/crescimento-de-mercado.png",
   hboMaxSquare: "/icons/hbo-max.png",
   primeVideo: "/icons/Prime-video.png",
   homeGradient: "/custom/icons/casa-nova.png",
   mercadoLivre: "/icons/Mercado-Pago.png",
   pixLogo: "/custom/icons/Pix.png",
   forkKnife: "/custom/icons/praca-de-alimentacao.png",
-  netflixRoundAlt: "/icons/Netflix.png",
+  netflixRoundAlt: "/icons/netflix.png",
   foodCourt: "/custom/icons/praca-de-alimentacao.png",
   tesouroDireto: "/custom/icons/CDB-Caixinha.webp",
   cinemaPopcorn: "/icons/Cinema.png",
-  uberVideo: "/custom/icons/Uber.png",
+  uberVideo: "/icons/Uber.png",
   shopeeBag: "/custom/icons/Shopee.png",
-  plannerBook: "/custom/icons/7544981.png",
+  plannerBook: "/custom/icons/agenda-13753233.png",
   spotifyCircle: "/icons/spotify.png",
   disneyCircle: "/icons/disney.png",
   amazonPrimeCircle: "/icons/Prime-video.png",
@@ -52,11 +52,13 @@ export type SubscriptionIconOption = {
 
 export const SUBSCRIPTION_ICON_OPTIONS: SubscriptionIconOption[] = [
   { id: "default", label: "Padrao", path: "/icons/Cinema.png" },
-  { id: "netflix", label: "Netflix", path: "/icons/Netflix.png" },
+  { id: "netflix", label: "Netflix", path: "/icons/netflix.png" },
   { id: "hbo-max", label: "HBO Max", path: "/icons/hbo-max.png" },
   { id: "spotify", label: "Spotify", path: "/icons/spotify.png" },
   { id: "disney", label: "Disney", path: "/icons/disney.png" },
   { id: "prime-video", label: "Prime Video", path: "/icons/Prime-video.png" },
+  { id: "mercado-pago", label: "Mercado Pago", path: "/icons/Mercado-Pago.png" },
+  { id: "uber", label: "Uber", path: "/icons/Uber.png" },
   { id: "icloud", label: "iCloud", path: "/icons/Icloud.png" },
   { id: "cinema", label: "Cinema", path: "/icons/Cinema.png" },
   { id: "openai", label: "ChatGPT", path: "/icons/ChatGPT.png" },
@@ -64,7 +66,7 @@ export const SUBSCRIPTION_ICON_OPTIONS: SubscriptionIconOption[] = [
 
 export const AGENDA_ICON_OPTIONS: SubscriptionIconOption[] = [
   { id: "agenda", label: "Agenda", path: "/custom/icons/agenda-13753233.png" },
-  { id: "lembrete", label: "Lembrete", path: "/custom/icons/7544981.png" },
+  { id: "lembrete", label: "Lembrete", path: "/custom/icons/agenda-13753233.png" },
   { id: "icloud", label: "Nuvem", path: "/custom/icons/Icloud.png" },
 ];
 
@@ -145,6 +147,10 @@ const SUBSCRIPTION_LOGO_RULES: SubscriptionLogoRule[] = [
     path: CUSTOM_MEDIA_ASSETS.mercadoLivre,
   },
   {
+    terms: ["uber one", "uber eats", "uber"],
+    path: CUSTOM_MEDIA_ASSETS.uberVideo,
+  },
+  {
     terms: ["chatgpt", "openai", "gpt", "gptplus", "gpt plus"],
     path: CUSTOM_MEDIA_ASSETS.openAiLogo,
   },
@@ -167,15 +173,23 @@ export const getSubscriptionLogoPath = (serviceName?: string | null) => {
 const ALLOWED_SUBSCRIPTION_ICON_PREFIX = /^\/(?:icons|custom(?:\/icons)?)\//i;
 const ALLOWED_SUBSCRIPTION_ICON_EXT = /\.(png|jpe?g|webp|jfif|svg)$/i;
 const SUBSCRIPTION_ICON_PATH_SET = new Set(SUBSCRIPTION_ICON_OPTIONS.map((item) => item.path));
+const LEGACY_SUBSCRIPTION_ICON_PATH_ALIASES: Record<string, string> = {
+  "/icons/Netflix.png": "/icons/netflix.png",
+  "/icons/Netflix.film.png": "/icons/netflix.png",
+  "/icons/Mercado.Pago.png": "/icons/Mercado-Pago.png",
+  "/icons/uber.png": "/icons/Uber.png",
+};
 const AUTO_SUBSCRIPTION_PLACEHOLDER_PATHS = new Set([
   CUSTOM_MEDIA_ASSETS.defaultServiceIcon,
   "/icons/Prime-video.png",
   "/custom/icons/7544981.png",
+  "/custom/icons/11865338.png",
   "/icons/Photoroom.png",
 ]);
 
 export const sanitizeSubscriptionIconPath = (value?: string | null) => {
-  const raw = String(value || "").trim();
+  const input = String(value || "").trim();
+  const raw = LEGACY_SUBSCRIPTION_ICON_PATH_ALIASES[input] || input;
   if (!raw) return null;
   if (!ALLOWED_SUBSCRIPTION_ICON_PREFIX.test(raw)) return null;
   if (!ALLOWED_SUBSCRIPTION_ICON_EXT.test(raw)) return null;
