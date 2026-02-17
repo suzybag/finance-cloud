@@ -4,13 +4,10 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   Activity,
-  AlertTriangle,
   CalendarClock,
-  CheckCircle2,
   CreditCard,
   Loader2,
   Plus,
-  Sparkles,
   Trash2,
   Wallet,
 } from "lucide-react";
@@ -106,16 +103,6 @@ const formatShortDate = (value?: Date | null) => {
   return value.toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "2-digit",
-  });
-};
-
-const formatMonthYear = (value?: string | Date | null) => {
-  if (!value) return "--";
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return "--";
-  return date.toLocaleDateString("pt-BR", {
-    month: "short",
-    year: "numeric",
   });
 };
 
@@ -233,20 +220,15 @@ export default function AssinaturasPage() {
   const subscriptionsSorted = useMemo(
     () =>
       [...subscriptions].sort((a, b) => {
-        if (a.active !== b.active) return Number(b.active) - Number(a.active);
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        const aMetrics = computeRecurringSubscriptionMetrics(a);
+        const bMetrics = computeRecurringSubscriptionMetrics(b);
+        const aCharge = aMetrics.nextChargeDate ? aMetrics.nextChargeDate.getTime() : Number.MAX_SAFE_INTEGER;
+        const bCharge = bMetrics.nextChargeDate ? bMetrics.nextChargeDate.getTime() : Number.MAX_SAFE_INTEGER;
+        if (aCharge !== bCharge) return aCharge - bCharge;
+        return a.name.localeCompare(b.name, "pt-BR");
       }),
     [subscriptions],
   );
-
-  const paymentsBySubscription = useMemo(() => {
-    const map = new Map<string, RecurringSubscriptionPaymentRow[]>();
-    for (const payment of payments) {
-      if (!map.has(payment.subscription_id)) map.set(payment.subscription_id, []);
-      map.get(payment.subscription_id)?.push(payment);
-    }
-    return map;
-  }, [payments]);
 
   const pricePreview = Math.max(0, toNumber(form.priceMasked));
   const monthlyEquivalentPreview = round2(
@@ -256,14 +238,10 @@ export default function AssinaturasPage() {
         ? (pricePreview * 52) / 12
         : pricePreview,
   );
-
-  const topMonthlyShares = useMemo(
-    () =>
-      [...summary.active]
-        .sort((a, b) => b.metrics.monthlyEquivalent - a.metrics.monthlyEquivalent)
-        .slice(0, 6),
-    [summary.active],
-  );
+  const activeSubscriptionsCount = subscriptions.filter((row) => row.active).length;
+  const nextChargeDate = subscriptionsSorted.length
+    ? computeRecurringSubscriptionMetrics(subscriptionsSorted[0]).nextChargeDate
+    : null;
 
   const handleCreateSubscription = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -598,77 +576,34 @@ export default function AssinaturasPage() {
         <div className={CARD_CLASS}>Carregando assinaturas...</div>
       ) : (
         <div className="space-y-5">
-          <section className="grid gap-4 lg:grid-cols-4">
-            <article className={CARD_CLASS}>
-              <p className="text-xs uppercase tracking-[0.14em] text-cyan-200/60">Total mensal</p>
-              <p className="mt-2 text-2xl font-bold text-cyan-50">{brl(summary.monthlyTotal)}</p>
-              <p className="mt-1 text-xs text-cyan-100/65">Equivalente mensal das assinaturas ativas</p>
-            </article>
-            <article className={CARD_CLASS}>
-              <p className="text-xs uppercase tracking-[0.14em] text-cyan-200/60">Proximas cobrancas</p>
-              <p className="mt-2 text-2xl font-bold text-cyan-50">{summary.upcoming.length}</p>
-              <p className="mt-1 text-xs text-cyan-100/65">Vencimentos previstos para os proximos 14 dias</p>
-            </article>
-            <article className={CARD_CLASS}>
-              <p className="text-xs uppercase tracking-[0.14em] text-cyan-200/60">Esquecidas</p>
-              <p className="mt-2 text-2xl font-bold text-cyan-50">{summary.underused.length}</p>
-              <p className="mt-1 text-xs text-cyan-100/65">Sem uso recente ou sem uso registrado</p>
-            </article>
-            <article className={CARD_CLASS}>
-              <p className="text-xs uppercase tracking-[0.14em] text-cyan-200/60">Previsao 12 meses</p>
-              <p className="mt-2 text-2xl font-bold text-cyan-50">{brl(summary.forecast12Months)}</p>
-              <p className="mt-1 text-xs text-cyan-100/65">Compromisso estimado em recorrencias</p>
-            </article>
-          </section>
-
-          <section className="rounded-2xl border border-cyan-300/20 bg-[linear-gradient(140deg,rgba(8,14,28,0.94),rgba(8,11,23,0.96))] p-4 shadow-[0_18px_36px_rgba(0,0,0,0.4)]">
-            <div className="mb-3 flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-xl font-semibold tracking-tight text-white">Radar de Assinaturas</p>
-                <p className="text-xs text-cyan-100/70">
-                  Alertas em 3 dias, no dia da cobranca e deteccao de servicos pouco usados.
-                </p>
-              </div>
-              <div className="inline-flex items-center gap-1 rounded-full border border-cyan-300/25 bg-cyan-500/10 px-2.5 py-1 text-[11px] font-semibold text-cyan-100">
-                <Sparkles className="h-3.5 w-3.5" />
-                Previsao 30 dias: {brl(summary.projected30Days)}
+          <section className="rounded-3xl border border-cyan-300/20 bg-[linear-gradient(145deg,rgba(9,15,30,0.85),rgba(7,12,24,0.92))] p-5 shadow-[0_20px_46px_rgba(0,0,0,0.4)] backdrop-blur-sm">
+            <p className="text-xs uppercase tracking-[0.18em] text-cyan-200/65">Total mensal</p>
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-3xl font-semibold tracking-tight text-cyan-50">{brl(summary.monthlyTotal)}</p>
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="inline-flex items-center gap-1 rounded-full border border-cyan-300/25 bg-cyan-500/10 px-3 py-1 text-cyan-100/90">
+                  <Wallet className="h-3.5 w-3.5" />
+                  {activeSubscriptionsCount} ativa(s)
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full border border-cyan-300/20 bg-slate-900/40 px-3 py-1 text-cyan-100/75">
+                  <CalendarClock className="h-3.5 w-3.5" />
+                  Proxima: {formatDate(nextChargeDate)}
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full border border-cyan-300/20 bg-slate-900/40 px-3 py-1 text-cyan-100/75">
+                  <CreditCard className="h-3.5 w-3.5" />
+                  {payments.length} pagamento(s)
+                </span>
               </div>
             </div>
-
-            {!topMonthlyShares.length ? (
-              <p className="text-sm text-cyan-100/80">Cadastre a primeira assinatura para ver distribuicao.</p>
-            ) : (
-              <div className="grid gap-2 md:grid-cols-2">
-                {topMonthlyShares.map((item) => {
-                  const share = summary.monthlyTotal > 0
-                    ? Math.max(3, Math.min(100, (item.metrics.monthlyEquivalent / summary.monthlyTotal) * 100))
-                    : 0;
-                  return (
-                    <div key={item.row.id} className="rounded-xl border border-cyan-300/20 bg-black/25 p-3">
-                      <div className="mb-1 flex items-center justify-between gap-2">
-                        <p className="truncate text-sm font-semibold text-cyan-50">{item.row.name}</p>
-                        <span className="text-xs text-cyan-100/80">{brl(item.metrics.monthlyEquivalent)}/mes</span>
-                      </div>
-                      <div className="h-2 overflow-hidden rounded-full border border-cyan-300/20 bg-[#09111d]">
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-400"
-                          style={{ width: `${share.toFixed(2)}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </section>
 
-          <div className="grid gap-4 xl:grid-cols-[380px_1fr]">
+          <div className="grid gap-4 xl:grid-cols-[340px_1fr]">
             <section className={`${CARD_CLASS} h-fit`}>
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-cyan-50">Nova assinatura</h2>
                 <div className="inline-flex items-center gap-1 rounded-full border border-cyan-300/25 bg-cyan-500/10 px-2.5 py-1 text-[11px] text-cyan-100">
                   <Activity className="h-3.5 w-3.5" />
-                  Controle recorrente
+                  Simples e rapido
                 </div>
               </div>
 
@@ -699,41 +634,12 @@ export default function AssinaturasPage() {
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block">
-                    <span className="mb-1 block text-xs font-medium text-cyan-100/80">Tipo de cobranca</span>
-                    <select
-                      className={INPUT_CLASS}
-                      value={form.billingCycle}
-                      onChange={(event) =>
-                        setForm((prev) => ({ ...prev, billingCycle: event.target.value as BillingCycle }))
-                      }
-                    >
-                      <option value="monthly">Mensal</option>
-                      <option value="annual">Anual</option>
-                      <option value="weekly">Semanal</option>
-                    </select>
-                  </label>
-
-                  <label className="block">
                     <span className="mb-1 block text-xs font-medium text-cyan-100/80">Data cobranca</span>
                     <input
                       type="date"
                       className={INPUT_CLASS}
                       value={form.chargeDate}
                       onChange={(event) => setForm((prev) => ({ ...prev, chargeDate: event.target.value }))}
-                    />
-                  </label>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="block">
-                    <span className="mb-1 block text-xs font-medium text-cyan-100/80">Categoria</span>
-                    <input
-                      type="text"
-                      className={INPUT_CLASS}
-                      value={form.category}
-                      onChange={(event) => setForm((prev) => ({ ...prev, category: event.target.value }))}
-                      placeholder="Streaming, Cloud, Fitness..."
-                      maxLength={80}
                     />
                   </label>
 
@@ -752,23 +658,10 @@ export default function AssinaturasPage() {
                   </label>
                 </div>
 
-                <label className="block">
-                  <span className="mb-1 block text-xs font-medium text-cyan-100/80">Observacao</span>
-                  <textarea
-                    className={`${INPUT_CLASS} min-h-20 resize-y`}
-                    value={form.notes}
-                    onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))}
-                    placeholder="Detalhes da assinatura, plano, login..."
-                    maxLength={500}
-                  />
-                </label>
-
                 <div className="rounded-xl border border-cyan-300/20 bg-[#0b1220]/80 p-3 text-sm">
-                  <p className="text-cyan-100/80">Resumo automatico</p>
+                  <p className="text-cyan-100/80">Resumo</p>
                   <p className="mt-1 text-lg font-bold text-cyan-50">{brl(monthlyEquivalentPreview)}/mes</p>
-                  <p className="mt-1 text-xs text-cyan-100/65">
-                    {cycleLabel[form.billingCycle]} - {billingDayLabel(form.billingCycle, form.chargeDate)}
-                  </p>
+                  <p className="mt-1 text-xs text-cyan-100/65">{billingDayLabel(form.billingCycle, form.chargeDate)}</p>
                 </div>
 
                 <button
@@ -790,36 +683,16 @@ export default function AssinaturasPage() {
               ) : (
                 subscriptionsSorted.map((row) => {
                   const metrics = computeRecurringSubscriptionMetrics(row);
-                  const history = [...(paymentsBySubscription.get(row.id) || [])]
-                    .sort((left, right) => new Date(right.charge_date).getTime() - new Date(left.charge_date).getTime());
-                  const paidHistory = history.filter((payment) => payment.status === "paid");
-                  const totalSpent = paidHistory.reduce((sum, payment) => sum + payment.amount, 0);
                   const serviceIcon = getServiceIcon(row.name);
-                  const monthlyShare = summary.monthlyTotal > 0
-                    ? Math.max(0, Math.min(100, (metrics.monthlyEquivalent / summary.monthlyTotal) * 100))
-                    : 0;
-
-                  const statusBadge = !row.active
-                    ? { className: "border-slate-300/30 bg-slate-500/15 text-slate-100", label: "Pausada", icon: CheckCircle2 }
-                    : metrics.isOverdue
-                      ? { className: "border-rose-300/35 bg-rose-500/15 text-rose-100", label: `Atrasada ${Math.abs(metrics.daysUntilCurrentDue)} dia(s)`, icon: AlertTriangle }
-                      : metrics.isDueToday
-                        ? { className: "border-amber-300/35 bg-amber-500/15 text-amber-100", label: "Cobranca hoje", icon: CalendarClock }
-                        : metrics.isDueSoon
-                          ? { className: "border-amber-300/35 bg-amber-500/15 text-amber-100", label: `Vence em ${metrics.daysUntilCurrentDue} dia(s)`, icon: CalendarClock }
-                          : metrics.isCurrentCyclePaid
-                            ? { className: "border-emerald-300/35 bg-emerald-500/15 text-emerald-100", label: "Pago neste ciclo", icon: CheckCircle2 }
-                            : { className: "border-cyan-300/35 bg-cyan-500/15 text-cyan-100", label: `Proxima em ${metrics.daysUntilCharge} dia(s)`, icon: CalendarClock };
-
-                  const StatusIcon = statusBadge.icon;
+                  const chargeDateLabel = formatShortDate(metrics.nextChargeDate);
 
                   return (
                     <article
                       key={row.id}
-                      className="rounded-2xl border border-cyan-300/20 bg-[linear-gradient(145deg,rgba(8,13,25,0.9),rgba(10,18,32,0.86))] p-4 shadow-[0_16px_34px_rgba(0,0,0,0.35)]"
+                      className="group rounded-2xl border border-cyan-300/20 bg-[linear-gradient(145deg,rgba(7,12,25,0.82),rgba(8,14,29,0.9))] p-4 shadow-[0_16px_34px_rgba(0,0,0,0.35)] transition-all duration-300 hover:-translate-y-0.5 hover:border-cyan-300/40 hover:shadow-[0_22px_40px_rgba(8,145,178,0.2)]"
                     >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="flex min-w-0 items-start gap-3">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex min-w-0 items-center gap-3">
                           <div className="service-icon-orb">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
@@ -834,101 +707,29 @@ export default function AssinaturasPage() {
                           </div>
                           <div className="min-w-0">
                             <h3 className="truncate text-base font-semibold text-cyan-50">{row.name}</h3>
-                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-cyan-100/70">
+                            <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-cyan-100/72">
                               <span className="inline-flex items-center gap-1">
-                                <Wallet className="h-3.5 w-3.5" />
-                                {brl(row.price)} / {cycleLabel[row.billing_cycle].toLowerCase()}
+                                <CalendarClock className="h-3.5 w-3.5" />
+                                Cobranca: {chargeDateLabel}
                               </span>
-                              {row.category ? (
-                                <span className="rounded-full border border-cyan-300/25 bg-cyan-500/10 px-2 py-0.5">
-                                  {row.category}
-                                </span>
-                              ) : null}
+                              <span className="inline-flex items-center gap-1">
+                                <CreditCard className="h-3.5 w-3.5" />
+                                {paymentMethodLabel(row.payment_method)}
+                              </span>
                             </div>
                           </div>
                         </div>
 
-                        <div className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium ${statusBadge.className}`}>
-                          <StatusIcon className="h-3.5 w-3.5" />
-                          {statusBadge.label}
+                        <div className="text-left sm:text-right">
+                          <p className="text-xl font-semibold text-cyan-50">{brl(metrics.monthlyEquivalent)}</p>
+                          <p className="text-xs text-cyan-100/65">valor mensal</p>
                         </div>
                       </div>
 
-                      <div className="mt-4 grid gap-2 text-xs text-cyan-100/75 sm:grid-cols-4">
-                        <div className="rounded-lg border border-cyan-300/15 bg-black/25 px-3 py-2">
-                          <p className="text-cyan-100/55">Equivalente mensal</p>
-                          <p className="mt-0.5 font-semibold text-cyan-50">{brl(metrics.monthlyEquivalent)}</p>
-                        </div>
-                        <div className="rounded-lg border border-cyan-300/15 bg-black/25 px-3 py-2">
-                          <p className="text-cyan-100/55">Proxima cobranca</p>
-                          <p className="mt-0.5 font-semibold text-cyan-50">{formatShortDate(metrics.nextChargeDate)}</p>
-                        </div>
-                        <div className="rounded-lg border border-cyan-300/15 bg-black/25 px-3 py-2">
-                          <p className="text-cyan-100/55">Pagamento</p>
-                          <p className="mt-0.5 font-semibold text-cyan-50">{paymentMethodLabel(row.payment_method)}</p>
-                        </div>
-                        <div className="rounded-lg border border-cyan-300/15 bg-black/25 px-3 py-2">
-                          <p className="text-cyan-100/55">Ultimo uso</p>
-                          <p className="mt-0.5 font-semibold text-cyan-50">{formatDate(row.last_used_at)}</p>
-                        </div>
-                      </div>
-
-                      <div className="mt-3">
-                        <div className="mb-2 flex items-center justify-between text-xs text-cyan-100/75">
-                          <span>Peso no total mensal</span>
-                          <span>{monthlyShare.toFixed(1).replace(".", ",")}%</span>
-                        </div>
-                        <div className="h-2.5 overflow-hidden rounded-full border border-cyan-300/20 bg-[#09111d]">
-                          <div
-                            className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-400 transition-[width] duration-700"
-                            style={{ width: `${monthlyShare.toFixed(2)}%` }}
-                          />
-                        </div>
-                      </div>
-
-                      {metrics.isUnderused ? (
-                        <p className="mt-3 rounded-lg border border-amber-300/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
-                          Assinatura possivelmente esquecida. Ultimo uso: {formatDate(row.last_used_at)}.
-                        </p>
-                      ) : null}
-
-                      <div className="mt-3 rounded-lg border border-cyan-300/15 bg-black/20 p-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs font-medium text-cyan-100/85">Extrato de renovacoes</p>
-                          <span className="text-[11px] text-cyan-100/65">{paidHistory.length} pagamento(s)</span>
-                        </div>
-                        <div className="mt-2 grid gap-2 text-xs text-cyan-100/75 sm:grid-cols-2">
-                          <div className="rounded-md border border-cyan-300/15 bg-black/30 px-2.5 py-1.5">
-                            <p className="text-cyan-100/55">Total acumulado</p>
-                            <p className="font-semibold text-cyan-50">{brl(totalSpent)}</p>
-                          </div>
-                          <div className="rounded-md border border-cyan-300/15 bg-black/30 px-2.5 py-1.5">
-                            <p className="text-cyan-100/55">Ultima renovacao</p>
-                            <p className="font-semibold text-cyan-50">{history[0] ? formatDate(history[0].charge_date) : "--"}</p>
-                          </div>
-                        </div>
-                        {!history.length ? (
-                          <p className="mt-1 text-xs text-cyan-100/65">Sem pagamentos registrados.</p>
-                        ) : (
-                          <div className="mt-2 max-h-44 space-y-1.5 overflow-y-auto pr-1">
-                            {history.map((payment) => (
-                              <div key={payment.id} className="flex items-center justify-between gap-2 text-xs text-cyan-100/75">
-                                <div className="min-w-0">
-                                  <p className="truncate font-medium text-cyan-50">{formatMonthYear(payment.charge_date)}</p>
-                                  <p className="text-[11px] text-cyan-100/60">{formatDate(payment.charge_date)}</p>
-                                </div>
-                                <span className="font-medium text-cyan-50">{brl(payment.amount)}</span>
-                                <span className="uppercase tracking-wide">{payment.status}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="mt-4 flex flex-wrap items-center gap-2">
+                      <div className="mt-3 flex flex-wrap items-center gap-2 opacity-100 sm:opacity-0 sm:transition sm:duration-200 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1 rounded-lg border border-emerald-300/35 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-50"
+                          className="inline-flex items-center gap-1 rounded-lg border border-emerald-300/35 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-semibold text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-50"
                           onClick={() => void handleRegisterPayment(row)}
                           disabled={saving || !row.active}
                         >
@@ -937,7 +738,7 @@ export default function AssinaturasPage() {
                         </button>
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1 rounded-lg border border-cyan-300/35 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/20 disabled:opacity-50"
+                          className="inline-flex items-center gap-1 rounded-lg border border-cyan-300/35 bg-cyan-500/10 px-2.5 py-1.5 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/20 disabled:opacity-50"
                           onClick={() => void handleMarkUsageToday(row)}
                           disabled={saving}
                         >
@@ -946,7 +747,7 @@ export default function AssinaturasPage() {
                         </button>
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1 rounded-lg border border-amber-300/35 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-100 hover:bg-amber-500/20 disabled:opacity-50"
+                          className="inline-flex items-center gap-1 rounded-lg border border-amber-300/35 bg-amber-500/10 px-2.5 py-1.5 text-xs font-semibold text-amber-100 hover:bg-amber-500/20 disabled:opacity-50"
                           onClick={() => void handleToggleActive(row)}
                           disabled={saving}
                         >
@@ -954,7 +755,7 @@ export default function AssinaturasPage() {
                         </button>
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1 rounded-lg border border-rose-300/35 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-100 hover:bg-rose-500/20 disabled:opacity-50"
+                          className="inline-flex items-center gap-1 rounded-lg border border-rose-300/35 bg-rose-500/10 px-2.5 py-1.5 text-xs font-semibold text-rose-100 hover:bg-rose-500/20 disabled:opacity-50"
                           onClick={() => void handleDelete(row)}
                           disabled={saving}
                         >
