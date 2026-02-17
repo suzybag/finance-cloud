@@ -40,18 +40,18 @@ const getTransactionImageIcon = (tx: Transaction) => {
   const normalized = normalizeText(context);
 
   if (normalized.includes("netflix") || normalized.includes("netlix") || normalized.includes("netflx")) {
-    return "/icons/netflix-v2.png";
+    return "/icons/netflix.png";
   }
   if (normalized.includes("hbo") || normalized.includes("hbomax") || normalized.includes("hbo max") || normalized.includes("htbo")) {
-    return "/icons/hbo-v2.png";
+    return "/icons/hbo-max.png";
   }
   if (normalized.includes("spotify")) return "/icons/spotify.png";
-  if (normalized.includes("amazon") || normalized.includes("prime")) return "/icons/amazon.png";
+  if (normalized.includes("amazon") || normalized.includes("prime")) return "/icons/Photoroom.png";
   if (normalized.includes("disney")) return "/icons/disney.png";
 
   const guessed = getCategoryFallbackVisual(context);
   const guessedImage = getCategoryImageIconPath(guessed.iconName);
-  return guessedImage || "/icons/default.png";
+  return guessedImage || "/icons/Photoroom.png";
 };
 
 export default function GastosPage() {
@@ -367,7 +367,7 @@ export default function GastosPage() {
                           className="expense-icon-img"
                           loading="lazy"
                           onError={(event) => {
-                            event.currentTarget.src = "/icons/default.png";
+                            event.currentTarget.src = "/icons/Photoroom.png";
                           }}
                         />
                       </span>

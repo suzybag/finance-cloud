@@ -106,14 +106,14 @@ const FALLBACK_ASSETS: AssetOption[] = [
   {
     id: "local-asset-tesouro-selic",
     name: "Tesouro Selic",
-    logo: "/custom/icons/tesouro-direto.png",
+    logo: "/custom/icons/barras-de-ouro.png",
     category: "renda_fixa",
     type_id: "local-type-selic",
   },
   {
     id: "local-asset-tesouro-ipca",
     name: "Tesouro IPCA+",
-    logo: "/custom/icons/tesouro-direto.png",
+    logo: "/custom/icons/barras-de-ouro.png",
     category: "renda_fixa",
     type_id: "local-type-ipca",
   },

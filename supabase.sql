@@ -632,7 +632,7 @@ set logo = '/custom/icons/barras-de-ouro.png'
 where lower(name) = lower('Ouro');
 
 update public.assets
-set logo = '/custom/icons/tesouro-direto.png'
+set logo = '/custom/icons/barras-de-ouro.png'
 where lower(name) in (lower('Tesouro Selic'), lower('Tesouro IPCA+'));
 
 update public.assets
@@ -644,7 +644,7 @@ set logo = '/custom/icons/caixa-para-economizar-dinheiro-3d-icon-png-download-52
 where lower(name) like '%caixinha%';
 
 update public.assets
-set logo = '/custom/icons/pix-banco-central-logo-png-seeklogo-388843.png'
+set logo = '/icons/Pix.png'
 where lower(name) = lower('Pix');
 
 update public.investments i

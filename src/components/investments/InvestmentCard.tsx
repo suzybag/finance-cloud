@@ -83,7 +83,7 @@ const resolveFallbackLogo = (item: InvestmentCardItem) => {
     key.includes("ipca") ||
     key.includes("poup")
   ) {
-    return "/custom/icons/tesouro-direto.png";
+    return "/custom/icons/barras-de-ouro.png";
   }
   if (key.includes("ouro") || key.includes("commodities")) {
     return "/custom/icons/barras-de-ouro.png";
