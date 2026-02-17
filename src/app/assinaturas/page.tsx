@@ -128,8 +128,8 @@ const billingDayLabel = (cycle: BillingCycle, dateRaw: string) => {
 function getServiceIcon(name?: string | null) {
   const n = normalizeText(name);
 
-  if (n.includes("netflix") || n.includes("netlix") || n.includes("netflx")) return "/icons/netflix.png";
-  if (n.includes("hbo") || n.includes("hbomax") || n.includes("hbo max") || n.includes("htbo")) return "/icons/hbo.png";
+  if (n.includes("netflix") || n.includes("netlix") || n.includes("netflx")) return "/icons/netflix-v2.png";
+  if (n.includes("hbo") || n.includes("hbomax") || n.includes("hbo max") || n.includes("htbo")) return "/icons/hbo-v2.png";
   if (n.includes("spotify")) return "/icons/spotify.png";
   if (n.includes("amazon") || n.includes("prime")) return "/icons/amazon.png";
   if (n.includes("disney")) return "/icons/disney.png";
