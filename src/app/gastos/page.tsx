@@ -45,6 +45,9 @@ const getTransactionImageIcon = (tx: Transaction) => {
   if (normalized.includes("hbo") || normalized.includes("hbomax") || normalized.includes("hbo max") || normalized.includes("htbo")) {
     return "/icons/hbo-max.png";
   }
+  if (normalized.includes("mercadopago") || normalized.includes("mercado pago") || normalized.includes("mercadolivre") || normalized.includes("mercado livre")) {
+    return "/icons/Mercado-Pago.png";
+  }
   if (normalized.includes("spotify")) return "/icons/spotify.png";
   if (normalized.includes("amazon") || normalized.includes("prime")) return "/icons/Prime-video.png";
   if (normalized.includes("disney")) return "/icons/disney.png";

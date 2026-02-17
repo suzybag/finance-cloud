@@ -41,7 +41,7 @@ export const CUSTOM_MEDIA_ASSETS = {
   spotifyCircle: "/icons/spotify.png",
   disneyCircle: "/icons/disney.png",
   amazonPrimeCircle: "/icons/Prime-video.png",
-  defaultServiceIcon: "/icons/Prime-video.png",
+  defaultServiceIcon: "/custom/icons/7544981.png",
 } as const;
 
 export type SubscriptionIconOption = {
@@ -51,12 +51,13 @@ export type SubscriptionIconOption = {
 };
 
 export const SUBSCRIPTION_ICON_OPTIONS: SubscriptionIconOption[] = [
-  { id: "default", label: "Padrao", path: "/icons/Prime-video.png" },
+  { id: "default", label: "Padrao", path: "/custom/icons/7544981.png" },
   { id: "netflix", label: "Netflix", path: "/icons/Netflix.png" },
   { id: "hbo-max", label: "HBO Max", path: "/icons/hbo-max.png" },
   { id: "spotify", label: "Spotify", path: "/icons/spotify.png" },
   { id: "disney", label: "Disney", path: "/icons/disney.png" },
   { id: "prime-video", label: "Prime Video", path: "/icons/Prime-video.png" },
+  { id: "mercado-pago", label: "Mercado Pago", path: "/icons/Mercado-Pago.png" },
   { id: "icloud", label: "iCloud", path: "/icons/Icloud.png" },
   { id: "cinema", label: "Cinema", path: "/icons/Cinema.png" },
   { id: "openai", label: "ChatGPT", path: "/icons/ChatGPT.png" },
@@ -144,6 +145,10 @@ const SUBSCRIPTION_LOGO_RULES: SubscriptionLogoRule[] = [
     path: CUSTOM_MEDIA_ASSETS.amazonPrimeCircle,
   },
   {
+    terms: ["mercado pago", "mercadopago", "mercado livre", "mercadolivre"],
+    path: CUSTOM_MEDIA_ASSETS.mercadoLivre,
+  },
+  {
     terms: ["chatgpt", "openai"],
     path: CUSTOM_MEDIA_ASSETS.openAiLogo,
   },
@@ -185,10 +190,15 @@ export const resolveSubscriptionIconPath = (
   customIconPath?: string | null,
   options?: ResolveSubscriptionIconOptions,
 ) => {
-  const selectedPath = sanitizeSubscriptionIconPath(customIconPath);
-  if (selectedPath) return selectedPath;
-
   const guessedPath = getSubscriptionLogoPath(serviceName);
+  const selectedPath = sanitizeSubscriptionIconPath(customIconPath);
+  if (selectedPath) {
+    // If the previously saved icon is just the generic default, prefer
+    // service-based detection so known brands render correctly.
+    if (guessedPath && selectedPath === CUSTOM_MEDIA_ASSETS.defaultServiceIcon) return guessedPath;
+    return selectedPath;
+  }
+
   if (guessedPath) return guessedPath;
 
   return options?.fallbackToDefault ? CUSTOM_MEDIA_ASSETS.defaultServiceIcon : null;

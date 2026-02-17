@@ -27,7 +27,6 @@ import { useBankRelationship } from "@/ui/dashboard/useBankRelationship";
 
 const BANK_ISSUER_OPTIONS = [
   "Nubank Ultravioleta",
-  "Nu Invest",
   "Inter",
   "Bradesco",
   "Mercado Pago",
@@ -62,13 +61,18 @@ const normalizeText = (value: string) =>
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "");
 
+const isRemovedIssuer = (value?: string | null) => {
+  const text = normalizeText(value ?? "");
+  if (!text) return false;
+  return text.includes("nuinvest") || text.includes("nuinvestimentos") || text.includes("easynvest");
+};
+
 const inferIssuer = (value?: string | null) => {
   const text = normalizeText(value ?? "");
   if (!text) return null;
   if (text.includes("nubank") || text.includes("roxinho") || text.includes("ultravioleta")) return "Nubank Ultravioleta";
   if (text.includes("inter") || text.includes("bancointer")) return "Inter";
   if (text.includes("bradesco")) return "Bradesco";
-  if (text.includes("nuinvest") || text.includes("nuinvestimentos") || text.includes("easynvest")) return "Nu Invest";
   if (text.includes("picpay")) return "PicPay";
   if (text.includes("santander")) return "Santander";
   if (text.includes("caixa") || text.includes("caixaeconomicafederal")) return "Caixa";
@@ -257,7 +261,11 @@ export default function CardsPage() {
         return;
       }
 
-      setCards((cardsRes.data as Card[]) || []);
+      setCards(
+        ((cardsRes.data as Card[]) || []).filter(
+          (card) => !isRemovedIssuer(card.issuer) && !isRemovedIssuer(card.name),
+        ),
+      );
       setTransactions((txRes.data as Transaction[]) || []);
       setAccounts((accountsRes.data as Account[]) || []);
       setLoading(false);

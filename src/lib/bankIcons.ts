@@ -1,7 +1,6 @@
 export const BANK_ICON_MAP = {
   inter: "/banks/inter.svg",
   nubank: "/banks/nubank.svg",
-  nuinvest: "/banks/nuinvest.svg",
   bradesco: "/banks/bradesco.svg",
   mercadopago: "/banks/mercadopago.svg",
   xp: "/banks/xp.svg",
@@ -19,7 +18,6 @@ type BankKey = keyof typeof BANK_ICON_MAP;
 
 const BANK_ALIASES: Record<BankKey, string[]> = {
   inter: ["inter", "bancointer", "banco inter"],
-  nuinvest: ["nuinvest", "nu invest", "nuinvestimentos", "nu investimentos", "easynvest"],
   nubank: [
     "nubank",
     "nu bank",
