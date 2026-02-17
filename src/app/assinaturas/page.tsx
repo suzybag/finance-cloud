@@ -11,6 +11,7 @@ import {
   Trash2,
   Wallet,
 } from "lucide-react";
+import { Inter } from "next/font/google";
 import { AppShell } from "@/components/AppShell";
 import { brl, toNumber } from "@/lib/money";
 import {
@@ -36,11 +37,16 @@ type SubscriptionFormState = {
   notes: string;
 };
 
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
+
 const INPUT_CLASS =
-  "w-full rounded-xl border border-cyan-300/20 bg-[#101622] px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-cyan-400/70 focus:ring-2 focus:ring-cyan-500/25";
+  "w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition duration-200 focus:border-cyan-300/65 focus:bg-white/[0.06] focus:ring-2 focus:ring-cyan-500/20";
 
 const CARD_CLASS =
-  "rounded-2xl border border-cyan-300/20 bg-[linear-gradient(155deg,rgba(13,18,32,0.86),rgba(7,10,19,0.92))] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.35)]";
+  "rounded-3xl border border-white/10 bg-[linear-gradient(150deg,rgba(13,19,34,0.64),rgba(7,11,22,0.74))] p-5 backdrop-blur-xl shadow-[0_18px_44px_rgba(0,0,0,0.4),0_0_0_1px_rgba(125,211,252,0.08)]";
 
 const emptyForm = (): SubscriptionFormState => ({
   name: "",
@@ -570,26 +576,26 @@ export default function AssinaturasPage() {
     <AppShell
       title="Assinaturas"
       subtitle="Controle recorrencias, previsao de gastos e alertas de cobranca"
-      contentClassName="parcelas-premium-bg"
+      contentClassName="assinaturas-premium-bg"
     >
       {loading ? (
         <div className={CARD_CLASS}>Carregando assinaturas...</div>
       ) : (
-        <div className="space-y-5">
-          <section className="rounded-3xl border border-cyan-300/20 bg-[linear-gradient(145deg,rgba(9,15,30,0.85),rgba(7,12,24,0.92))] p-5 shadow-[0_20px_46px_rgba(0,0,0,0.4)] backdrop-blur-sm">
-            <p className="text-xs uppercase tracking-[0.18em] text-cyan-200/65">Total mensal</p>
-            <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-              <p className="text-3xl font-semibold tracking-tight text-cyan-50">{brl(summary.monthlyTotal)}</p>
+        <div className={`${inter.className} space-y-6`}>
+          <section className="rounded-3xl border border-cyan-200/20 bg-[linear-gradient(140deg,rgba(7,14,30,0.68),rgba(7,11,22,0.78))] p-6 backdrop-blur-xl shadow-[0_24px_56px_rgba(0,0,0,0.45),0_0_30px_rgba(34,211,238,0.12)]">
+            <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-cyan-200/70">Total mensal</p>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-4xl font-semibold tracking-tight text-cyan-50 sm:text-[2.7rem]">{brl(summary.monthlyTotal)}</p>
               <div className="flex flex-wrap items-center gap-2 text-xs">
-                <span className="inline-flex items-center gap-1 rounded-full border border-cyan-300/25 bg-cyan-500/10 px-3 py-1 text-cyan-100/90">
+                <span className="inline-flex items-center gap-1 rounded-full border border-cyan-300/30 bg-cyan-400/10 px-3.5 py-1.5 text-cyan-100/90 backdrop-blur-md">
                   <Wallet className="h-3.5 w-3.5" />
                   {activeSubscriptionsCount} ativa(s)
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-full border border-cyan-300/20 bg-slate-900/40 px-3 py-1 text-cyan-100/75">
+                <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-slate-900/45 px-3.5 py-1.5 text-cyan-100/80 backdrop-blur-md">
                   <CalendarClock className="h-3.5 w-3.5" />
                   Proxima: {formatDate(nextChargeDate)}
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-full border border-cyan-300/20 bg-slate-900/40 px-3 py-1 text-cyan-100/75">
+                <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-slate-900/45 px-3.5 py-1.5 text-cyan-100/80 backdrop-blur-md">
                   <CreditCard className="h-3.5 w-3.5" />
                   {payments.length} pagamento(s)
                 </span>
@@ -597,11 +603,11 @@ export default function AssinaturasPage() {
             </div>
           </section>
 
-          <div className="grid gap-4 xl:grid-cols-[340px_1fr]">
+          <div className="grid gap-5 xl:grid-cols-[360px_1fr]">
             <section className={`${CARD_CLASS} h-fit`}>
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-cyan-50">Nova assinatura</h2>
-                <div className="inline-flex items-center gap-1 rounded-full border border-cyan-300/25 bg-cyan-500/10 px-2.5 py-1 text-[11px] text-cyan-100">
+              <div className="mb-5 flex items-center justify-between">
+                <h2 className="text-sm font-medium tracking-wide text-cyan-100/90">Nova assinatura</h2>
+                <div className="inline-flex items-center gap-1 rounded-full border border-cyan-300/25 bg-cyan-500/10 px-2.5 py-1 text-[11px] text-cyan-100/90 backdrop-blur-md">
                   <Activity className="h-3.5 w-3.5" />
                   Simples e rapido
                 </div>
@@ -675,7 +681,7 @@ export default function AssinaturasPage() {
               </form>
             </section>
 
-            <section className="space-y-3">
+            <section className="space-y-4">
               {!subscriptionsSorted.length ? (
                 <div className={CARD_CLASS}>
                   <p className="text-sm text-cyan-100/80">Nenhuma assinatura cadastrada ainda.</p>
@@ -689,16 +695,16 @@ export default function AssinaturasPage() {
                   return (
                     <article
                       key={row.id}
-                      className="group rounded-2xl border border-cyan-300/20 bg-[linear-gradient(145deg,rgba(7,12,25,0.82),rgba(8,14,29,0.9))] p-4 shadow-[0_16px_34px_rgba(0,0,0,0.35)] transition-all duration-300 hover:-translate-y-0.5 hover:border-cyan-300/40 hover:shadow-[0_22px_40px_rgba(8,145,178,0.2)]"
+                      className="subscription-row-card group p-5"
                     >
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex min-w-0 items-center gap-3">
-                          <div className="service-icon-orb">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex min-w-0 items-center gap-3.5">
+                          <div className="subscription-icon-orb">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               src={serviceIcon}
                               alt={`Logo ${row.name}`}
-                              className="service-icon-img"
+                              className="subscription-icon-img"
                               loading="lazy"
                               onError={(event) => {
                                 event.currentTarget.src = "/icons/default.png";
@@ -706,8 +712,8 @@ export default function AssinaturasPage() {
                             />
                           </div>
                           <div className="min-w-0">
-                            <h3 className="truncate text-base font-semibold text-cyan-50">{row.name}</h3>
-                            <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-cyan-100/72">
+                            <h3 className="truncate text-sm font-medium tracking-wide text-cyan-100/78">{row.name}</h3>
+                            <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-cyan-100/65">
                               <span className="inline-flex items-center gap-1">
                                 <CalendarClock className="h-3.5 w-3.5" />
                                 Cobranca: {chargeDateLabel}
@@ -721,15 +727,15 @@ export default function AssinaturasPage() {
                         </div>
 
                         <div className="text-left sm:text-right">
-                          <p className="text-xl font-semibold text-cyan-50">{brl(metrics.monthlyEquivalent)}</p>
-                          <p className="text-xs text-cyan-100/65">valor mensal</p>
+                          <p className="subscription-price text-2xl font-semibold tracking-tight sm:text-[1.7rem]">{brl(metrics.monthlyEquivalent)}</p>
+                          <p className="mt-0.5 text-[11px] uppercase tracking-[0.14em] text-cyan-100/55">valor mensal</p>
                         </div>
                       </div>
 
-                      <div className="mt-3 flex flex-wrap items-center gap-2 opacity-100 sm:opacity-0 sm:transition sm:duration-200 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+                      <div className="mt-4 flex flex-wrap items-center gap-2 opacity-100 sm:opacity-0 sm:transition sm:duration-200 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1 rounded-lg border border-emerald-300/35 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-semibold text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-50"
+                          className="inline-flex items-center gap-1 rounded-lg border border-emerald-300/35 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-medium text-emerald-100 transition hover:bg-emerald-500/20 disabled:opacity-50"
                           onClick={() => void handleRegisterPayment(row)}
                           disabled={saving || !row.active}
                         >
@@ -738,7 +744,7 @@ export default function AssinaturasPage() {
                         </button>
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1 rounded-lg border border-cyan-300/35 bg-cyan-500/10 px-2.5 py-1.5 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/20 disabled:opacity-50"
+                          className="inline-flex items-center gap-1 rounded-lg border border-cyan-300/35 bg-cyan-500/10 px-2.5 py-1.5 text-xs font-medium text-cyan-100 transition hover:bg-cyan-500/20 disabled:opacity-50"
                           onClick={() => void handleMarkUsageToday(row)}
                           disabled={saving}
                         >
@@ -747,7 +753,7 @@ export default function AssinaturasPage() {
                         </button>
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1 rounded-lg border border-amber-300/35 bg-amber-500/10 px-2.5 py-1.5 text-xs font-semibold text-amber-100 hover:bg-amber-500/20 disabled:opacity-50"
+                          className="inline-flex items-center gap-1 rounded-lg border border-amber-300/35 bg-amber-500/10 px-2.5 py-1.5 text-xs font-medium text-amber-100 transition hover:bg-amber-500/20 disabled:opacity-50"
                           onClick={() => void handleToggleActive(row)}
                           disabled={saving}
                         >
@@ -755,7 +761,7 @@ export default function AssinaturasPage() {
                         </button>
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1 rounded-lg border border-rose-300/35 bg-rose-500/10 px-2.5 py-1.5 text-xs font-semibold text-rose-100 hover:bg-rose-500/20 disabled:opacity-50"
+                          className="inline-flex items-center gap-1 rounded-lg border border-rose-300/35 bg-rose-500/10 px-2.5 py-1.5 text-xs font-medium text-rose-100 transition hover:bg-rose-500/20 disabled:opacity-50"
                           onClick={() => void handleDelete(row)}
                           disabled={saving}
                         >
