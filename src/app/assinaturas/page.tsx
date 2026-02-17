@@ -4,18 +4,15 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   Activity,
-  AlertTriangle,
   CalendarClock,
-  CheckCircle2,
   CreditCard,
   Loader2,
   Plus,
   Trash2,
+  Wallet,
 } from "lucide-react";
 import { Inter } from "next/font/google";
 import { AppShell } from "@/components/AppShell";
-import { FintechGlassCard } from "@/components/fintech/FintechGlassCard";
-import { FintechIconOrb } from "@/components/fintech/FintechIconOrb";
 import { brl, toNumber } from "@/lib/money";
 import {
   buildRecurringSubscriptionExternalId,
@@ -47,6 +44,9 @@ const inter = Inter({
 
 const INPUT_CLASS =
   "w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition duration-200 focus:border-cyan-300/65 focus:bg-white/[0.06] focus:ring-2 focus:ring-cyan-500/20";
+
+const CARD_CLASS =
+  "rounded-3xl border border-white/10 bg-[linear-gradient(150deg,rgba(13,19,34,0.64),rgba(7,11,22,0.74))] p-5 backdrop-blur-xl shadow-[0_18px_44px_rgba(0,0,0,0.4),0_0_0_1px_rgba(125,211,252,0.08)]";
 
 const emptyForm = (): SubscriptionFormState => ({
   name: "",
@@ -109,16 +109,6 @@ const formatShortDate = (value?: Date | null) => {
   return value.toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "2-digit",
-  });
-};
-
-const formatMonthYear = (value?: string | Date | null) => {
-  if (!value) return "--";
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return "--";
-  return date.toLocaleDateString("pt-BR", {
-    month: "short",
-    year: "numeric",
   });
 };
 
@@ -246,23 +236,6 @@ export default function AssinaturasPage() {
     [subscriptions],
   );
 
-  const paymentsBySubscription = useMemo(() => {
-    const map = new Map<string, RecurringSubscriptionPaymentRow[]>();
-    for (const payment of payments) {
-      if (!map.has(payment.subscription_id)) map.set(payment.subscription_id, []);
-      map.get(payment.subscription_id)?.push(payment);
-    }
-    for (const [key, rows] of map.entries()) {
-      map.set(
-        key,
-        [...rows].sort(
-          (left, right) => new Date(right.charge_date).getTime() - new Date(left.charge_date).getTime(),
-        ),
-      );
-    }
-    return map;
-  }, [payments]);
-
   const pricePreview = Math.max(0, toNumber(form.priceMasked));
   const monthlyEquivalentPreview = round2(
     form.billingCycle === "annual"
@@ -272,9 +245,9 @@ export default function AssinaturasPage() {
         : pricePreview,
   );
   const activeSubscriptionsCount = subscriptions.filter((row) => row.active).length;
-  const dueAlertsCount = summary.dueToday.length + summary.dueSoon.length + summary.overdue.length;
-  const underusedCount = summary.underused.length;
-  const yearlyProjection = summary.yearlyTotal;
+  const nextChargeDate = subscriptionsSorted.length
+    ? computeRecurringSubscriptionMetrics(subscriptionsSorted[0]).nextChargeDate
+    : null;
 
   const handleCreateSubscription = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -606,42 +579,37 @@ export default function AssinaturasPage() {
       contentClassName="assinaturas-premium-bg"
     >
       {loading ? (
-        <FintechGlassCard className="p-5">Carregando assinaturas...</FintechGlassCard>
+        <div className={CARD_CLASS}>Carregando assinaturas...</div>
       ) : (
         <div className={`${inter.className} space-y-6`}>
-          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <FintechGlassCard className="p-4">
-              <p className="text-xs uppercase tracking-[0.14em] text-cyan-200/70">Total mensal</p>
-              <p className="mt-2 text-2xl font-semibold text-cyan-50">{brl(summary.monthlyTotal)}</p>
-              <p className="mt-1 text-xs text-cyan-100/65">{activeSubscriptionsCount} ativa(s)</p>
-            </FintechGlassCard>
-
-            <FintechGlassCard className="p-4">
-              <p className="text-xs uppercase tracking-[0.14em] text-cyan-200/70">Previsao anual</p>
-              <p className="mt-2 text-2xl font-semibold text-cyan-50">{brl(yearlyProjection)}</p>
-              <p className="mt-1 text-xs text-cyan-100/65">Compromisso em 12 meses</p>
-            </FintechGlassCard>
-
-            <FintechGlassCard className="p-4">
-              <p className="text-xs uppercase tracking-[0.14em] text-cyan-200/70">Alertas</p>
-              <p className="mt-2 text-2xl font-semibold text-cyan-50">{dueAlertsCount}</p>
-              <p className="mt-1 text-xs text-cyan-100/65">Vencendo ou atrasadas</p>
-            </FintechGlassCard>
-
-            <FintechGlassCard className="p-4">
-              <p className="text-xs uppercase tracking-[0.14em] text-cyan-200/70">Pouco usadas</p>
-              <p className="mt-2 text-2xl font-semibold text-cyan-50">{underusedCount}</p>
-              <p className="mt-1 text-xs text-cyan-100/65">Possivel desperdicio</p>
-            </FintechGlassCard>
+          <section className="rounded-3xl border border-cyan-200/20 bg-[linear-gradient(140deg,rgba(7,14,30,0.68),rgba(7,11,22,0.78))] p-6 backdrop-blur-xl shadow-[0_24px_56px_rgba(0,0,0,0.45),0_0_30px_rgba(34,211,238,0.12)]">
+            <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-cyan-200/70">Total mensal</p>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-4xl font-semibold tracking-tight text-cyan-50 sm:text-[2.7rem]">{brl(summary.monthlyTotal)}</p>
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="inline-flex items-center gap-1 rounded-full border border-cyan-300/30 bg-cyan-400/10 px-3.5 py-1.5 text-cyan-100/90 backdrop-blur-md">
+                  <Wallet className="h-3.5 w-3.5" />
+                  {activeSubscriptionsCount} ativa(s)
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-slate-900/45 px-3.5 py-1.5 text-cyan-100/80 backdrop-blur-md">
+                  <CalendarClock className="h-3.5 w-3.5" />
+                  Proxima: {formatDate(nextChargeDate)}
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-slate-900/45 px-3.5 py-1.5 text-cyan-100/80 backdrop-blur-md">
+                  <CreditCard className="h-3.5 w-3.5" />
+                  {payments.length} pagamento(s)
+                </span>
+              </div>
+            </div>
           </section>
 
           <div className="grid gap-5 xl:grid-cols-[360px_1fr]">
-            <FintechGlassCard className="h-fit p-5">
+            <section className={`${CARD_CLASS} h-fit`}>
               <div className="mb-5 flex items-center justify-between">
                 <h2 className="text-sm font-medium tracking-wide text-cyan-100/90">Nova assinatura</h2>
-                <div className="inline-flex items-center gap-1 rounded-full border border-cyan-300/25 bg-cyan-500/10 px-2.5 py-1 text-[11px] text-cyan-100/90">
+                <div className="inline-flex items-center gap-1 rounded-full border border-cyan-300/25 bg-cyan-500/10 px-2.5 py-1 text-[11px] text-cyan-100/90 backdrop-blur-md">
                   <Activity className="h-3.5 w-3.5" />
-                  Controle recorrente
+                  Simples e rapido
                 </div>
               </div>
 
@@ -696,19 +664,6 @@ export default function AssinaturasPage() {
                   </label>
                 </div>
 
-                <label className="block">
-                  <span className="mb-1 block text-xs font-medium text-cyan-100/80">Ciclo</span>
-                  <select
-                    className={INPUT_CLASS}
-                    value={form.billingCycle}
-                    onChange={(event) => setForm((prev) => ({ ...prev, billingCycle: event.target.value as BillingCycle }))}
-                  >
-                    <option value="monthly">Mensal</option>
-                    <option value="annual">Anual</option>
-                    <option value="weekly">Semanal</option>
-                  </select>
-                </label>
-
                 <div className="rounded-xl border border-cyan-300/20 bg-[#0b1220]/80 p-3 text-sm">
                   <p className="text-cyan-100/80">Resumo</p>
                   <p className="mt-1 text-lg font-bold text-cyan-50">{brl(monthlyEquivalentPreview)}/mes</p>
@@ -724,44 +679,44 @@ export default function AssinaturasPage() {
                   Salvar assinatura
                 </button>
               </form>
-            </FintechGlassCard>
+            </section>
 
             <section className="space-y-4">
               {!subscriptionsSorted.length ? (
-                <FintechGlassCard className="p-5">
+                <div className={CARD_CLASS}>
                   <p className="text-sm text-cyan-100/80">Nenhuma assinatura cadastrada ainda.</p>
-                </FintechGlassCard>
+                </div>
               ) : (
                 subscriptionsSorted.map((row) => {
                   const metrics = computeRecurringSubscriptionMetrics(row);
                   const serviceIcon = getServiceIcon(row.name);
                   const chargeDateLabel = formatShortDate(metrics.nextChargeDate);
-                  const history = paymentsBySubscription.get(row.id) || [];
-                  const recentHistory = history.slice(0, 4);
-
-                  const alertBadge = !row.active
-                    ? { text: "Pausada", tone: "border-white/20 bg-slate-500/15 text-slate-200", icon: CheckCircle2 }
-                    : metrics.isOverdue
-                      ? { text: `Atrasada ${Math.abs(metrics.daysUntilCurrentDue)} dia(s)`, tone: "border-rose-300/35 bg-rose-500/15 text-rose-100", icon: AlertTriangle }
-                      : metrics.isDueToday
-                        ? { text: "Vence hoje", tone: "border-amber-300/35 bg-amber-500/15 text-amber-100", icon: AlertTriangle }
-                        : metrics.isDueSoon
-                          ? { text: `Vence em ${metrics.daysUntilCurrentDue} dia(s)`, tone: "border-amber-300/35 bg-amber-500/15 text-amber-100", icon: AlertTriangle }
-                          : { text: "Em dia", tone: "border-emerald-300/35 bg-emerald-500/12 text-emerald-100", icon: CheckCircle2 };
-
-                  const AlertIcon = alertBadge.icon;
 
                   return (
-                    <FintechGlassCard key={row.id} as="article" hover className="group p-5">
-                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <article
+                      key={row.id}
+                      className="subscription-row-card group p-5"
+                    >
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex min-w-0 items-center gap-3.5">
-                          <FintechIconOrb src={serviceIcon} alt={`Logo ${row.name}`} size={54} imageSize={31} />
+                          <div className="subscription-icon-orb">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={serviceIcon}
+                              alt={`Logo ${row.name}`}
+                              className="subscription-icon-img"
+                              loading="lazy"
+                              onError={(event) => {
+                                event.currentTarget.src = "/icons/default.png";
+                              }}
+                            />
+                          </div>
                           <div className="min-w-0">
-                            <h3 className="truncate text-base font-semibold text-cyan-50">{row.name}</h3>
-                            <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-cyan-100/68">
+                            <h3 className="truncate text-sm font-medium tracking-wide text-cyan-100/78">{row.name}</h3>
+                            <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-cyan-100/65">
                               <span className="inline-flex items-center gap-1">
                                 <CalendarClock className="h-3.5 w-3.5" />
-                                Proxima cobranca: {chargeDateLabel}
+                                Cobranca: {chargeDateLabel}
                               </span>
                               <span className="inline-flex items-center gap-1">
                                 <CreditCard className="h-3.5 w-3.5" />
@@ -772,70 +727,9 @@ export default function AssinaturasPage() {
                         </div>
 
                         <div className="text-left sm:text-right">
-                          <p className="subscription-price text-2xl font-semibold tracking-tight sm:text-[1.8rem]">
-                            {brl(metrics.monthlyEquivalent)}
-                          </p>
-                          <p className="mt-0.5 text-[11px] uppercase tracking-[0.14em] text-cyan-100/55">mensal</p>
+                          <p className="subscription-price text-2xl font-semibold tracking-tight sm:text-[1.7rem]">{brl(metrics.monthlyEquivalent)}</p>
+                          <p className="mt-0.5 text-[11px] uppercase tracking-[0.14em] text-cyan-100/55">valor mensal</p>
                         </div>
-                      </div>
-
-                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                        <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 ${alertBadge.tone}`}>
-                          <AlertIcon className="h-3.5 w-3.5" />
-                          {alertBadge.text}
-                        </span>
-                        {metrics.isUnderused ? (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/35 bg-amber-500/10 px-2.5 py-1 text-amber-100">
-                            Pouco usada
-                          </span>
-                        ) : null}
-                        <span className="inline-flex items-center gap-1 rounded-full border border-cyan-300/25 bg-cyan-500/10 px-2.5 py-1 text-cyan-100/90">
-                          {cycleLabel[row.billing_cycle]}
-                        </span>
-                      </div>
-
-                      <div className="mt-3 grid gap-2 text-xs text-cyan-100/75 sm:grid-cols-3">
-                        <div className="rounded-lg border border-cyan-300/15 bg-black/25 px-3 py-2">
-                          <p className="text-cyan-100/55">Previsao anual</p>
-                          <p className="mt-0.5 font-semibold text-cyan-50">{brl(metrics.yearlyCommitment)}</p>
-                        </div>
-                        <div className="rounded-lg border border-cyan-300/15 bg-black/25 px-3 py-2">
-                          <p className="text-cyan-100/55">Ultima cobranca</p>
-                          <p className="mt-0.5 font-semibold text-cyan-50">{formatDate(row.last_charge_date)}</p>
-                        </div>
-                        <div className="rounded-lg border border-cyan-300/15 bg-black/25 px-3 py-2">
-                          <p className="text-cyan-100/55">Ultimo uso</p>
-                          <p className="mt-0.5 font-semibold text-cyan-50">{formatDate(row.last_used_at)}</p>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 rounded-xl border border-cyan-300/15 bg-[#081222]/70 p-3">
-                        <div className="mb-2 flex items-center justify-between gap-2">
-                          <p className="text-xs font-medium text-cyan-100/85">Historico de renovacoes</p>
-                          <span className="text-[11px] text-cyan-100/60">{history.length} pagamento(s)</span>
-                        </div>
-
-                        {!recentHistory.length ? (
-                          <p className="text-xs text-cyan-100/65">Sem renovacoes registradas.</p>
-                        ) : (
-                          <div className="space-y-1.5">
-                            {recentHistory.map((payment) => (
-                              <div
-                                key={payment.id}
-                                className="flex items-center justify-between gap-2 rounded-lg border border-cyan-300/10 bg-black/25 px-2.5 py-1.5 text-xs"
-                              >
-                                <div className="min-w-0">
-                                  <p className="truncate text-cyan-50">{formatMonthYear(payment.charge_date)}</p>
-                                  <p className="text-[11px] text-cyan-100/55">{formatDate(payment.charge_date)}</p>
-                                </div>
-                                <p className="font-semibold text-cyan-50">{brl(payment.amount)}</p>
-                                <span className="text-[11px] uppercase tracking-wide text-cyan-100/70">
-                                  {payment.status}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
                       </div>
 
                       <div className="mt-4 flex flex-wrap items-center gap-2 opacity-100 sm:opacity-0 sm:transition sm:duration-200 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
@@ -875,7 +769,7 @@ export default function AssinaturasPage() {
                           Excluir
                         </button>
                       </div>
-                    </FintechGlassCard>
+                    </article>
                   );
                 })
               )}
