@@ -5,7 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import type { Transaction } from "@/lib/finance";
-import { normalizeCategoryKey } from "@/lib/categoryVisuals";
+import { getCategoryFallbackVisual, normalizeCategoryKey } from "@/lib/categoryVisuals";
+import { getCategoryImageIconPath } from "@/lib/customMedia";
 import { brl, toNumber } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
 import { useCategoryMetadata } from "@/lib/useCategoryMetadata";
@@ -29,6 +30,28 @@ const isPixTransaction = (tx: Transaction) => {
   const tags = tx.tags ?? [];
   if (tags.some((tag) => tag.trim().toLowerCase() === "pix")) return true;
   return /^pix\b/i.test(tx.description ?? "");
+};
+
+const normalizeText = (value?: string | null) => normalizeCategoryKey(value);
+
+const getTransactionImageIcon = (tx: Transaction) => {
+  const categoryLabel = (tx.category || "Sem categoria").trim() || "Sem categoria";
+  const context = `${tx.description || ""} ${categoryLabel}`;
+  const normalized = normalizeText(context);
+
+  if (normalized.includes("netflix") || normalized.includes("netlix") || normalized.includes("netflx")) {
+    return "/icons/netflix-v2.png";
+  }
+  if (normalized.includes("hbo") || normalized.includes("hbomax") || normalized.includes("hbo max") || normalized.includes("htbo")) {
+    return "/icons/hbo-v2.png";
+  }
+  if (normalized.includes("spotify")) return "/icons/spotify.png";
+  if (normalized.includes("amazon") || normalized.includes("prime")) return "/icons/amazon.png";
+  if (normalized.includes("disney")) return "/icons/disney.png";
+
+  const guessed = getCategoryFallbackVisual(context);
+  const guessedImage = getCategoryImageIconPath(guessed.iconName);
+  return guessedImage || "/icons/default.png";
 };
 
 export default function GastosPage() {
@@ -272,8 +295,8 @@ export default function GastosPage() {
                         categoryName={item.name}
                         iconName={metadata?.icon_name}
                         iconColor={metadata?.icon_color}
-                        size={12}
-                        circleSize={24}
+                        size={16}
+                        circleSize={34}
                       />
                       <p className="truncate text-sm text-slate-100">{item.name}</p>
                     </div>
@@ -322,11 +345,7 @@ export default function GastosPage() {
                 const categoryLabel = (tx.category || "Sem categoria").trim() || "Sem categoria";
                 const categoryMetadata = categoryLookup.get(normalizeCategoryKey(categoryLabel));
 
-                const toneClass = income
-                  ? "bg-emerald-500/15 text-emerald-300"
-                  : expense
-                    ? "bg-rose-500/15 text-rose-300"
-                    : "bg-slate-500/15 text-slate-300";
+                const rowIcon = getTransactionImageIcon(tx);
 
                 const amountClass = income
                   ? "text-emerald-300"
@@ -337,13 +356,20 @@ export default function GastosPage() {
                 return (
                   <div
                     key={tx.id}
-                    className="flex items-center justify-between rounded-xl border border-white/10 bg-slate-950/35 px-3 py-3"
+                    className="gastos-row-card flex items-center justify-between rounded-xl border border-white/10 bg-slate-950/35 px-3 py-3"
                   >
                     <div className="flex min-w-0 items-center gap-3">
-                      <span
-                        className={`inline-flex h-9 w-9 items-center justify-center rounded-lg text-sm font-extrabold ${toneClass}`}
-                      >
-                        {income ? "↑" : "↓"}
+                      <span className="expense-icon-orb">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={rowIcon}
+                          alt={`Icone ${tx.description}`}
+                          className="expense-icon-img"
+                          loading="lazy"
+                          onError={(event) => {
+                            event.currentTarget.src = "/icons/default.png";
+                          }}
+                        />
                       </span>
                       <div className="min-w-0">
                         <p className="truncate font-semibold text-slate-100">{tx.description}</p>
@@ -351,11 +377,11 @@ export default function GastosPage() {
                           <span>{formatDateLabel(tx.occurred_at)}</span>
                           <span>|</span>
                           <CategoryIcon
-                            categoryName={categoryLabel}
+                            categoryName={`${tx.description} ${categoryLabel}`}
                             iconName={categoryMetadata?.icon_name}
                             iconColor={categoryMetadata?.icon_color}
-                            size={10}
-                            circleSize={19}
+                            size={11}
+                            circleSize={22}
                           />
                           <span>{categoryLabel}</span>
                         </div>
