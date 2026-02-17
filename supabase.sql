@@ -2081,6 +2081,8 @@ update public.transaction_categories
 set icon_name = 'MoneySafe3D',
     icon_color = '#4ade80'
 where lower(name) like '%caixinha investimento%'
+   or lower(name) like '%renda fixa caixinha%'
+   or lower(name) like '%caixinha renda fixa%'
    or lower(name) like '%caixinha%';
 
 update public.transaction_categories
@@ -2094,12 +2096,15 @@ set icon_name = 'NetflixLogo',
     icon_color = '#e11d48'
 where lower(name) like '%netflix assinatura%'
    or lower(name) like '%assinatura netflix%'
+   or lower(name) like '%netflix%'
    or lower(name) = 'netflix';
 
 update public.transaction_categories
 set icon_name = 'HboMaxLogo',
     icon_color = '#4338ca'
 where lower(name) like '%hbo max%'
+   or lower(name) like '%htbo max%'
+   or lower(name) like '%htbo%'
    or lower(name) like '%hbomax%'
    or lower(name) = 'hbo';
 

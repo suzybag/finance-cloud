@@ -59,7 +59,7 @@ export const CATEGORY_IMAGE_ICON_MAP = {
   MarketGrowth3D: CUSTOM_MEDIA_ASSETS.marketGrowth,
   MercadoLivreLogo: CUSTOM_MEDIA_ASSETS.mercadoLivre,
   MoneySafe3D: CUSTOM_MEDIA_ASSETS.moneySafe3d,
-  NetflixLogo: CUSTOM_MEDIA_ASSETS.netflixRound,
+  NetflixLogo: CUSTOM_MEDIA_ASSETS.netflixRoundAlt,
   NetflixLogoAlt: CUSTOM_MEDIA_ASSETS.netflixRoundAlt,
   OpenAiLogo: CUSTOM_MEDIA_ASSETS.openAiLogo,
   Planner3D: CUSTOM_MEDIA_ASSETS.plannerBook,
@@ -91,6 +91,10 @@ const SUBSCRIPTION_LOGO_RULES: SubscriptionLogoRule[] = [
   },
   {
     terms: ["hbo max sem assinatura", "hbo max assinatura", "hbo max", "hbomax", "hbo"],
+    path: CUSTOM_MEDIA_ASSETS.hboMaxSquare,
+  },
+  {
+    terms: ["htbo max"],
     path: CUSTOM_MEDIA_ASSETS.hboMaxSquare,
   },
   {
