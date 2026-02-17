@@ -25,7 +25,7 @@ export const CUSTOM_MEDIA_ASSETS = {
   shopeeDecor: "/custom/icons/icone-vendas-shopee-decorativo-marketplace-1491-3-2bc22aef0c13ed1c94c03c482de6997d.webp",
   iphoneImage: "/custom/icons/images.jfif",
   buildingRound: "/custom/icons/images-1.jfif",
-  hboMaxSquare: "/custom/icons/images-1.png",
+  hboMaxSquare: "/custom/icons/hbo-max.png",
   primeVideo: "/custom/icons/images-2.png",
   homeGradient: "/custom/icons/lar.png",
   mercadoLivre: "/custom/icons/mercado-libre.png",
@@ -86,15 +86,11 @@ type SubscriptionLogoRule = {
 
 const SUBSCRIPTION_LOGO_RULES: SubscriptionLogoRule[] = [
   {
-    terms: ["netflix assinatura", "assinatura netflix", "netflix"],
+    terms: ["netflix assinatura", "assinatura netflix", "netflix", "netlix", "netflx"],
     path: CUSTOM_MEDIA_ASSETS.netflixRoundAlt,
   },
   {
-    terms: ["hbo max sem assinatura", "hbo max assinatura", "hbo max", "hbomax", "hbo"],
-    path: CUSTOM_MEDIA_ASSETS.hboMaxSquare,
-  },
-  {
-    terms: ["htbo max"],
+    terms: ["hbo max sem assinatura", "hbo max assinatura", "hbo max", "hbomax", "hbo", "htbo max", "htbomax", "htbo"],
     path: CUSTOM_MEDIA_ASSETS.hboMaxSquare,
   },
   {

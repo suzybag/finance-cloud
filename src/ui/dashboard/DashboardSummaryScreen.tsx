@@ -127,8 +127,11 @@ const getServiceVisual = (name?: string | null) => {
   const logoSrc = getSubscriptionLogoPath(name);
   if (
     normalized.includes("netflix")
+    || normalized.includes("netlix")
+    || normalized.includes("netflx")
     || normalized.includes("disney")
     || normalized.includes("hbo")
+    || normalized.includes("htbo")
     || normalized.includes("prime video")
   ) {
     return { icon: Clapperboard, tone: "border-rose-300/30 bg-rose-500/10 text-rose-100", logoSrc };
