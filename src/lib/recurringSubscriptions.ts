@@ -8,6 +8,7 @@ import {
   subYears,
 } from "date-fns";
 import { toNumber } from "@/lib/money";
+import { sanitizeSubscriptionIconPath } from "@/lib/customMedia";
 
 export type BillingCycle = "monthly" | "annual" | "weekly";
 export type PaymentStatus = "paid" | "pending" | "skipped";
@@ -23,6 +24,7 @@ export type RecurringSubscriptionRow = {
   category: string | null;
   payment_method: string | null;
   notes: string | null;
+  icon_path: string | null;
   last_charge_date: string | null;
   last_used_at: string | null;
   active: boolean;
@@ -243,6 +245,7 @@ export const normalizeRecurringSubscriptionRow = (
       ? row.payment_method.trim()
       : null,
     notes: typeof row.notes === "string" && row.notes.trim() ? row.notes.trim() : null,
+    icon_path: sanitizeSubscriptionIconPath(row.icon_path),
     last_charge_date: row.last_charge_date ? toIsoDate(parseDateOnly(row.last_charge_date)) : null,
     last_used_at: row.last_used_at ? toIsoDate(parseDateOnly(row.last_used_at)) : null,
     active: typeof row.active === "boolean" ? row.active : true,

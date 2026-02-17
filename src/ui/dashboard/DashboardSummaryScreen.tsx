@@ -12,7 +12,7 @@ import { summarizeRecurringSubscriptions } from "@/lib/recurringSubscriptions";
 import { brl, formatPercent } from "@/lib/money";
 import { computeAccountBalances, computeCardSummary, groupByCategory } from "@/lib/finance";
 import { useCategoryMetadata } from "@/lib/useCategoryMetadata";
-import { getSubscriptionLogoPath } from "@/lib/customMedia";
+import { resolveSubscriptionIconPath } from "@/lib/customMedia";
 import { monthInputValue, normalizePeriod } from "@/core/finance/dashboardSummary";
 import { useDashboardSummary } from "./useDashboardSummary";
 import { useMarketOverview } from "./useMarketOverview";
@@ -122,9 +122,9 @@ const normalizeServiceName = (value?: string | null) =>
     .toLowerCase()
     .trim();
 
-const getServiceVisual = (name?: string | null) => {
+const getServiceVisual = (name?: string | null, iconPath?: string | null) => {
   const normalized = normalizeServiceName(name);
-  const logoSrc = getSubscriptionLogoPath(name);
+  const logoSrc = resolveSubscriptionIconPath(name, iconPath);
   if (
     normalized.includes("netflix")
     || normalized.includes("netlix")
@@ -687,7 +687,7 @@ export const DashboardSummaryScreen = () => {
                 ) : (
                   <div className="space-y-2">
                     {recurringTopSubscriptions.map((item) => {
-                      const visual = getServiceVisual(item.row.name);
+                      const visual = getServiceVisual(item.row.name, item.row.icon_path);
                       const Icon = visual.icon;
                       return (
                         <div key={item.row.id} className="flex items-center justify-between gap-2 rounded-lg px-1 py-0.5">
@@ -752,7 +752,7 @@ export const DashboardSummaryScreen = () => {
                     : urgency <= 3
                       ? "border-amber-300/35 bg-amber-500/15 text-amber-100"
                       : "border-violet-300/35 bg-violet-500/15 text-violet-100";
-                  const visual = getServiceVisual(item.row.name);
+                  const visual = getServiceVisual(item.row.name, item.row.icon_path);
                   const Icon = visual.icon;
 
                   return (

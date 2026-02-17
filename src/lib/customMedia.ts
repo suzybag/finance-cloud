@@ -36,13 +36,59 @@ export const CUSTOM_MEDIA_ASSETS = {
   tesouroDireto: "/custom/icons/tesouro-direto.png",
   cinemaPopcorn: "/custom/icons/tira-de-filme-e-comida-de-cinema.png",
   uberVideo: "/custom/icons/uber.mp4",
-  shopeeBag: "/custom/icons/unnamed.png",
+  shopeeBag: "/custom/icons/icone-vendas-shopee-decorativo-marketplace-1491-3-2bc22aef0c13ed1c94c03c482de6997d.webp",
   plannerBook: "/custom/icons/yearbook-9980809.png",
   spotifyCircle: "/icons/spotify.png",
   disneyCircle: "/icons/disney.png",
   amazonPrimeCircle: "/icons/amazon.png",
   defaultServiceIcon: "/icons/default.png",
 } as const;
+
+export type SubscriptionIconOption = {
+  id: string;
+  label: string;
+  path: string;
+};
+
+export const SUBSCRIPTION_ICON_OPTIONS: SubscriptionIconOption[] = [
+  { id: "default", label: "Padrao", path: "/icons/default.png" },
+  { id: "netflix-v2", label: "Netflix", path: "/icons/netflix-v2.png" },
+  { id: "hbo-v2", label: "HBO", path: "/icons/hbo-v2.png" },
+  { id: "hbo-custom", label: "HBO Custom", path: "/custom/hbo-max.png" },
+  { id: "spotify", label: "Spotify", path: "/icons/spotify.png" },
+  { id: "disney", label: "Disney", path: "/icons/disney.png" },
+  { id: "amazon", label: "Amazon", path: "/icons/amazon.png" },
+  { id: "assinatura", label: "Contrato", path: "/custom/icons/assinatura.png" },
+  { id: "agenda", label: "Agenda", path: "/custom/icons/agenda-13753233.png" },
+  { id: "planner", label: "Planner", path: "/custom/icons/planner-11984398.png" },
+  { id: "yearbook", label: "Caderno", path: "/custom/icons/yearbook-9980809.png" },
+  { id: "food-court", label: "Comida", path: "/custom/icons/praca-de-alimentacao.png" },
+  { id: "cinema", label: "Cinema", path: "/custom/icons/tira-de-filme-e-comida-de-cinema.png" },
+  { id: "mercado-livre", label: "Mercado Livre", path: "/custom/icons/mercado-libre.png" },
+  { id: "pix-logo", label: "PIX", path: "/custom/icons/pix-banco-central-logo-png-seeklogo-388843.png" },
+  { id: "tesouro-direto", label: "Tesouro Direto", path: "/custom/icons/tesouro-direto.png" },
+  { id: "gold-bars", label: "Ouro", path: "/custom/icons/barras-de-ouro.png" },
+  { id: "bitcoin", label: "Bitcoin", path: "/custom/icons/bitcoin.png" },
+  { id: "bitcoin-dark", label: "Bitcoin Dark", path: "/custom/icons/bitcoin-1.png" },
+  { id: "bitcoin-hand", label: "Bitcoin Hand", path: "/custom/icons/bitcoin-criptografado.png" },
+  { id: "bitcoin-logo", label: "Bitcoin Logo", path: "/custom/icons/bitcoin-logo-bright-orange-color-600nw-2650281747.webp" },
+  { id: "safe", label: "Cofre", path: "/custom/icons/caixa-para-economizar-dinheiro-3d-icon-png-download-5298710.webp" },
+  { id: "house-star", label: "Casa", path: "/custom/icons/casa-nova.png" },
+  { id: "house-outline", label: "Casa Outline", path: "/custom/icons/fachada-de-casa-de-familia.png" },
+  { id: "house-round", label: "Lar", path: "/custom/icons/lar.png" },
+  { id: "market-growth", label: "Crescimento", path: "/custom/icons/crescimento-de-mercado.png" },
+  { id: "openai", label: "OpenAI", path: "/custom/icons/11865338.png" },
+  { id: "pix-3d", label: "PIX 3D", path: "/custom/icons/825540.png" },
+  { id: "hbo-poster", label: "HBO Poster", path: "/custom/icons/10875822.jpg" },
+  { id: "gold-photo", label: "Foto Ouro", path: "/custom/icons/10598498.jpg" },
+  { id: "download", label: "Download", path: "/custom/icons/download.png" },
+  { id: "img-main", label: "Imagem 1", path: "/custom/icons/images.jfif" },
+  { id: "img-1-jfif", label: "Imagem 2", path: "/custom/icons/images-1.jfif" },
+  { id: "img-1-png", label: "Imagem 3", path: "/custom/icons/images-1.png" },
+  { id: "img-2", label: "Imagem 4", path: "/custom/icons/images-2.png" },
+  { id: "netflix-alt", label: "Netflix Alt", path: "/custom/icons/png-clipart-netflix-round-logo-tech-companies-thumbnail.png" },
+  { id: "shopee", label: "Shopee", path: "/custom/icons/icone-vendas-shopee-decorativo-marketplace-1491-3-2bc22aef0c13ed1c94c03c482de6997d.webp" },
+];
 
 export const CATEGORY_IMAGE_ICON_MAP = {
   Agenda3D: CUSTOM_MEDIA_ASSETS.agendaCheck3d,
@@ -146,4 +192,33 @@ export const getSubscriptionLogoPath = (serviceName?: string | null) => {
     rule.terms.some((term) => normalized.includes(normalizeText(term))),
   );
   return match?.path || null;
+};
+
+const ALLOWED_SUBSCRIPTION_ICON_PREFIX = /^\/(?:icons|custom(?:\/icons)?)\//i;
+const ALLOWED_SUBSCRIPTION_ICON_EXT = /\.(png|jpe?g|webp|jfif|svg)$/i;
+
+export const sanitizeSubscriptionIconPath = (value?: string | null) => {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  if (!ALLOWED_SUBSCRIPTION_ICON_PREFIX.test(raw)) return null;
+  if (!ALLOWED_SUBSCRIPTION_ICON_EXT.test(raw)) return null;
+  return raw;
+};
+
+type ResolveSubscriptionIconOptions = {
+  fallbackToDefault?: boolean;
+};
+
+export const resolveSubscriptionIconPath = (
+  serviceName?: string | null,
+  customIconPath?: string | null,
+  options?: ResolveSubscriptionIconOptions,
+) => {
+  const selectedPath = sanitizeSubscriptionIconPath(customIconPath);
+  if (selectedPath) return selectedPath;
+
+  const guessedPath = getSubscriptionLogoPath(serviceName);
+  if (guessedPath) return guessedPath;
+
+  return options?.fallbackToDefault ? CUSTOM_MEDIA_ASSETS.defaultServiceIcon : null;
 };

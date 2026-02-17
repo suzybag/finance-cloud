@@ -1152,6 +1152,7 @@ create table if not exists public.recurring_subscriptions (
   category text,
   payment_method text,
   notes text,
+  icon_path text,
   last_charge_date date,
   last_used_at date,
   active boolean not null default true,
@@ -1168,6 +1169,7 @@ alter table public.recurring_subscriptions add column if not exists start_date d
 alter table public.recurring_subscriptions add column if not exists category text;
 alter table public.recurring_subscriptions add column if not exists payment_method text;
 alter table public.recurring_subscriptions add column if not exists notes text;
+alter table public.recurring_subscriptions add column if not exists icon_path text;
 alter table public.recurring_subscriptions add column if not exists last_charge_date date;
 alter table public.recurring_subscriptions add column if not exists last_used_at date;
 alter table public.recurring_subscriptions add column if not exists active boolean not null default true;

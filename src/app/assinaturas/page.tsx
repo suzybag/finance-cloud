@@ -5,16 +5,23 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import {
   Activity,
   CalendarClock,
+  Check,
   CreditCard,
+  ImageIcon,
   Loader2,
   Plus,
   Trash2,
   Wallet,
+  X,
 } from "lucide-react";
 import { Inter } from "next/font/google";
 import { AppShell } from "@/components/AppShell";
 import { brl, toNumber } from "@/lib/money";
-import { getSubscriptionLogoPath } from "@/lib/customMedia";
+import {
+  SUBSCRIPTION_ICON_OPTIONS,
+  resolveSubscriptionIconPath,
+  sanitizeSubscriptionIconPath,
+} from "@/lib/customMedia";
 import {
   buildRecurringSubscriptionExternalId,
   computeRecurringSubscriptionMetrics,
@@ -36,6 +43,7 @@ type SubscriptionFormState = {
   billingCycle: BillingCycle;
   paymentMethod: string;
   notes: string;
+  iconPath: string;
 };
 
 const inter = Inter({
@@ -57,6 +65,7 @@ const emptyForm = (): SubscriptionFormState => ({
   billingCycle: "monthly",
   paymentMethod: "cartao",
   notes: "",
+  iconPath: "",
 });
 
 const round2 = (value: number) => Math.round((Number.isFinite(value) ? value : 0) * 100) / 100;
@@ -126,12 +135,15 @@ const billingDayLabel = (cycle: BillingCycle, dateRaw: string) => {
   return `Dia ${date.getDate()}`;
 };
 
-const getServiceIcon = (name?: string | null) =>
-  getSubscriptionLogoPath(name) || "/icons/default.png";
+const getServiceIcon = (name?: string | null, iconPath?: string | null) =>
+  resolveSubscriptionIconPath(name, iconPath, { fallbackToDefault: true }) || "/icons/default.png";
 
 const isMissingRecurringSubscriptionsTableError = (message?: string | null) =>
   /relation .*recurring_subscriptions/i.test(message || "")
   || /schema cache/i.test((message || "").toLowerCase());
+
+const isMissingRecurringSubscriptionsIconColumnError = (message?: string | null) =>
+  /column .*icon_path/i.test((message || "").toLowerCase());
 
 const isMissingRecurringSubscriptionPaymentsTableError = (message?: string | null) =>
   /relation .*recurring_subscription_payments/i.test(message || "")
@@ -145,6 +157,7 @@ export default function AssinaturasPage() {
   const [subscriptions, setSubscriptions] = useState<RecurringSubscriptionRow[]>([]);
   const [payments, setPayments] = useState<RecurringSubscriptionPaymentRow[]>([]);
   const [form, setForm] = useState<SubscriptionFormState>(emptyForm);
+  const [iconPickerOpen, setIconPickerOpen] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -229,6 +242,7 @@ export default function AssinaturasPage() {
   );
 
   const pricePreview = Math.max(0, toNumber(form.priceMasked));
+  const selectedOrAutoIcon = getServiceIcon(form.name, form.iconPath);
   const monthlyEquivalentPreview = round2(
     form.billingCycle === "annual"
       ? pricePreview / 12
@@ -283,6 +297,7 @@ export default function AssinaturasPage() {
       category,
       payment_method: paymentMethod,
       notes,
+      icon_path: sanitizeSubscriptionIconPath(form.iconPath),
       last_charge_date: chargeDate,
       active: true,
     };
@@ -298,6 +313,8 @@ export default function AssinaturasPage() {
       setFeedback(
         isMissingRecurringSubscriptionsTableError(error?.message)
           ? "Tabela recurring_subscriptions nao encontrada. Rode o supabase.sql atualizado."
+          : isMissingRecurringSubscriptionsIconColumnError(error?.message)
+            ? "Coluna icon_path nao encontrada. Rode o supabase.sql atualizado para salvar icones."
           : `Falha ao salvar assinatura: ${error?.message || "erro desconhecido"}`,
       );
       return;
@@ -383,6 +400,7 @@ export default function AssinaturasPage() {
     setSubscriptions((prev) => [insertedSubscription, ...prev]);
     setPayments((prev) => [normalizedPayment, ...prev]);
     setForm((prev) => ({ ...emptyForm(), chargeDate: prev.chargeDate || emptyForm().chargeDate }));
+    setIconPickerOpen(false);
     setFeedback("Assinatura cadastrada com gasto automatico e historico inicial.");
   };
 
@@ -618,6 +636,103 @@ export default function AssinaturasPage() {
                   />
                 </label>
 
+                <div className="rounded-xl border border-violet-300/20 bg-violet-950/35 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-medium text-violet-100/85">Icone</span>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 rounded-full border border-violet-300/35 bg-violet-500/15 px-2.5 py-1 text-[11px] font-medium text-violet-100/95 transition hover:bg-violet-500/25"
+                      onClick={() => setIconPickerOpen((prev) => !prev)}
+                    >
+                      <ImageIcon className="h-3.5 w-3.5" />
+                      Icones
+                    </button>
+                  </div>
+
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="grid h-9 w-9 place-items-center rounded-full border border-violet-300/25 bg-violet-900/45">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={selectedOrAutoIcon}
+                        alt="Icone selecionado"
+                        className="h-6 w-6 rounded object-contain"
+                        loading="lazy"
+                        onError={(event) => {
+                          event.currentTarget.src = "/icons/default.png";
+                        }}
+                      />
+                    </span>
+                    <p className="text-xs text-violet-100/70">
+                      {form.iconPath ? "Icone personalizado selecionado." : "Icone automatico baseado no nome do servico."}
+                    </p>
+                  </div>
+
+                  {iconPickerOpen ? (
+                    <div className="mt-3 rounded-xl border border-violet-300/20 bg-violet-950/45 p-3">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <p className="text-xs font-medium text-violet-100/80">Escolha uma imagem</p>
+                        <button
+                          type="button"
+                          className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-violet-300/25 bg-violet-900/40 text-violet-100/80 transition hover:bg-violet-800/50"
+                          onClick={() => setIconPickerOpen(false)}
+                          aria-label="Fechar seletor de icones"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        className={`mb-3 inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${
+                          !form.iconPath
+                            ? "border-cyan-300/45 bg-cyan-500/20 text-cyan-100"
+                            : "border-violet-300/25 bg-violet-900/30 text-violet-100/80 hover:bg-violet-800/40"
+                        }`}
+                        onClick={() => setForm((prev) => ({ ...prev, iconPath: "" }))}
+                      >
+                        {!form.iconPath ? <Check className="h-3.5 w-3.5" /> : null}
+                        Automatico
+                      </button>
+
+                      <div className="grid max-h-52 grid-cols-6 gap-2 overflow-y-auto pr-1 sm:grid-cols-7">
+                        {SUBSCRIPTION_ICON_OPTIONS.map((iconOption) => {
+                          const selected = form.iconPath === iconOption.path;
+                          return (
+                            <button
+                              key={iconOption.id}
+                              type="button"
+                              className={`relative grid h-11 w-11 place-items-center rounded-full border transition ${
+                                selected
+                                  ? "border-cyan-300/60 bg-cyan-500/18 ring-2 ring-cyan-400/35"
+                                  : "border-violet-300/25 bg-violet-900/40 hover:bg-violet-800/55"
+                              }`}
+                              onClick={() => setForm((prev) => ({ ...prev, iconPath: iconOption.path }))}
+                              title={iconOption.label}
+                              aria-label={`Selecionar icone ${iconOption.label}`}
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={iconOption.path}
+                                alt=""
+                                className="h-6 w-6 rounded object-contain"
+                                loading="lazy"
+                                onError={(event) => {
+                                  event.currentTarget.src = "/icons/default.png";
+                                }}
+                              />
+                              {selected ? (
+                                <span className="absolute -right-1 -top-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-cyan-400 text-cyan-950">
+                                  <Check className="h-2.5 w-2.5" />
+                                </span>
+                              ) : null}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+
                 <label className="block">
                   <span className="mb-1 block text-xs font-medium text-violet-100/85">Valor</span>
                   <input
@@ -681,7 +796,7 @@ export default function AssinaturasPage() {
               ) : (
                 subscriptionsSorted.map((row) => {
                   const metrics = computeRecurringSubscriptionMetrics(row);
-                  const serviceIcon = getServiceIcon(row.name);
+                  const serviceIcon = getServiceIcon(row.name, row.icon_path);
                   const chargeDateLabel = formatShortDate(metrics.nextChargeDate);
 
                   return (
