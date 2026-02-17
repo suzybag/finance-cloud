@@ -136,7 +136,7 @@ const billingDayLabel = (cycle: BillingCycle, dateRaw: string) => {
 };
 
 const getServiceIcon = (name?: string | null, iconPath?: string | null) =>
-  resolveSubscriptionIconPath(name, iconPath, { fallbackToDefault: true }) || "/custom/icons/7544981.png";
+  resolveSubscriptionIconPath(name, iconPath, { fallbackToDefault: true }) || "/icons/Cinema.png";
 
 const isMissingRecurringSubscriptionsTableError = (message?: string | null) =>
   /relation .*recurring_subscriptions/i.test(message || "")
@@ -671,7 +671,7 @@ export default function AssinaturasPage() {
                         className="h-6 w-6 rounded object-contain"
                         loading="lazy"
                         onError={(event) => {
-                          event.currentTarget.src = "/custom/icons/7544981.png";
+                          event.currentTarget.src = "/icons/Cinema.png";
                         }}
                       />
                     </span>
@@ -730,7 +730,7 @@ export default function AssinaturasPage() {
                                 className="h-6 w-6 rounded object-contain"
                                 loading="lazy"
                                 onError={(event) => {
-                                  event.currentTarget.src = "/custom/icons/7544981.png";
+                                  event.currentTarget.src = "/icons/Cinema.png";
                                 }}
                               />
                               {selected ? (
@@ -827,7 +827,7 @@ export default function AssinaturasPage() {
                               className="subscription-icon-img"
                               loading="lazy"
                               onError={(event) => {
-                                event.currentTarget.src = "/custom/icons/7544981.png";
+                                event.currentTarget.src = "/icons/Cinema.png";
                               }}
                             />
                           </div>

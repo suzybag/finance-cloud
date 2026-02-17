@@ -41,7 +41,7 @@ export const CUSTOM_MEDIA_ASSETS = {
   spotifyCircle: "/icons/spotify.png",
   disneyCircle: "/icons/disney.png",
   amazonPrimeCircle: "/icons/Prime-video.png",
-  defaultServiceIcon: "/custom/icons/7544981.png",
+  defaultServiceIcon: "/icons/Cinema.png",
 } as const;
 
 export type SubscriptionIconOption = {
@@ -51,19 +51,15 @@ export type SubscriptionIconOption = {
 };
 
 export const SUBSCRIPTION_ICON_OPTIONS: SubscriptionIconOption[] = [
-  { id: "default", label: "Padrao", path: "/custom/icons/7544981.png" },
+  { id: "default", label: "Padrao", path: "/icons/Cinema.png" },
   { id: "netflix", label: "Netflix", path: "/icons/Netflix.png" },
   { id: "hbo-max", label: "HBO Max", path: "/icons/hbo-max.png" },
   { id: "spotify", label: "Spotify", path: "/icons/spotify.png" },
   { id: "disney", label: "Disney", path: "/icons/disney.png" },
   { id: "prime-video", label: "Prime Video", path: "/icons/Prime-video.png" },
-  { id: "mercado-pago", label: "Mercado Pago", path: "/icons/Mercado-Pago.png" },
   { id: "icloud", label: "iCloud", path: "/icons/Icloud.png" },
   { id: "cinema", label: "Cinema", path: "/icons/Cinema.png" },
   { id: "openai", label: "ChatGPT", path: "/icons/ChatGPT.png" },
-  { id: "uber", label: "Uber", path: "/custom/icons/Uber.png" },
-  { id: "pix", label: "Pix", path: "/custom/icons/Pix.png" },
-  { id: "shopee", label: "Shopee", path: "/custom/icons/Shopee.png" },
 ];
 
 export const AGENDA_ICON_OPTIONS: SubscriptionIconOption[] = [
@@ -149,7 +145,7 @@ const SUBSCRIPTION_LOGO_RULES: SubscriptionLogoRule[] = [
     path: CUSTOM_MEDIA_ASSETS.mercadoLivre,
   },
   {
-    terms: ["chatgpt", "openai"],
+    terms: ["chatgpt", "openai", "gpt", "gptplus", "gpt plus"],
     path: CUSTOM_MEDIA_ASSETS.openAiLogo,
   },
   {
@@ -171,6 +167,12 @@ export const getSubscriptionLogoPath = (serviceName?: string | null) => {
 const ALLOWED_SUBSCRIPTION_ICON_PREFIX = /^\/(?:icons|custom(?:\/icons)?)\//i;
 const ALLOWED_SUBSCRIPTION_ICON_EXT = /\.(png|jpe?g|webp|jfif|svg)$/i;
 const SUBSCRIPTION_ICON_PATH_SET = new Set(SUBSCRIPTION_ICON_OPTIONS.map((item) => item.path));
+const AUTO_SUBSCRIPTION_PLACEHOLDER_PATHS = new Set([
+  CUSTOM_MEDIA_ASSETS.defaultServiceIcon,
+  "/icons/Prime-video.png",
+  "/custom/icons/7544981.png",
+  "/icons/Photoroom.png",
+]);
 
 export const sanitizeSubscriptionIconPath = (value?: string | null) => {
   const raw = String(value || "").trim();
@@ -193,9 +195,9 @@ export const resolveSubscriptionIconPath = (
   const guessedPath = getSubscriptionLogoPath(serviceName);
   const selectedPath = sanitizeSubscriptionIconPath(customIconPath);
   if (selectedPath) {
-    // If the previously saved icon is just the generic default, prefer
-    // service-based detection so known brands render correctly.
-    if (guessedPath && selectedPath === CUSTOM_MEDIA_ASSETS.defaultServiceIcon) return guessedPath;
+    // Keep backward compatibility for rows that previously stored a generic
+    // placeholder icon (prime/piggy/photoroom) and now have a detectable brand.
+    if (guessedPath && AUTO_SUBSCRIPTION_PLACEHOLDER_PATHS.has(selectedPath)) return guessedPath;
     return selectedPath;
   }
 
