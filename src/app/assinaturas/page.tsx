@@ -287,7 +287,7 @@ export default function AssinaturasPage() {
     setSaving(true);
     setFeedback(null);
 
-    const payload = {
+    const payloadBase = {
       user_id: userId,
       name,
       price,
@@ -297,24 +297,37 @@ export default function AssinaturasPage() {
       category,
       payment_method: paymentMethod,
       notes,
-      icon_path: sanitizeSubscriptionIconPath(form.iconPath),
       last_charge_date: chargeDate,
       active: true,
     };
 
-    const { data, error } = await supabase
+    const iconPath = sanitizeSubscriptionIconPath(form.iconPath);
+    const payloadWithIcon = {
+      ...payloadBase,
+      icon_path: iconPath,
+    };
+
+    let { data, error } = await supabase
       .from("recurring_subscriptions")
-      .insert(payload)
+      .insert(payloadWithIcon)
       .select("*")
       .single();
+
+    if (isMissingRecurringSubscriptionsIconColumnError(error?.message)) {
+      const fallbackInsert = await supabase
+        .from("recurring_subscriptions")
+        .insert(payloadBase)
+        .select("*")
+        .single();
+      data = fallbackInsert.data;
+      error = fallbackInsert.error;
+    }
 
     if (error || !data) {
       setSaving(false);
       setFeedback(
         isMissingRecurringSubscriptionsTableError(error?.message)
           ? "Tabela recurring_subscriptions nao encontrada. Rode o supabase.sql atualizado."
-          : isMissingRecurringSubscriptionsIconColumnError(error?.message)
-            ? "Coluna icon_path nao encontrada. Rode o supabase.sql atualizado para salvar icones."
           : `Falha ao salvar assinatura: ${error?.message || "erro desconhecido"}`,
       );
       return;
