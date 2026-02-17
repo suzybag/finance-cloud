@@ -21,7 +21,6 @@ import {
   Trash2,
   Utensils,
 } from "lucide-react";
-import Image from "next/image";
 import { AppShell } from "@/components/AppShell";
 import {
   computeInstallmentMetrics,
@@ -93,10 +92,7 @@ const isMissingInstallmentsTableError = (message?: string | null) =>
 
 type InstallmentIconVisual = {
   icon: LucideIcon;
-  imagePath?: string;
 };
-
-const IPHONE_ICON_PATH = "/custom/icons/images.jfif";
 
 const getCategoryIconVisual = (category?: string | null, name?: string | null): InstallmentIconVisual => {
   const normalized = `${normalizeText(name)} ${normalizeText(category)}`.trim();
@@ -106,7 +102,7 @@ const getCategoryIconVisual = (category?: string | null, name?: string | null): 
     || normalized.includes("smartphone")
     || normalized.includes("android")
   ) {
-    return { icon: Smartphone, imagePath: IPHONE_ICON_PATH };
+    return { icon: Smartphone };
   }
   if (normalized.includes("carro") || normalized.includes("transporte") || normalized.includes("combust")) {
     return { icon: Car };
@@ -441,19 +437,7 @@ export default function ParcelasPage() {
             <div className="flex items-start gap-3">
               <div className="parcelas-explain-icon">
                 {(() => {
-                  const iconVisual = getCategoryIconVisual(undefined, explainCard.title);
-                  const Icon = iconVisual.icon;
-                  if (iconVisual.imagePath) {
-                    return (
-                      <Image
-                        src={iconVisual.imagePath}
-                        alt=""
-                        width={26}
-                        height={26}
-                        className="h-6 w-6 rounded-lg object-cover"
-                      />
-                    );
-                  }
+                  const Icon = getCategoryIconVisual(undefined, explainCard.title).icon;
                   return <Icon className="h-4 w-4" />;
                 })()}
               </div>
@@ -628,17 +612,7 @@ export default function ParcelasPage() {
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="flex min-w-0 items-start gap-3">
                           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-cyan-300/20 bg-cyan-500/10 text-cyan-100">
-                            {iconVisual.imagePath ? (
-                              <Image
-                                src={iconVisual.imagePath}
-                                alt=""
-                                width={24}
-                                height={24}
-                                className="h-6 w-6 rounded-md object-cover"
-                              />
-                            ) : (
-                              <Icon className="h-5 w-5" />
-                            )}
+                            <Icon className="h-5 w-5" />
                           </div>
                           <div className="min-w-0">
                             <h3 className="truncate text-base font-semibold text-cyan-50">{row.name}</h3>
