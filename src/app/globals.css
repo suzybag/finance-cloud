@@ -214,12 +214,12 @@ body.theme-night-pro .parcelas-explain-item {
 
 body.theme-night-pro .parcelas-explain-track {
   border-color: var(--surface-border) !important;
-  background: rgba(255, 255, 255, 0.08) !important;
+  background: rgba(30, 58, 138, 0.34) !important;
 }
 
 body.theme-night-pro .parcelas-explain-fill,
 body.theme-night-pro .parcelas-progress-fill {
-  background: #334155 !important;
+  background: linear-gradient(90deg, #38bdf8, #3b82f6, #1d4ed8) !important;
   box-shadow: none !important;
 }
 
@@ -467,8 +467,8 @@ body.theme-reading .dashboard-cosmic::after {
   position: relative;
   height: 100%;
   border-radius: 9999px;
-  background: linear-gradient(90deg, #7c3aed, #d946ef, #38bdf8);
-  box-shadow: 0 0 18px rgba(124, 58, 237, 0.42);
+  background: linear-gradient(90deg, #38bdf8, #3b82f6, #1d4ed8);
+  box-shadow: 0 0 18px rgba(29, 78, 216, 0.45);
 }
 
 .parcelas-explain-fill::after {

@@ -73,6 +73,15 @@ const normalizeText = (value?: string | null) =>
     .toLowerCase()
     .trim();
 
+const clampPercent = (value: number) => Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
+
+const getProgressWidth = (percent: number, minVisible = 6) => {
+  const clamped = clampPercent(percent);
+  if (clamped <= 0) return "0%";
+  if (clamped < minVisible) return `${minVisible}%`;
+  return `${clamped.toFixed(2)}%`;
+};
+
 const parseInstallmentCount = (value: string) =>
   Math.min(240, Math.max(1, Math.round(toNumber(value) || 1)));
 
@@ -80,8 +89,16 @@ const isMissingInstallmentsTableError = (message?: string | null) =>
   /relation .*installments/i.test(message || "")
   || /schema cache/i.test((message || "").toLowerCase());
 
-const getCategoryIcon = (category?: string | null) => {
-  const normalized = normalizeText(category);
+const getCategoryIcon = (category?: string | null, name?: string | null) => {
+  const normalized = `${normalizeText(name)} ${normalizeText(category)}`.trim();
+  if (
+    normalized.includes("iphone")
+    || normalized.includes("celular")
+    || normalized.includes("smartphone")
+    || normalized.includes("android")
+  ) {
+    return Smartphone;
+  }
   if (normalized.includes("carro") || normalized.includes("transporte") || normalized.includes("combust")) {
     return Car;
   }
@@ -187,6 +204,46 @@ export default function ParcelasPage() {
     [summary.active],
   );
 
+  const summaryCards = useMemo(
+    () => [
+      {
+        title: "Total parcelado ativo",
+        value: brl(summary.activeTotalRemaining),
+        description: "Soma do valor restante das compras abertas",
+        icon: CircleDollarSign,
+        tone: "border-cyan-300/25 bg-cyan-500/10 text-cyan-100",
+      },
+      {
+        title: "Parcelas restantes",
+        value: String(summary.activeRemainingInstallments),
+        description: "Total de parcelas que ainda faltam pagar",
+        icon: CreditCard,
+        tone: "border-blue-300/25 bg-blue-500/10 text-blue-100",
+      },
+      {
+        title: "Proximas a vencer",
+        value: String(summary.dueSoon.length),
+        description: "Vencimentos previstos para os proximos 10 dias",
+        icon: CalendarDays,
+        tone: "border-sky-300/25 bg-sky-500/10 text-sky-100",
+      },
+      {
+        title: "Alertas de vencimento",
+        value: String(summary.overdue.length + nearDueAlerts.length),
+        description: "Atrasadas ou vencendo em ate 3 dias",
+        icon: AlertTriangle,
+        tone: "border-rose-300/25 bg-rose-500/10 text-rose-100",
+      },
+    ],
+    [
+      nearDueAlerts.length,
+      summary.activeRemainingInstallments,
+      summary.activeTotalRemaining,
+      summary.dueSoon.length,
+      summary.overdue.length,
+    ],
+  );
+
   const explainCard = useMemo(() => {
     const firstActive = summary.active[0];
     if (firstActive) {
@@ -195,15 +252,24 @@ export default function ParcelasPage() {
         paid: firstActive.metrics.paidInstallments,
         total: firstActive.metrics.installmentCount,
         installmentValue: firstActive.metrics.installmentValue,
+        paidValue: firstActive.metrics.paidValue,
+        remainingValue: firstActive.metrics.remainingValue,
         progress: firstActive.metrics.percentagePaid,
       };
     }
+    const paid = 5;
+    const total = 12;
+    const installmentValue = 499;
+    const paidValue = round2(paid * installmentValue);
+    const remainingValue = round2((total - paid) * installmentValue);
     return {
       title: "iPhone 15",
-      paid: 5,
-      total: 12,
-      installmentValue: 499,
-      progress: (5 / 12) * 100,
+      paid,
+      total,
+      installmentValue,
+      paidValue,
+      remainingValue,
+      progress: (paid / total) * 100,
     };
   }, [summary.active]);
 
@@ -343,32 +409,32 @@ export default function ParcelasPage() {
       ) : (
         <div className="space-y-5">
           <section className="grid gap-4 lg:grid-cols-4">
-            <article className={CARD_CLASS}>
-              <p className="text-xs uppercase tracking-[0.14em] text-cyan-200/60">Total parcelado ativo</p>
-              <p className="mt-2 text-2xl font-bold text-cyan-50">{brl(summary.activeTotalRemaining)}</p>
-              <p className="mt-1 text-xs text-cyan-100/65">Soma do valor restante das compras abertas</p>
-            </article>
-            <article className={CARD_CLASS}>
-              <p className="text-xs uppercase tracking-[0.14em] text-cyan-200/60">Parcelas restantes</p>
-              <p className="mt-2 text-2xl font-bold text-cyan-50">{summary.activeRemainingInstallments}</p>
-              <p className="mt-1 text-xs text-cyan-100/65">Total de parcelas que ainda faltam pagar</p>
-            </article>
-            <article className={CARD_CLASS}>
-              <p className="text-xs uppercase tracking-[0.14em] text-cyan-200/60">Proximas a vencer</p>
-              <p className="mt-2 text-2xl font-bold text-cyan-50">{summary.dueSoon.length}</p>
-              <p className="mt-1 text-xs text-cyan-100/65">Vencimentos previstos para os proximos 10 dias</p>
-            </article>
-            <article className={CARD_CLASS}>
-              <p className="text-xs uppercase tracking-[0.14em] text-cyan-200/60">Alertas de vencimento</p>
-              <p className="mt-2 text-2xl font-bold text-cyan-50">{summary.overdue.length + nearDueAlerts.length}</p>
-              <p className="mt-1 text-xs text-cyan-100/65">Atrasadas ou vencendo em ate 3 dias</p>
-            </article>
+            {summaryCards.map((card) => {
+              const Icon = card.icon;
+              return (
+                <article key={card.title} className={CARD_CLASS}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.14em] text-cyan-200/60">{card.title}</p>
+                      <p className="mt-2 text-2xl font-bold text-cyan-50">{card.value}</p>
+                    </div>
+                    <div className={`grid h-9 w-9 place-items-center rounded-lg border ${card.tone}`}>
+                      <Icon className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <p className="mt-2 text-xs text-cyan-100/65">{card.description}</p>
+                </article>
+              );
+            })}
           </section>
 
           <section className="parcelas-explain-card">
             <div className="flex items-start gap-3">
               <div className="parcelas-explain-icon">
-                <Smartphone className="h-4 w-4" />
+                {(() => {
+                  const Icon = getCategoryIcon(undefined, explainCard.title);
+                  return <Icon className="h-4 w-4" />;
+                })()}
               </div>
               <div className="min-w-0">
                 <p className="text-2xl font-semibold tracking-tight text-white">Parcelas</p>
@@ -384,11 +450,29 @@ export default function ParcelasPage() {
                 </div>
                 <p className="text-2xl font-bold tracking-tight text-white">{brl(explainCard.installmentValue)}</p>
               </div>
+              <div className="mb-2 grid gap-2 text-[11px] text-cyan-100/80 sm:grid-cols-2">
+                <div className="rounded-md border border-blue-300/25 bg-blue-500/10 px-2.5 py-1.5">
+                  <p className="text-blue-100/80">Pago ate agora</p>
+                  <p className="font-semibold text-blue-50">{brl(explainCard.paidValue)}</p>
+                </div>
+                <div className="rounded-md border border-cyan-300/25 bg-cyan-500/10 px-2.5 py-1.5">
+                  <p className="text-cyan-100/80">Falta pagar</p>
+                  <p className="font-semibold text-cyan-50">{brl(explainCard.remainingValue)}</p>
+                </div>
+              </div>
               <div className="parcelas-explain-track">
                 <div
                   className="parcelas-explain-fill"
-                  style={{ width: `${Math.max(0, Math.min(100, explainCard.progress)).toFixed(2)}%` }}
+                  style={{
+                    width: getProgressWidth(explainCard.progress, 5),
+                    background: "linear-gradient(90deg, #38bdf8 0%, #3b82f6 48%, #1d4ed8 100%)",
+                    boxShadow: "0 0 18px rgba(37, 99, 235, 0.45)",
+                  }}
                 />
+              </div>
+              <div className="mt-1.5 flex items-center justify-between text-[11px] text-blue-100/80">
+                <span>Ja pago: {clampPercent(explainCard.progress).toFixed(1).replace(".", ",")}%</span>
+                <span>Restante: {(100 - clampPercent(explainCard.progress)).toFixed(1).replace(".", ",")}%</span>
               </div>
             </div>
           </section>
@@ -505,8 +589,8 @@ export default function ParcelasPage() {
                 </div>
               ) : (
                 enriched.map(({ row, metrics }) => {
-                  const Icon = getCategoryIcon(row.category);
-                  const progressWidth = `${Math.max(0, Math.min(100, metrics.percentagePaid)).toFixed(2)}%`;
+                  const Icon = getCategoryIcon(row.category, row.name);
+                  const progressWidth = getProgressWidth(metrics.percentagePaid, 5);
                   const nextDueLabel = formatDate(metrics.nextDueDate);
                   const urgencyClass = metrics.isOverdue
                     ? "border-rose-400/35 bg-rose-500/10 text-rose-100"
@@ -565,13 +649,17 @@ export default function ParcelasPage() {
                           <span>{metrics.paidInstallments}/{metrics.installmentCount} parcelas</span>
                           <span>{metrics.percentagePaid.toFixed(1).replace(".", ",")}% pago</span>
                         </div>
-                        <div className="relative h-2.5 overflow-hidden rounded-full border border-cyan-300/20 bg-[#09111d]">
+                        <div className="relative h-2.5 overflow-hidden rounded-full border border-blue-300/25 bg-blue-950/45">
                           <div
-                            className="parcelas-progress-fill h-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-400 transition-[width] duration-700"
+                            className="parcelas-progress-fill h-full rounded-full bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 transition-[width] duration-700"
                             style={{ width: progressWidth }}
                           >
                             <span className="parcelas-progress-shine" />
                           </div>
+                        </div>
+                        <div className="mt-1.5 flex items-center justify-between text-[11px] text-blue-100/80">
+                          <span>Pago: {brl(metrics.paidValue)}</span>
+                          <span>Falta: {brl(metrics.remainingValue)}</span>
                         </div>
                       </div>
 
