@@ -491,7 +491,6 @@ export const DashboardSummaryScreen = () => {
                 playsInline
               >
                 <source src="/intro/intro-3d.mp4" type="video/mp4" />
-                <source src="/custom/icons/uber.mp4" type="video/mp4" />
               </video>
               <div className="absolute inset-0 bg-gradient-to-br from-[#120026]/85 via-[#070013]/70 to-black/80" />
             </div>

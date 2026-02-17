@@ -228,7 +228,7 @@ const normalizeInvestment = (
   const resolvedAssetLogo = isGoldAsset
     ? "/custom/icons/barras-de-ouro.png"
     : isCaixinhaAsset
-      ? "/custom/icons/caixa-para-economizar-dinheiro-3d-icon-png-download-5298710.webp"
+      ? "/custom/icons/CDB-Caixinha.webp"
       : row.asset_logo_url?.trim() || assetLookup?.logo || bankLookup?.logo || null;
 
   return {

@@ -120,7 +120,7 @@ const FALLBACK_ASSETS: AssetOption[] = [
   {
     id: "local-asset-caixinha",
     name: "Caixinha Nubank",
-    logo: "/custom/icons/caixa-para-economizar-dinheiro-3d-icon-png-download-5298710.webp",
+    logo: "/custom/icons/CDB-Caixinha.webp",
     category: "renda_fixa",
     type_id: "local-type-caixinha",
   },

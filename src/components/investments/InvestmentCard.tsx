@@ -59,7 +59,7 @@ const resolveFallbackLogo = (item: InvestmentCardItem) => {
     return "https://assets.coincap.io/assets/icons/usdc@2x.png";
   }
   if (key.includes("caixinha")) {
-    return "/custom/icons/caixa-para-economizar-dinheiro-3d-icon-png-download-5298710.webp";
+    return "/custom/icons/CDB-Caixinha.webp";
   }
   if (key.includes("cripto") || key.includes("bitcoin") || key.includes("btc") || key.includes("eth")) {
     return "/custom/icons/bitcoin.png";
