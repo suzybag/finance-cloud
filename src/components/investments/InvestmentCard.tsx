@@ -49,6 +49,15 @@ const statusStyles: Record<ReturnType<typeof calculateInvestmentStatus>, string>
 const resolveFallbackLogo = (item: InvestmentCardItem) => {
   const key = `${item.category} ${item.investment_type} ${item.asset_name}`.toLowerCase();
 
+  if (key.includes("ethereum") || key.includes("(eth)") || /\beth\b/.test(key)) {
+    return "https://assets.coincap.io/assets/icons/eth@2x.png";
+  }
+  if (key.includes("xrp")) {
+    return "https://assets.coincap.io/assets/icons/xrp@2x.png";
+  }
+  if (key.includes("usdc")) {
+    return "https://assets.coincap.io/assets/icons/usdc@2x.png";
+  }
   if (key.includes("caixinha")) {
     return "/custom/icons/caixa-para-economizar-dinheiro-3d-icon-png-download-5298710.webp";
   }
@@ -91,15 +100,15 @@ export function InvestmentCard({ item, deleting, editing, onEdit, onDelete }: In
   const logoUrl = item.asset_logo_url || resolveFallbackLogo(item);
 
   return (
-    <article className="group rounded-2xl border border-violet-300/25 bg-[linear-gradient(165deg,rgba(17,24,39,0.98),rgba(7,11,23,0.96))] p-4 shadow-[0_12px_34px_rgba(15,23,42,0.55)] transition-all duration-300 hover:-translate-y-0.5 hover:border-violet-300/45 hover:shadow-[0_18px_44px_rgba(124,58,237,0.28)]">
+    <article className="group rounded-2xl border border-violet-300/30 bg-[linear-gradient(165deg,rgba(31,18,56,0.95),rgba(12,10,30,0.96))] p-4 shadow-[0_14px_36px_rgba(20,10,44,0.58)] transition-all duration-300 hover:-translate-y-0.5 hover:border-violet-300/45 hover:shadow-[0_20px_46px_rgba(124,58,237,0.3)]">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-violet-300/25 bg-[#0a0f1d]">
+          <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full border border-violet-300/35 bg-[linear-gradient(140deg,rgba(56,32,94,0.9),rgba(16,12,37,0.9))] shadow-[0_10px_24px_rgba(124,58,237,0.24)]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={logoUrl}
               alt={item.asset_name}
-              className="h-full w-full object-contain"
+              className="h-full w-full object-contain p-2"
               loading="lazy"
             />
           </div>
@@ -152,7 +161,7 @@ export function InvestmentCard({ item, deleting, editing, onEdit, onDelete }: In
         </div>
         <div className="rounded-xl border border-violet-300/20 bg-violet-950/20 p-3">
           <p className="text-[11px] text-slate-400">Preco atual</p>
-          <p className="mt-1 text-sm font-bold text-cyan-200">{brl(item.current_price)}</p>
+          <p className="mt-1 text-sm font-bold text-violet-100">{brl(item.current_price)}</p>
         </div>
       </div>
 
@@ -163,7 +172,7 @@ export function InvestmentCard({ item, deleting, editing, onEdit, onDelete }: In
         </div>
         <div className="rounded-xl border border-slate-700/60 bg-slate-900/70 p-3">
           <p className="text-[11px] text-slate-400">Valor atual</p>
-          <p className="mt-1 text-sm font-bold text-cyan-200">{brl(item.current_amount)}</p>
+          <p className="mt-1 text-sm font-bold text-violet-100">{brl(item.current_amount)}</p>
         </div>
       </div>
 

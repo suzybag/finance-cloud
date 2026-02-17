@@ -38,6 +38,10 @@ export const CUSTOM_MEDIA_ASSETS = {
   uberVideo: "/custom/icons/uber.mp4",
   shopeeBag: "/custom/icons/unnamed.png",
   plannerBook: "/custom/icons/yearbook-9980809.png",
+  spotifyCircle: "/icons/spotify.png",
+  disneyCircle: "/icons/disney.png",
+  amazonPrimeCircle: "/icons/amazon.png",
+  defaultServiceIcon: "/icons/default.png",
 } as const;
 
 export const CATEGORY_IMAGE_ICON_MAP = {
@@ -66,6 +70,9 @@ export const CATEGORY_IMAGE_ICON_MAP = {
   Pix3D: CUSTOM_MEDIA_ASSETS.pixSymbol3d,
   PixLogo: CUSTOM_MEDIA_ASSETS.pixLogo,
   PrimeVideoLogo: CUSTOM_MEDIA_ASSETS.primeVideo,
+  SpotifyLogo: CUSTOM_MEDIA_ASSETS.spotifyCircle,
+  DisneyLogo: CUSTOM_MEDIA_ASSETS.disneyCircle,
+  AmazonLogo: CUSTOM_MEDIA_ASSETS.amazonPrimeCircle,
   ShopeeLogo: CUSTOM_MEDIA_ASSETS.shopeeBag,
   ShopeeLogoAlt: CUSTOM_MEDIA_ASSETS.shopeeDecor,
   TesouroDiretoLogo: CUSTOM_MEDIA_ASSETS.tesouroDireto,
@@ -94,8 +101,20 @@ const SUBSCRIPTION_LOGO_RULES: SubscriptionLogoRule[] = [
     path: CUSTOM_MEDIA_ASSETS.hboMaxSquare,
   },
   {
+    terms: ["spotify", "deezer", "apple music", "musica"],
+    path: CUSTOM_MEDIA_ASSETS.spotifyCircle,
+  },
+  {
+    terms: ["disney", "disney+", "disney plus"],
+    path: CUSTOM_MEDIA_ASSETS.disneyCircle,
+  },
+  {
     terms: ["prime video", "amazon prime"],
     path: CUSTOM_MEDIA_ASSETS.primeVideo,
+  },
+  {
+    terms: ["amazon", "prime"],
+    path: CUSTOM_MEDIA_ASSETS.amazonPrimeCircle,
   },
   {
     terms: ["shopee"],
@@ -112,6 +131,10 @@ const SUBSCRIPTION_LOGO_RULES: SubscriptionLogoRule[] = [
   {
     terms: ["pix"],
     path: CUSTOM_MEDIA_ASSETS.pixLogo,
+  },
+  {
+    terms: ["youtube", "youtube premium"],
+    path: CUSTOM_MEDIA_ASSETS.cinemaPopcorn,
   },
 ];
 

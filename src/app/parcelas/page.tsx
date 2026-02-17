@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import {
+  type LucideIcon,
   AlertTriangle,
   Briefcase,
   CalendarDays,
@@ -20,6 +21,7 @@ import {
   Trash2,
   Utensils,
 } from "lucide-react";
+import Image from "next/image";
 import { AppShell } from "@/components/AppShell";
 import {
   computeInstallmentMetrics,
@@ -89,7 +91,14 @@ const isMissingInstallmentsTableError = (message?: string | null) =>
   /relation .*installments/i.test(message || "")
   || /schema cache/i.test((message || "").toLowerCase());
 
-const getCategoryIcon = (category?: string | null, name?: string | null) => {
+type InstallmentIconVisual = {
+  icon: LucideIcon;
+  imagePath?: string;
+};
+
+const IPHONE_ICON_PATH = "/custom/icons/images.jfif";
+
+const getCategoryIconVisual = (category?: string | null, name?: string | null): InstallmentIconVisual => {
   const normalized = `${normalizeText(name)} ${normalizeText(category)}`.trim();
   if (
     normalized.includes("iphone")
@@ -97,27 +106,27 @@ const getCategoryIcon = (category?: string | null, name?: string | null) => {
     || normalized.includes("smartphone")
     || normalized.includes("android")
   ) {
-    return Smartphone;
+    return { icon: Smartphone, imagePath: IPHONE_ICON_PATH };
   }
   if (normalized.includes("carro") || normalized.includes("transporte") || normalized.includes("combust")) {
-    return Car;
+    return { icon: Car };
   }
   if (normalized.includes("casa") || normalized.includes("moradia") || normalized.includes("aluguel")) {
-    return House;
+    return { icon: House };
   }
   if (normalized.includes("comida") || normalized.includes("aliment") || normalized.includes("restaurante")) {
-    return Utensils;
+    return { icon: Utensils };
   }
   if (normalized.includes("trabalho") || normalized.includes("empresa")) {
-    return Briefcase;
+    return { icon: Briefcase };
   }
   if (normalized.includes("viagem")) {
-    return Plane;
+    return { icon: Plane };
   }
   if (normalized.includes("tecnologia") || normalized.includes("notebook") || normalized.includes("celular")) {
-    return Laptop;
+    return { icon: Laptop };
   }
-  return ShoppingBag;
+  return { icon: ShoppingBag };
 };
 
 const formatDate = (value?: string | Date | null) => {
@@ -432,7 +441,19 @@ export default function ParcelasPage() {
             <div className="flex items-start gap-3">
               <div className="parcelas-explain-icon">
                 {(() => {
-                  const Icon = getCategoryIcon(undefined, explainCard.title);
+                  const iconVisual = getCategoryIconVisual(undefined, explainCard.title);
+                  const Icon = iconVisual.icon;
+                  if (iconVisual.imagePath) {
+                    return (
+                      <Image
+                        src={iconVisual.imagePath}
+                        alt=""
+                        width={26}
+                        height={26}
+                        className="h-6 w-6 rounded-lg object-cover"
+                      />
+                    );
+                  }
                   return <Icon className="h-4 w-4" />;
                 })()}
               </div>
@@ -589,7 +610,8 @@ export default function ParcelasPage() {
                 </div>
               ) : (
                 enriched.map(({ row, metrics }) => {
-                  const Icon = getCategoryIcon(row.category, row.name);
+                  const iconVisual = getCategoryIconVisual(row.category, row.name);
+                  const Icon = iconVisual.icon;
                   const progressWidth = getProgressWidth(metrics.percentagePaid, 5);
                   const nextDueLabel = formatDate(metrics.nextDueDate);
                   const urgencyClass = metrics.isOverdue
@@ -606,7 +628,17 @@ export default function ParcelasPage() {
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="flex min-w-0 items-start gap-3">
                           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-cyan-300/20 bg-cyan-500/10 text-cyan-100">
-                            <Icon className="h-5 w-5" />
+                            {iconVisual.imagePath ? (
+                              <Image
+                                src={iconVisual.imagePath}
+                                alt=""
+                                width={24}
+                                height={24}
+                                className="h-6 w-6 rounded-md object-cover"
+                              />
+                            ) : (
+                              <Icon className="h-5 w-5" />
+                            )}
                           </div>
                           <div className="min-w-0">
                             <h3 className="truncate text-base font-semibold text-cyan-50">{row.name}</h3>

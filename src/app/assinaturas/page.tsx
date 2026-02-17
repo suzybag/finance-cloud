@@ -14,6 +14,7 @@ import {
 import { Inter } from "next/font/google";
 import { AppShell } from "@/components/AppShell";
 import { brl, toNumber } from "@/lib/money";
+import { getSubscriptionLogoPath } from "@/lib/customMedia";
 import {
   buildRecurringSubscriptionExternalId,
   computeRecurringSubscriptionMetrics,
@@ -43,10 +44,10 @@ const inter = Inter({
 });
 
 const INPUT_CLASS =
-  "w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition duration-200 focus:border-cyan-300/65 focus:bg-white/[0.06] focus:ring-2 focus:ring-cyan-500/20";
+  "w-full rounded-xl border border-violet-300/25 bg-white/[0.03] px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition duration-200 focus:border-violet-300/70 focus:bg-white/[0.06] focus:ring-2 focus:ring-violet-500/25";
 
 const CARD_CLASS =
-  "rounded-3xl border border-white/10 bg-[linear-gradient(150deg,rgba(13,19,34,0.64),rgba(7,11,22,0.74))] p-5 backdrop-blur-xl shadow-[0_18px_44px_rgba(0,0,0,0.4),0_0_0_1px_rgba(125,211,252,0.08)]";
+  "rounded-3xl border border-violet-300/20 bg-[linear-gradient(150deg,rgba(29,16,54,0.7),rgba(12,9,30,0.82))] p-5 backdrop-blur-xl shadow-[0_18px_44px_rgba(0,0,0,0.42),0_0_0_1px_rgba(167,139,250,0.1)]";
 
 const emptyForm = (): SubscriptionFormState => ({
   name: "",
@@ -125,17 +126,8 @@ const billingDayLabel = (cycle: BillingCycle, dateRaw: string) => {
   return `Dia ${date.getDate()}`;
 };
 
-function getServiceIcon(name?: string | null) {
-  const n = normalizeText(name);
-
-  if (n.includes("netflix") || n.includes("netlix") || n.includes("netflx")) return "/icons/netflix-v2.png";
-  if (n.includes("hbo") || n.includes("hbomax") || n.includes("hbo max") || n.includes("htbo")) return "/icons/hbo-v2.png";
-  if (n.includes("spotify")) return "/icons/spotify.png";
-  if (n.includes("amazon") || n.includes("prime")) return "/icons/amazon.png";
-  if (n.includes("disney")) return "/icons/disney.png";
-
-  return "/icons/default.png";
-}
+const getServiceIcon = (name?: string | null) =>
+  getSubscriptionLogoPath(name) || "/icons/default.png";
 
 const isMissingRecurringSubscriptionsTableError = (message?: string | null) =>
   /relation .*recurring_subscriptions/i.test(message || "")
@@ -582,20 +574,20 @@ export default function AssinaturasPage() {
         <div className={CARD_CLASS}>Carregando assinaturas...</div>
       ) : (
         <div className={`${inter.className} assinaturas-night-sync space-y-6`}>
-          <section className="rounded-3xl border border-cyan-200/20 bg-[linear-gradient(140deg,rgba(7,14,30,0.68),rgba(7,11,22,0.78))] p-6 backdrop-blur-xl shadow-[0_24px_56px_rgba(0,0,0,0.45),0_0_30px_rgba(34,211,238,0.12)]">
-            <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-cyan-200/70">Total mensal</p>
+          <section className="rounded-3xl border border-violet-300/20 bg-[linear-gradient(140deg,rgba(29,16,54,0.72),rgba(12,9,31,0.84))] p-6 backdrop-blur-xl shadow-[0_24px_56px_rgba(0,0,0,0.45),0_0_30px_rgba(167,139,250,0.12)]">
+            <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-violet-200/75">Total mensal</p>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-              <p className="text-4xl font-semibold tracking-tight text-cyan-50 sm:text-[2.7rem]">{brl(summary.monthlyTotal)}</p>
+              <p className="text-4xl font-semibold tracking-tight text-violet-50 sm:text-[2.7rem]">{brl(summary.monthlyTotal)}</p>
               <div className="flex flex-wrap items-center gap-2 text-xs">
-                <span className="inline-flex items-center gap-1 rounded-full border border-cyan-300/30 bg-cyan-400/10 px-3.5 py-1.5 text-cyan-100/90 backdrop-blur-md">
+                <span className="inline-flex items-center gap-1 rounded-full border border-violet-300/30 bg-violet-500/15 px-3.5 py-1.5 text-violet-100/95 backdrop-blur-md">
                   <Wallet className="h-3.5 w-3.5" />
                   {activeSubscriptionsCount} ativa(s)
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-slate-900/45 px-3.5 py-1.5 text-cyan-100/80 backdrop-blur-md">
+                <span className="inline-flex items-center gap-1 rounded-full border border-violet-300/20 bg-violet-950/30 px-3.5 py-1.5 text-violet-100/80 backdrop-blur-md">
                   <CalendarClock className="h-3.5 w-3.5" />
                   Proxima: {formatDate(nextChargeDate)}
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-slate-900/45 px-3.5 py-1.5 text-cyan-100/80 backdrop-blur-md">
+                <span className="inline-flex items-center gap-1 rounded-full border border-violet-300/20 bg-violet-950/30 px-3.5 py-1.5 text-violet-100/80 backdrop-blur-md">
                   <CreditCard className="h-3.5 w-3.5" />
                   {payments.length} pagamento(s)
                 </span>
@@ -606,8 +598,8 @@ export default function AssinaturasPage() {
           <div className="grid gap-5 xl:grid-cols-[360px_1fr]">
             <section className={`${CARD_CLASS} h-fit`}>
               <div className="mb-5 flex items-center justify-between">
-                <h2 className="text-sm font-medium tracking-wide text-cyan-100/90">Nova assinatura</h2>
-                <div className="inline-flex items-center gap-1 rounded-full border border-cyan-300/25 bg-cyan-500/10 px-2.5 py-1 text-[11px] text-cyan-100/90 backdrop-blur-md">
+                <h2 className="text-sm font-medium tracking-wide text-violet-100/95">Nova assinatura</h2>
+                <div className="inline-flex items-center gap-1 rounded-full border border-violet-300/25 bg-violet-500/15 px-2.5 py-1 text-[11px] text-violet-100/90 backdrop-blur-md">
                   <Activity className="h-3.5 w-3.5" />
                   Simples e rapido
                 </div>
@@ -615,7 +607,7 @@ export default function AssinaturasPage() {
 
               <form className="space-y-3" onSubmit={(event) => void handleCreateSubscription(event)}>
                 <label className="block">
-                  <span className="mb-1 block text-xs font-medium text-cyan-100/80">Nome do servico</span>
+                  <span className="mb-1 block text-xs font-medium text-violet-100/85">Nome do servico</span>
                   <input
                     type="text"
                     className={INPUT_CLASS}
@@ -627,7 +619,7 @@ export default function AssinaturasPage() {
                 </label>
 
                 <label className="block">
-                  <span className="mb-1 block text-xs font-medium text-cyan-100/80">Valor</span>
+                  <span className="mb-1 block text-xs font-medium text-violet-100/85">Valor</span>
                   <input
                     type="text"
                     className={INPUT_CLASS}
@@ -640,7 +632,7 @@ export default function AssinaturasPage() {
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block">
-                    <span className="mb-1 block text-xs font-medium text-cyan-100/80">Data cobranca</span>
+                    <span className="mb-1 block text-xs font-medium text-violet-100/85">Data cobranca</span>
                     <input
                       type="date"
                       className={INPUT_CLASS}
@@ -650,7 +642,7 @@ export default function AssinaturasPage() {
                   </label>
 
                   <label className="block">
-                    <span className="mb-1 block text-xs font-medium text-cyan-100/80">Forma de pagamento</span>
+                    <span className="mb-1 block text-xs font-medium text-violet-100/85">Forma de pagamento</span>
                     <select
                       className={INPUT_CLASS}
                       value={form.paymentMethod}
@@ -664,15 +656,15 @@ export default function AssinaturasPage() {
                   </label>
                 </div>
 
-                <div className="rounded-xl border border-cyan-300/20 bg-[#0b1220]/80 p-3 text-sm">
-                  <p className="text-cyan-100/80">Resumo</p>
-                  <p className="mt-1 text-lg font-bold text-cyan-50">{brl(monthlyEquivalentPreview)}/mes</p>
-                  <p className="mt-1 text-xs text-cyan-100/65">{billingDayLabel(form.billingCycle, form.chargeDate)}</p>
+                <div className="rounded-xl border border-violet-300/20 bg-violet-950/35 p-3 text-sm">
+                  <p className="text-violet-100/80">Resumo</p>
+                  <p className="mt-1 text-lg font-bold text-violet-50">{brl(monthlyEquivalentPreview)}/mes</p>
+                  <p className="mt-1 text-xs text-violet-100/65">{billingDayLabel(form.billingCycle, form.chargeDate)}</p>
                 </div>
 
                 <button
                   type="submit"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-cyan-300/35 bg-cyan-500/15 px-4 py-2.5 text-sm font-semibold text-cyan-50 transition hover:bg-cyan-500/25 disabled:opacity-60"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-violet-300/35 bg-violet-500/20 px-4 py-2.5 text-sm font-semibold text-violet-50 transition hover:bg-violet-500/30 disabled:opacity-60"
                   disabled={saving}
                 >
                   {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
@@ -684,7 +676,7 @@ export default function AssinaturasPage() {
             <section className="space-y-4">
               {!subscriptionsSorted.length ? (
                 <div className={CARD_CLASS}>
-                  <p className="text-sm text-cyan-100/80">Nenhuma assinatura cadastrada ainda.</p>
+                  <p className="text-sm text-violet-100/80">Nenhuma assinatura cadastrada ainda.</p>
                 </div>
               ) : (
                 subscriptionsSorted.map((row) => {
@@ -712,8 +704,8 @@ export default function AssinaturasPage() {
                             />
                           </div>
                           <div className="min-w-0">
-                            <h3 className="truncate text-sm font-medium tracking-wide text-cyan-100/78">{row.name}</h3>
-                            <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-cyan-100/65">
+                            <h3 className="truncate text-sm font-medium tracking-wide text-violet-100/80">{row.name}</h3>
+                            <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-violet-100/65">
                               <span className="inline-flex items-center gap-1">
                                 <CalendarClock className="h-3.5 w-3.5" />
                                 Cobranca: {chargeDateLabel}
@@ -728,7 +720,7 @@ export default function AssinaturasPage() {
 
                         <div className="text-left sm:text-right">
                           <p className="subscription-price text-2xl font-semibold tracking-tight sm:text-[1.7rem]">{brl(metrics.monthlyEquivalent)}</p>
-                          <p className="mt-0.5 text-[11px] uppercase tracking-[0.14em] text-cyan-100/55">valor mensal</p>
+                          <p className="mt-0.5 text-[11px] uppercase tracking-[0.14em] text-violet-100/55">valor mensal</p>
                         </div>
                       </div>
 
@@ -744,7 +736,7 @@ export default function AssinaturasPage() {
                         </button>
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1 rounded-lg border border-cyan-300/35 bg-cyan-500/10 px-2.5 py-1.5 text-xs font-medium text-cyan-100 transition hover:bg-cyan-500/20 disabled:opacity-50"
+                          className="inline-flex items-center gap-1 rounded-lg border border-violet-300/35 bg-violet-500/12 px-2.5 py-1.5 text-xs font-medium text-violet-100 transition hover:bg-violet-500/22 disabled:opacity-50"
                           onClick={() => void handleMarkUsageToday(row)}
                           disabled={saving}
                         >
@@ -777,7 +769,7 @@ export default function AssinaturasPage() {
           </div>
 
           {feedback ? (
-            <div className="rounded-xl border border-cyan-300/20 bg-cyan-900/20 px-4 py-3 text-sm text-cyan-100">
+            <div className="rounded-xl border border-violet-300/25 bg-violet-900/25 px-4 py-3 text-sm text-violet-100">
               {feedback}
             </div>
           ) : null}

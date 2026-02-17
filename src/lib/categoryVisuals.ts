@@ -14,6 +14,7 @@ const DEFAULT_CATEGORY_VISUAL: CategoryVisual = {
 };
 
 const CATEGORY_VISUAL_RULES: CategoryRule[] = [
+  { terms: ["iphone", "smartphone", "celular", "android"], visual: { iconName: "IPhoneBadge", iconColor: "#60a5fa" } },
   { terms: ["renda fixa caixinha", "caixinha renda fixa", "caixinha investimento", "caixinha de investimento", "caixinha", "cofrinho"], visual: { iconName: "MoneySafe3D", iconColor: "#4ade80" } },
   { terms: ["planejamento casa", "meta casa", "objetivo casa propria", "casa propria"], visual: { iconName: "Home3D", iconColor: "#3b82f6" } },
   { terms: ["pix", "transferencia pix", "chave pix"], visual: { iconName: "PixLogo", iconColor: "#14b8a6" } },
@@ -22,6 +23,9 @@ const CATEGORY_VISUAL_RULES: CategoryRule[] = [
   { terms: ["bitcoin", "btc", "cripto"], visual: { iconName: "BitcoinCoin3D", iconColor: "#f59e0b" } },
   { terms: ["netflix assinatura", "assinatura netflix", "netflix"], visual: { iconName: "NetflixLogo", iconColor: "#e11d48" } },
   { terms: ["hbo max sem assinatura", "htbo max", "hbo max", "hbomax", "hbo"], visual: { iconName: "HboMaxLogo", iconColor: "#4338ca" } },
+  { terms: ["spotify", "deezer", "apple music", "musica"], visual: { iconName: "SpotifyLogo", iconColor: "#22c55e" } },
+  { terms: ["disney", "disney+", "disney plus"], visual: { iconName: "DisneyLogo", iconColor: "#60a5fa" } },
+  { terms: ["amazon", "prime"], visual: { iconName: "AmazonLogo", iconColor: "#38bdf8" } },
   { terms: ["prime video", "amazon prime"], visual: { iconName: "PrimeVideoLogo", iconColor: "#0ea5e9" } },
   { terms: ["chatgpt", "openai"], visual: { iconName: "OpenAiLogo", iconColor: "#334155" } },
   { terms: ["shopee"], visual: { iconName: "ShopeeLogo", iconColor: "#f97316" } },

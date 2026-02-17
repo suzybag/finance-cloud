@@ -75,7 +75,7 @@ type AssetRow = {
 };
 
 const SECTION_CLASS =
-  "rounded-2xl border border-[#7C3AED40] bg-[linear-gradient(165deg,rgba(17,24,39,0.94),rgba(7,11,23,0.95))] shadow-[0_16px_42px_rgba(15,23,42,0.55)] backdrop-blur-xl";
+  "rounded-2xl border border-violet-300/30 bg-[linear-gradient(165deg,rgba(31,18,56,0.94),rgba(12,10,30,0.95))] shadow-[0_16px_42px_rgba(22,10,48,0.55)] backdrop-blur-xl";
 
 const PRIMARY_BUTTON_CLASS =
   "inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 via-fuchsia-500 to-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(124,58,237,0.4)] transition hover:brightness-110";

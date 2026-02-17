@@ -54,7 +54,7 @@ const MetricCard = ({
   icon: React.ReactNode;
   footer?: string;
 }) => (
-  <div className="relative overflow-hidden rounded-2xl border border-white/5 bg-gradient-to-br from-slate-900/80 via-slate-900/40 to-slate-900/80 p-5 shadow-lg shadow-black/40">
+  <div className="relative overflow-hidden rounded-2xl border border-violet-300/20 bg-[linear-gradient(160deg,rgba(31,18,56,0.82),rgba(12,9,30,0.88))] p-5 shadow-[0_16px_36px_rgba(30,12,58,0.35)]">
     <div className="mb-6 flex items-center justify-between">
       <div>
         <p className="text-xs text-slate-400">{title}</p>
@@ -149,7 +149,7 @@ const getServiceVisual = (name?: string | null) => {
     || normalized.includes("icloud")
     || normalized.includes("dropbox")
   ) {
-    return { icon: Cloud, tone: "border-sky-300/30 bg-sky-500/10 text-sky-100", logoSrc };
+    return { icon: Cloud, tone: "border-indigo-300/35 bg-indigo-500/15 text-indigo-100", logoSrc };
   }
   if (normalized.includes("academia") || normalized.includes("gym")) {
     return { icon: Dumbbell, tone: "border-amber-300/30 bg-amber-500/10 text-amber-100", logoSrc };
@@ -160,7 +160,7 @@ const getServiceVisual = (name?: string | null) => {
   if (normalized.includes("adobe") || normalized.includes("figma") || normalized.includes("notion")) {
     return { icon: Laptop, tone: "border-violet-300/30 bg-violet-500/10 text-violet-100", logoSrc };
   }
-  return { icon: CreditCard, tone: "border-cyan-300/30 bg-cyan-500/10 text-cyan-100", logoSrc };
+  return { icon: CreditCard, tone: "border-violet-300/35 bg-violet-500/15 text-violet-100", logoSrc };
 };
 
 const MarketIndicatorCard = ({
@@ -191,7 +191,7 @@ const MarketIndicatorCard = ({
         {value}
       </p>
       <div className="mt-2 flex items-end justify-between">
-        <p className="text-[11px] text-slate-500">Atualizado às {formatUpdatedTime(updatedAt)}</p>
+        <p className="text-[11px] text-slate-500">Atualizado as {formatUpdatedTime(updatedAt)}</p>
         <ExternalLink className="h-3.5 w-3.5 text-slate-500" />
       </div>
     </article>
@@ -570,7 +570,7 @@ export const DashboardSummaryScreen = () => {
             />
           </section>
 
-          <section className="rounded-2xl border border-white/5 bg-slate-900/60 p-5 shadow-lg shadow-black/40">
+          <section className="rounded-2xl border border-violet-300/20 bg-[linear-gradient(160deg,rgba(29,16,54,0.72),rgba(12,9,30,0.84))] p-5 shadow-[0_18px_42px_rgba(30,12,58,0.4)]">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-sm font-semibold text-slate-100">Parcelas ativas</h2>
@@ -578,7 +578,7 @@ export const DashboardSummaryScreen = () => {
               </div>
               <Link
                 href="/parcelas"
-                className="inline-flex items-center gap-2 rounded-lg border border-cyan-300/25 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/20"
+                className="inline-flex items-center gap-2 rounded-lg border border-violet-300/25 bg-violet-500/15 px-3 py-1.5 text-xs font-semibold text-violet-100 hover:bg-violet-500/25"
               >
                 <Layers className="h-3.5 w-3.5" />
                 Abrir Parcelas
@@ -586,19 +586,19 @@ export const DashboardSummaryScreen = () => {
             </div>
 
             <div className="mb-4 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-xl border border-cyan-300/20 bg-cyan-500/10 p-3">
-                <p className="text-[11px] uppercase tracking-[0.12em] text-cyan-100/70">Total ativo</p>
-                <p className="mt-1 text-lg font-semibold text-cyan-50">
+              <div className="rounded-xl border border-violet-300/20 bg-violet-500/12 p-3">
+                <p className="text-[11px] uppercase tracking-[0.12em] text-violet-100/72">Total ativo</p>
+                <p className="mt-1 text-lg font-semibold text-violet-50">
                   {brl(installmentSummary.activeTotalRemaining)}
                 </p>
               </div>
-              <div className="rounded-xl border border-cyan-300/20 bg-cyan-500/10 p-3">
-                <p className="text-[11px] uppercase tracking-[0.12em] text-cyan-100/70">Proximos 10 dias</p>
-                <p className="mt-1 text-lg font-semibold text-cyan-50">{installmentSummary.dueSoon.length}</p>
+              <div className="rounded-xl border border-violet-300/20 bg-violet-500/12 p-3">
+                <p className="text-[11px] uppercase tracking-[0.12em] text-violet-100/72">Proximos 10 dias</p>
+                <p className="mt-1 text-lg font-semibold text-violet-50">{installmentSummary.dueSoon.length}</p>
               </div>
-              <div className="rounded-xl border border-cyan-300/20 bg-cyan-500/10 p-3">
-                <p className="text-[11px] uppercase tracking-[0.12em] text-cyan-100/70">Alertas</p>
-                <p className="mt-1 text-lg font-semibold text-cyan-50">{installmentAlerts.length}</p>
+              <div className="rounded-xl border border-violet-300/20 bg-violet-500/12 p-3">
+                <p className="text-[11px] uppercase tracking-[0.12em] text-violet-100/72">Alertas</p>
+                <p className="mt-1 text-lg font-semibold text-violet-50">{installmentAlerts.length}</p>
               </div>
             </div>
 
@@ -612,7 +612,7 @@ export const DashboardSummaryScreen = () => {
                     ? "border-rose-300/35 bg-rose-500/15 text-rose-100"
                     : urgency <= 3
                       ? "border-amber-300/35 bg-amber-500/15 text-amber-100"
-                      : "border-cyan-300/35 bg-cyan-500/15 text-cyan-100";
+                      : "border-violet-300/35 bg-violet-500/15 text-violet-100";
 
                   return (
                     <div
@@ -620,7 +620,14 @@ export const DashboardSummaryScreen = () => {
                       className="rounded-xl border border-white/10 bg-slate-900/70 p-3"
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <p className="truncate text-sm font-semibold text-slate-100">{item.row.name}</p>
+                        <div className="flex min-w-0 items-center gap-2">
+                          <CategoryIcon
+                            categoryName={`${item.row.name} ${item.row.category || ""}`}
+                            size={13}
+                            circleSize={30}
+                          />
+                          <p className="truncate text-sm font-semibold text-slate-100">{item.row.name}</p>
+                        </div>
                         <span className={`rounded-full border px-2 py-0.5 text-[11px] ${badgeClass}`}>
                           {urgency < 0 ? `${Math.abs(urgency)} dia(s) atrasado` : `${urgency} dia(s)`}
                         </span>
@@ -630,7 +637,7 @@ export const DashboardSummaryScreen = () => {
                       </p>
                       <div className="mt-2 h-2 overflow-hidden rounded-full border border-white/10 bg-slate-800">
                         <div
-                          className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-400 transition-[width] duration-700"
+                          className="h-full rounded-full bg-gradient-to-r from-violet-400 via-fuchsia-400 to-indigo-400 transition-[width] duration-700"
                           style={{ width: `${item.metrics.percentagePaid.toFixed(2)}%` }}
                         />
                       </div>
@@ -648,7 +655,7 @@ export const DashboardSummaryScreen = () => {
               )}
             </section>
 
-          <section className="rounded-2xl border border-white/5 bg-slate-900/60 p-5 shadow-lg shadow-black/40">
+          <section className="rounded-2xl border border-violet-300/20 bg-[linear-gradient(160deg,rgba(29,16,54,0.72),rgba(12,9,30,0.84))] p-5 shadow-[0_18px_42px_rgba(30,12,58,0.4)]">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-sm font-semibold text-slate-100">Assinaturas recorrentes</h2>
@@ -656,21 +663,21 @@ export const DashboardSummaryScreen = () => {
               </div>
               <Link
                 href="/assinaturas"
-                className="inline-flex items-center gap-2 rounded-lg border border-cyan-300/25 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/20"
+                className="inline-flex items-center gap-2 rounded-lg border border-violet-300/25 bg-violet-500/15 px-3 py-1.5 text-xs font-semibold text-violet-100 hover:bg-violet-500/25"
               >
                 <Repeat2 className="h-3.5 w-3.5" />
                 Abrir Assinaturas
               </Link>
             </div>
 
-            <div className="mb-4 rounded-2xl border border-cyan-400/30 bg-[linear-gradient(145deg,rgba(7,26,58,0.85),rgba(10,20,48,0.9))] p-4 shadow-[0_18px_36px_rgba(0,8,25,0.45)]">
+            <div className="mb-4 rounded-2xl border border-violet-300/30 bg-[linear-gradient(145deg,rgba(35,16,66,0.86),rgba(16,10,38,0.92))] p-4 shadow-[0_18px_36px_rgba(25,12,58,0.46)]">
               <div className="flex items-center gap-3">
-                <div className="grid h-12 w-12 place-items-center rounded-2xl border border-indigo-300/35 bg-[linear-gradient(150deg,#3158ff,#406fff)] text-indigo-100 shadow-[0_10px_24px_rgba(38,76,255,0.35)]">
+                <div className="grid h-12 w-12 place-items-center rounded-2xl border border-violet-300/35 bg-[linear-gradient(150deg,#7c3aed,#c026d3)] text-violet-100 shadow-[0_10px_24px_rgba(124,58,237,0.35)]">
                   <CalendarDays className="h-6 w-6" />
                 </div>
                 <div>
                   <p className="text-2xl font-semibold tracking-tight text-slate-50">Assinaturas</p>
-                  <p className="text-sm text-cyan-200/85">Gastos recorrentes</p>
+                  <p className="text-sm text-violet-200/85">Gastos recorrentes</p>
                 </div>
               </div>
 
@@ -700,7 +707,7 @@ export const DashboardSummaryScreen = () => {
                             </div>
                             <p className="truncate text-sm text-slate-100">{item.row.name}</p>
                           </div>
-                          <p className="text-sm font-semibold text-cyan-100">{brl(item.metrics.monthlyEquivalent)}</p>
+                          <p className="text-sm font-semibold text-violet-100">{brl(item.metrics.monthlyEquivalent)}</p>
                         </div>
                       );
                     })}
@@ -709,28 +716,28 @@ export const DashboardSummaryScreen = () => {
 
                 <div className="my-3 border-t border-white/10" />
                 <div className="flex items-center justify-between text-sm">
-                  <p className="text-slate-400">Total/mês</p>
-                  <p className="text-2xl font-semibold tracking-tight text-cyan-100">{brl(recurringSummary.monthlyTotal)}</p>
+                  <p className="text-slate-400">Total/mes</p>
+                  <p className="text-2xl font-semibold tracking-tight text-violet-100">{brl(recurringSummary.monthlyTotal)}</p>
                 </div>
               </div>
             </div>
 
             <div className="mb-4 grid gap-3 sm:grid-cols-4">
-              <div className="rounded-xl border border-cyan-300/20 bg-cyan-500/10 p-3">
-                <p className="text-[11px] uppercase tracking-[0.12em] text-cyan-100/70">Total mensal</p>
-                <p className="mt-1 text-lg font-semibold text-cyan-50">{brl(recurringSummary.monthlyTotal)}</p>
+              <div className="rounded-xl border border-violet-300/20 bg-violet-500/12 p-3">
+                <p className="text-[11px] uppercase tracking-[0.12em] text-violet-100/72">Total mensal</p>
+                <p className="mt-1 text-lg font-semibold text-violet-50">{brl(recurringSummary.monthlyTotal)}</p>
               </div>
-              <div className="rounded-xl border border-cyan-300/20 bg-cyan-500/10 p-3">
-                <p className="text-[11px] uppercase tracking-[0.12em] text-cyan-100/70">Proximas</p>
-                <p className="mt-1 text-lg font-semibold text-cyan-50">{recurringSummary.upcoming.length}</p>
+              <div className="rounded-xl border border-violet-300/20 bg-violet-500/12 p-3">
+                <p className="text-[11px] uppercase tracking-[0.12em] text-violet-100/72">Proximas</p>
+                <p className="mt-1 text-lg font-semibold text-violet-50">{recurringSummary.upcoming.length}</p>
               </div>
-              <div className="rounded-xl border border-cyan-300/20 bg-cyan-500/10 p-3">
-                <p className="text-[11px] uppercase tracking-[0.12em] text-cyan-100/70">Esquecidas</p>
-                <p className="mt-1 text-lg font-semibold text-cyan-50">{recurringSummary.underused.length}</p>
+              <div className="rounded-xl border border-violet-300/20 bg-violet-500/12 p-3">
+                <p className="text-[11px] uppercase tracking-[0.12em] text-violet-100/72">Esquecidas</p>
+                <p className="mt-1 text-lg font-semibold text-violet-50">{recurringSummary.underused.length}</p>
               </div>
-              <div className="rounded-xl border border-cyan-300/20 bg-cyan-500/10 p-3">
-                <p className="text-[11px] uppercase tracking-[0.12em] text-cyan-100/70">Previsao 12m</p>
-                <p className="mt-1 text-lg font-semibold text-cyan-50">{brl(recurringSummary.forecast12Months)}</p>
+              <div className="rounded-xl border border-violet-300/20 bg-violet-500/12 p-3">
+                <p className="text-[11px] uppercase tracking-[0.12em] text-violet-100/72">Previsao 12m</p>
+                <p className="mt-1 text-lg font-semibold text-violet-50">{brl(recurringSummary.forecast12Months)}</p>
               </div>
             </div>
 
@@ -744,7 +751,7 @@ export const DashboardSummaryScreen = () => {
                     ? "border-rose-300/35 bg-rose-500/15 text-rose-100"
                     : urgency <= 3
                       ? "border-amber-300/35 bg-amber-500/15 text-amber-100"
-                      : "border-cyan-300/35 bg-cyan-500/15 text-cyan-100";
+                      : "border-violet-300/35 bg-violet-500/15 text-violet-100";
                   const visual = getServiceVisual(item.row.name);
                   const Icon = visual.icon;
 
@@ -781,7 +788,7 @@ export const DashboardSummaryScreen = () => {
                       </div>
                       <div className="mt-2 h-2 overflow-hidden rounded-full border border-white/10 bg-slate-800">
                         <div
-                          className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-400 transition-[width] duration-700"
+                          className="h-full rounded-full bg-gradient-to-r from-violet-400 via-fuchsia-400 to-indigo-400 transition-[width] duration-700"
                           style={{
                             width: `${Math.max(
                               0,
@@ -809,7 +816,7 @@ export const DashboardSummaryScreen = () => {
             )}
           </section>
 
-          <section className="rounded-2xl border border-white/5 bg-slate-900/60 p-5 shadow-lg shadow-black/40">
+          <section className="rounded-2xl border border-violet-300/20 bg-[linear-gradient(160deg,rgba(29,16,54,0.72),rgba(12,9,30,0.84))] p-5 shadow-[0_18px_42px_rgba(30,12,58,0.4)]">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-sm font-semibold text-slate-100">Categorias do mes</h2>
@@ -854,7 +861,7 @@ export const DashboardSummaryScreen = () => {
           </section>
 
           <section className="grid gap-6 lg:grid-cols-2">
-            <div className="rounded-2xl border border-white/5 bg-slate-900/60 p-5 shadow-lg shadow-black/40">
+            <div className="rounded-2xl border border-violet-300/20 bg-[linear-gradient(160deg,rgba(29,16,54,0.72),rgba(12,9,30,0.84))] p-5 shadow-[0_18px_42px_rgba(30,12,58,0.4)]">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-slate-100">Contas</h2>
                 <button className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300 hover:bg-slate-700">
@@ -896,7 +903,7 @@ export const DashboardSummaryScreen = () => {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/5 bg-slate-900/60 p-5 shadow-lg shadow-black/40">
+            <div className="rounded-2xl border border-violet-300/20 bg-[linear-gradient(160deg,rgba(29,16,54,0.72),rgba(12,9,30,0.84))] p-5 shadow-[0_18px_42px_rgba(30,12,58,0.4)]">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-slate-100">Cartoes de credito</h2>
                 <button className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300 hover:bg-slate-700">
@@ -952,3 +959,4 @@ export const DashboardSummaryScreen = () => {
     </AppShell>
   );
 };
+

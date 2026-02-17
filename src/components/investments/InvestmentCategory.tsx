@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Coins, Gem, Landmark, TrendingUp, Wallet } from "lucide-react";
 import { InvestmentCard, type InvestmentCardItem } from "@/components/investments/InvestmentCard";
 import { brl } from "@/lib/money";
 
@@ -14,6 +14,14 @@ type InvestmentCategoryProps = {
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
 };
+
+const CATEGORY_ICON_MAP = {
+  Criptomoedas: Coins,
+  "Renda Fixa": Landmark,
+  Acoes: TrendingUp,
+  Commodities: Gem,
+  Outros: Wallet,
+} as const;
 
 export function InvestmentCategory({
   category,
@@ -29,20 +37,26 @@ export function InvestmentCategory({
     (sum, item) => sum + (item.operation === "venda" ? -item.current_amount : item.current_amount),
     0,
   );
+  const Icon = CATEGORY_ICON_MAP[category as keyof typeof CATEGORY_ICON_MAP] || Wallet;
 
   return (
-    <section className="rounded-2xl border border-violet-300/25 bg-[linear-gradient(160deg,rgba(17,24,39,0.92),rgba(8,12,24,0.95))]">
+    <section className="rounded-2xl border border-violet-300/30 bg-[linear-gradient(160deg,rgba(31,18,56,0.9),rgba(12,10,30,0.95))]">
       <button
         type="button"
         onClick={onToggle}
         className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
         aria-expanded={open}
       >
-        <div>
-          <h4 className="text-sm font-bold text-white">{category}</h4>
-          <p className="text-xs text-slate-400">
-            {items.length} ativo(s) • {brl(categoryTotal)}
-          </p>
+        <div className="flex items-center gap-3">
+          <span className="grid h-9 w-9 place-items-center rounded-full border border-violet-300/35 bg-violet-500/15 text-violet-100 shadow-[0_8px_18px_rgba(124,58,237,0.28)]">
+            <Icon className="h-4 w-4" />
+          </span>
+          <div>
+            <h4 className="text-sm font-bold text-white">{category}</h4>
+            <p className="text-xs text-slate-400">
+              {items.length} ativo(s) - {brl(categoryTotal)}
+            </p>
+          </div>
         </div>
         <ChevronDown
           className={`h-4 w-4 text-violet-200 transition-transform duration-300 ${open ? "rotate-180" : ""}`}
