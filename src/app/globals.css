@@ -497,6 +497,30 @@ body.theme-reading .dashboard-cosmic::after {
   animation: parcelasProgressShine 2.2s linear infinite;
 }
 
+.service-icon-orb {
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(125, 211, 252, 0.42);
+  background:
+    radial-gradient(120% 120% at 25% 20%, rgba(186, 230, 253, 0.4), rgba(186, 230, 253, 0) 62%),
+    linear-gradient(150deg, rgba(12, 28, 54, 0.95), rgba(8, 20, 44, 0.9));
+  box-shadow:
+    0 0 0 1px rgba(14, 165, 233, 0.18),
+    0 10px 24px rgba(14, 116, 144, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.service-icon-img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 7px rgba(2, 6, 23, 0.45));
+}
+
 @keyframes parcelasCardBreath {
   0%,
   100% {

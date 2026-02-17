@@ -7,23 +7,15 @@ import {
   AlertTriangle,
   CalendarClock,
   CheckCircle2,
-  Cloud,
   CreditCard,
-  Dumbbell,
-  Laptop,
   Loader2,
-  Music2,
-  PlayCircle,
   Plus,
-  Repeat2,
   Sparkles,
   Trash2,
-  Tv,
   Wallet,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { brl, toNumber } from "@/lib/money";
-import { getSubscriptionLogoPath } from "@/lib/customMedia";
 import {
   buildRecurringSubscriptionExternalId,
   computeRecurringSubscriptionMetrics,
@@ -140,46 +132,17 @@ const billingDayLabel = (cycle: BillingCycle, dateRaw: string) => {
   return `Dia ${date.getDate()}`;
 };
 
-const getServiceVisual = (name?: string | null) => {
-  const normalized = normalizeText(name);
-  const logoSrc = getSubscriptionLogoPath(name);
-  if (
-    normalized.includes("netflix")
-    || normalized.includes("netlix")
-    || normalized.includes("netflx")
-    || normalized.includes("disney")
-    || normalized.includes("hbo")
-    || normalized.includes("htbo")
-    || normalized.includes("prime video")
-  ) {
-    return { icon: Tv, tone: "border-rose-300/30 bg-rose-500/10 text-rose-100", logoSrc };
-  }
-  if (
-    normalized.includes("spotify")
-    || normalized.includes("deezer")
-    || normalized.includes("apple music")
-  ) {
-    return { icon: Music2, tone: "border-emerald-300/30 bg-emerald-500/10 text-emerald-100", logoSrc };
-  }
-  if (
-    normalized.includes("google drive")
-    || normalized.includes("drive")
-    || normalized.includes("icloud")
-    || normalized.includes("dropbox")
-  ) {
-    return { icon: Cloud, tone: "border-sky-300/30 bg-sky-500/10 text-sky-100", logoSrc };
-  }
-  if (normalized.includes("academia") || normalized.includes("gym")) {
-    return { icon: Dumbbell, tone: "border-amber-300/30 bg-amber-500/10 text-amber-100", logoSrc };
-  }
-  if (normalized.includes("youtube")) {
-    return { icon: PlayCircle, tone: "border-red-300/30 bg-red-500/10 text-red-100", logoSrc };
-  }
-  if (normalized.includes("adobe") || normalized.includes("figma") || normalized.includes("notion")) {
-    return { icon: Laptop, tone: "border-violet-300/30 bg-violet-500/10 text-violet-100", logoSrc };
-  }
-  return { icon: Repeat2, tone: "border-cyan-300/30 bg-cyan-500/10 text-cyan-100", logoSrc };
-};
+function getServiceIcon(name?: string | null) {
+  const n = normalizeText(name);
+
+  if (n.includes("netflix") || n.includes("netlix") || n.includes("netflx")) return "/icons/netflix.png";
+  if (n.includes("hbo") || n.includes("hbomax") || n.includes("hbo max") || n.includes("htbo")) return "/icons/hbo.png";
+  if (n.includes("spotify")) return "/icons/spotify.png";
+  if (n.includes("amazon") || n.includes("prime")) return "/icons/amazon.png";
+  if (n.includes("disney")) return "/icons/disney.png";
+
+  return "/icons/default.png";
+}
 
 const isMissingRecurringSubscriptionsTableError = (message?: string | null) =>
   /relation .*recurring_subscriptions/i.test(message || "")
@@ -831,8 +794,7 @@ export default function AssinaturasPage() {
                     .sort((left, right) => new Date(right.charge_date).getTime() - new Date(left.charge_date).getTime());
                   const paidHistory = history.filter((payment) => payment.status === "paid");
                   const totalSpent = paidHistory.reduce((sum, payment) => sum + payment.amount, 0);
-                  const serviceVisual = getServiceVisual(row.name);
-                  const Icon = serviceVisual.icon;
+                  const serviceIcon = getServiceIcon(row.name);
                   const monthlyShare = summary.monthlyTotal > 0
                     ? Math.max(0, Math.min(100, (metrics.monthlyEquivalent / summary.monthlyTotal) * 100))
                     : 0;
@@ -858,18 +820,17 @@ export default function AssinaturasPage() {
                     >
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="flex min-w-0 items-start gap-3">
-                          <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl border ${serviceVisual.tone}`}>
-                            {serviceVisual.logoSrc ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={serviceVisual.logoSrc}
-                                alt=""
-                                className="h-6 w-6 rounded object-contain"
-                                loading="lazy"
-                              />
-                            ) : (
-                              <Icon className="h-5 w-5" />
-                            )}
+                          <div className="service-icon-orb">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={serviceIcon}
+                              alt={`Logo ${row.name}`}
+                              className="service-icon-img"
+                              loading="lazy"
+                              onError={(event) => {
+                                event.currentTarget.src = "/icons/default.png";
+                              }}
+                            />
                           </div>
                           <div className="min-w-0">
                             <h3 className="truncate text-base font-semibold text-cyan-50">{row.name}</h3>
