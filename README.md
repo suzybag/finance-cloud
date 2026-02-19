@@ -56,6 +56,16 @@ npm run dev
 
 Acesse `http://localhost:3000`.
 
+## 3.1) Instalar como app no Windows (PWA)
+1. Deixe o sistema rodando com `npm run dev` (ou `npm run start` apos build).
+2. Abra `http://localhost:3000` no Chrome ou Edge.
+3. Clique no icone de instalar app na barra de endereco (ou menu `...` -> `Instalar Finance Cloud`).
+4. O app sera instalado no PC e aparecera no Menu Iniciar como aplicativo separado.
+
+Observacao:
+- Se instalar usando `localhost`, o app so abre enquanto o servidor local estiver ativo.
+- Para usar como app sem depender do terminal, publique na Vercel e instale pelo dominio publicado.
+
 ## 4) Deploy na Vercel
 1. Suba o projeto para o GitHub.
 2. Importe na Vercel.
