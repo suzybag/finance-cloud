@@ -4,9 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import DotGrid from "@/components/DotGrid";
 import { getAuthStorageMode, setAuthStorageMode, supabase } from "@/lib/supabaseClient";
-import { sanitizeEmail } from "@/lib/security/input";
+import { sanitizeEmail, sanitizeOtpCode, validateStrongPassword } from "@/lib/security/input";
 
 type AuthMode = "login" | "signup";
+type LoginStep = "credentials" | "otp";
 
 type Ripple = {
   id: number;
@@ -16,11 +17,8 @@ type Ripple = {
 
 const REMEMBER_LOGIN_KEY = "finance_remember_login";
 const REMEMBER_EMAIL_KEY = "finance_remember_email";
-const LOGIN_ATTEMPTS_KEY = "finance_login_attempts_v1";
-const LOGIN_LOCK_UNTIL_KEY = "finance_login_lock_until_v1";
-const MAX_LOGIN_ATTEMPTS = 5;
-const LOCKOUT_MINUTES = 15;
-const LOGIN_GENERIC_ERROR = "Email ou senha invalidos.";
+const TERMS_VERSION = process.env.NEXT_PUBLIC_TERMS_VERSION || "2026-02-19";
+const PRIVACY_VERSION = process.env.NEXT_PUBLIC_PRIVACY_VERSION || "2026-02-19";
 
 const getInitialRememberLogin = () => {
   if (typeof window === "undefined") return true;
@@ -33,43 +31,11 @@ const getInitialRememberedEmail = () => {
   return window.localStorage.getItem(REMEMBER_EMAIL_KEY) ?? "";
 };
 
-const getInitialLockUntil = () => {
-  if (typeof window === "undefined") return 0;
-  const raw = Number(window.localStorage.getItem(LOGIN_LOCK_UNTIL_KEY) || "0");
-  if (!Number.isFinite(raw) || raw <= Date.now()) {
-    window.localStorage.removeItem(LOGIN_LOCK_UNTIL_KEY);
-    return 0;
-  }
-  return raw;
-};
-
-const clearLoginFailureState = () => {
-  if (typeof window === "undefined") return;
-  window.localStorage.removeItem(LOGIN_ATTEMPTS_KEY);
-  window.localStorage.removeItem(LOGIN_LOCK_UNTIL_KEY);
-};
-
-const registerLoginFailure = () => {
-  if (typeof window === "undefined") {
-    return { locked: false, remainingAttempts: MAX_LOGIN_ATTEMPTS - 1, lockUntil: 0 };
-  }
-
-  const currentAttempts = Number(window.localStorage.getItem(LOGIN_ATTEMPTS_KEY) || "0");
-  const nextAttempts = Number.isFinite(currentAttempts) ? currentAttempts + 1 : 1;
-
-  if (nextAttempts >= MAX_LOGIN_ATTEMPTS) {
-    const lockUntil = Date.now() + LOCKOUT_MINUTES * 60 * 1000;
-    window.localStorage.setItem(LOGIN_ATTEMPTS_KEY, "0");
-    window.localStorage.setItem(LOGIN_LOCK_UNTIL_KEY, String(lockUntil));
-    return { locked: true, remainingAttempts: 0, lockUntil };
-  }
-
-  window.localStorage.setItem(LOGIN_ATTEMPTS_KEY, String(nextAttempts));
-  return {
-    locked: false,
-    remainingAttempts: Math.max(MAX_LOGIN_ATTEMPTS - nextAttempts, 0),
-    lockUntil: 0,
-  };
+const parseLockUntil = (value: unknown) => {
+  if (!value) return 0;
+  const parsed = Date.parse(String(value));
+  if (!Number.isFinite(parsed) || parsed <= Date.now()) return 0;
+  return parsed;
 };
 
 export default function LoginPage() {
@@ -78,14 +44,28 @@ export default function LoginPage() {
   const buttonRef = useRef<HTMLButtonElement | null>(null);
 
   const [mode, setMode] = useState<AuthMode>("login");
+  const [loginStep, setLoginStep] = useState<LoginStep>("credentials");
   const [email, setEmail] = useState(getInitialRememberedEmail);
   const [password, setPassword] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpChallengeId, setOtpChallengeId] = useState("");
+  const [otpMaskedEmail, setOtpMaskedEmail] = useState<string | null>(null);
+  const [otpExpiresAt, setOtpExpiresAt] = useState<string | null>(null);
   const [rememberLogin, setRememberLogin] = useState(getInitialRememberLogin);
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [acceptPrivacy, setAcceptPrivacy] = useState(false);
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
+  const [openFinanceConsent, setOpenFinanceConsent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    const reason = new URLSearchParams(window.location.search).get("reason");
+    return reason === "idle" ? "Sessao encerrada automaticamente por inatividade." : null;
+  });
   const [ripple, setRipple] = useState<Ripple | null>(null);
-  const [lockUntil, setLockUntil] = useState<number>(getInitialLockUntil);
+  const [lockUntil, setLockUntil] = useState<number>(0);
+  const [nowTs, setNowTs] = useState(0);
 
   useEffect(() => {
     setAuthStorageMode(rememberLogin);
@@ -96,15 +76,27 @@ export default function LoginPage() {
   }, [rememberLogin, router]);
 
   useEffect(() => {
-    if (!lockUntil) return;
     const timer = window.setInterval(() => {
-      if (Date.now() >= lockUntil) {
+      const now = Date.now();
+      setNowTs(now);
+      if (lockUntil && now >= lockUntil) {
         setLockUntil(0);
-        clearLoginFailureState();
       }
     }, 1000);
     return () => window.clearInterval(timer);
   }, [lockUntil]);
+
+  const resetOtpFlow = () => {
+    setLoginStep("credentials");
+    setOtpCode("");
+    setOtpChallengeId("");
+    setOtpMaskedEmail(null);
+    setOtpExpiresAt(null);
+  };
+
+  const otpSecondsRemaining = otpExpiresAt && nowTs
+    ? Math.max(Math.ceil((Date.parse(otpExpiresAt) - nowTs) / 1000), 0)
+    : 0;
 
   const handlePanelMove = (event: React.MouseEvent<HTMLElement>) => {
     const panel = panelRef.current;
@@ -152,6 +144,157 @@ export default function LoginPage() {
     }, 700);
   };
 
+  const persistRememberChoice = (sanitizedEmail: string) => {
+    setAuthStorageMode(rememberLogin);
+    window.localStorage.setItem(REMEMBER_LOGIN_KEY, rememberLogin ? "1" : "0");
+    if (rememberLogin) {
+      window.localStorage.setItem(REMEMBER_EMAIL_KEY, sanitizedEmail);
+    } else {
+      window.localStorage.removeItem(REMEMBER_EMAIL_KEY);
+    }
+  };
+
+  const syncConsentIfAuthenticated = async (accessToken: string) => {
+    await fetch("/api/privacy/consent", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        terms_accepted: true,
+        privacy_accepted: true,
+        marketing_opt_in: marketingOptIn,
+        open_finance_accepted: openFinanceConsent,
+      }),
+    }).catch(() => null);
+  };
+
+  const startLoginWithOtp = async (sanitizedEmail: string) => {
+    const response = await fetch("/api/auth/login/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: sanitizedEmail,
+        password,
+      }),
+    });
+
+    const data = await response.json().catch(() => ({} as Record<string, unknown>));
+    if (!response.ok) {
+      const nextLock = parseLockUntil(data?.lock_until);
+      if (nextLock) setLockUntil(nextLock);
+
+      const baseMessage = String(data?.message || "Falha ao iniciar login seguro.");
+      const attempts = Number(data?.attempts_remaining);
+      if (Number.isFinite(attempts) && attempts >= 0) {
+        setError(`${baseMessage} Tentativas restantes: ${attempts}.`);
+      } else {
+        setError(baseMessage);
+      }
+      return false;
+    }
+
+    setLoginStep("otp");
+    setOtpChallengeId(String(data?.challenge_id || ""));
+    setOtpExpiresAt(String(data?.expires_at || ""));
+    setOtpMaskedEmail(String(data?.masked_email || sanitizedEmail));
+    setOtpCode("");
+    setMessage(`Codigo enviado para ${String(data?.masked_email || sanitizedEmail)}.`);
+    return true;
+  };
+
+  const verifyOtpAndLogin = async (sanitizedEmail: string) => {
+    const normalizedOtp = sanitizeOtpCode(otpCode);
+    if (!otpChallengeId || normalizedOtp.length !== 6) {
+      setError("Informe o codigo de 6 digitos enviado por email.");
+      return false;
+    }
+
+    const response = await fetch("/api/auth/login/verify-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        challenge_id: otpChallengeId,
+        otp: normalizedOtp,
+      }),
+    });
+
+    const data = await response.json().catch(() => ({} as Record<string, unknown>));
+    if (!response.ok) {
+      const baseMessage = String(data?.message || "Falha ao validar OTP.");
+      const attempts = Number(data?.attempts_remaining);
+      if (Number.isFinite(attempts) && attempts >= 0) {
+        setError(`${baseMessage} Tentativas restantes: ${attempts}.`);
+      } else {
+        setError(baseMessage);
+      }
+      return false;
+    }
+
+    const session = data?.session as { access_token?: string; refresh_token?: string } | undefined;
+    if (!session?.access_token || !session.refresh_token) {
+      setError("Sessao de login invalida. Tente novamente.");
+      return false;
+    }
+
+    persistRememberChoice(sanitizedEmail);
+    const { error: sessionError } = await supabase.auth.setSession({
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+    });
+
+    if (sessionError) {
+      setError(sessionError.message);
+      return false;
+    }
+
+    resetOtpFlow();
+    setPassword("");
+    setLockUntil(0);
+    router.push("/dashboard");
+    return true;
+  };
+
+  const handleForgotPassword = async (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    setError(null);
+    setMessage(null);
+
+    const sanitizedEmail = sanitizeEmail(email);
+    if (!sanitizedEmail) {
+      setError("Informe seu email para recuperar a senha.");
+      return;
+    }
+
+    const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/` : undefined;
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(sanitizedEmail, { redirectTo });
+    if (resetError) {
+      setError(resetError.message);
+      return;
+    }
+
+    setMessage("Email de recuperacao enviado.");
+  };
+
+  const handleResendOtp = async (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    if (loading) return;
+
+    const sanitizedEmail = sanitizeEmail(email);
+    if (!sanitizedEmail || !password) {
+      setError("Para reenviar o codigo, informe email e senha novamente.");
+      setLoginStep("credentials");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+    await startLoginWithOtp(sanitizedEmail);
+    setLoading(false);
+  };
+
   const handleSubmit = async (event: React.MouseEvent<HTMLButtonElement>) => {
     triggerRipple(event);
 
@@ -160,66 +303,79 @@ export default function LoginPage() {
     setMessage(null);
 
     const sanitizedEmail = sanitizeEmail(email);
-    if (!sanitizedEmail || !password) {
-      setError("Informe email e senha.");
-      setLoading(false);
-      return;
-    }
-
-    if (mode === "login" && lockUntil && Date.now() < lockUntil) {
-      const seconds = Math.max(Math.ceil((lockUntil - Date.now()) / 1000), 1);
-      const minutes = Math.ceil(seconds / 60);
-      setError(`Login temporariamente bloqueado. Tente novamente em ${minutes} minuto(s).`);
+    if (!sanitizedEmail) {
+      setError("Informe um email valido.");
       setLoading(false);
       return;
     }
 
     if (mode === "login") {
-      setAuthStorageMode(rememberLogin);
-      window.localStorage.setItem(REMEMBER_LOGIN_KEY, rememberLogin ? "1" : "0");
-      if (rememberLogin) {
-        window.localStorage.setItem(REMEMBER_EMAIL_KEY, sanitizedEmail);
-      } else {
-        window.localStorage.removeItem(REMEMBER_EMAIL_KEY);
-      }
-
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: sanitizedEmail,
-        password,
-      });
-
-      if (signInError) {
-        const lockState = registerLoginFailure();
-        if (lockState.locked) {
-          setLockUntil(lockState.lockUntil);
-          setError(`Muitas tentativas invalidas. Bloqueado por ${LOCKOUT_MINUTES} minutos.`);
-        } else {
-          setError(`${LOGIN_GENERIC_ERROR} Tentativas restantes: ${lockState.remainingAttempts}.`);
-        }
-      } else {
-        clearLoginFailureState();
-        setLockUntil(0);
-        router.push("/dashboard");
-      }
-    } else {
-      if (password.length < 8) {
-        setError("A senha deve ter ao menos 8 caracteres.");
+      if (loginStep === "credentials" && !password) {
+        setError("Informe email e senha.");
         setLoading(false);
         return;
       }
 
-      const { error: signUpError } = await supabase.auth.signUp({
-        email: sanitizedEmail,
-        password,
-      });
-
-      if (signUpError) {
-        setError(signUpError.message);
-      } else {
-        setMessage("Cadastro criado. Verifique seu email para confirmar.");
+      if (loginStep === "credentials" && lockUntil && Date.now() < lockUntil) {
+        const seconds = Math.max(Math.ceil((lockUntil - Date.now()) / 1000), 1);
+        const minutes = Math.ceil(seconds / 60);
+        setError(`Login temporariamente bloqueado. Tente novamente em ${minutes} minuto(s).`);
+        setLoading(false);
+        return;
       }
+
+      if (loginStep === "credentials") {
+        await startLoginWithOtp(sanitizedEmail);
+      } else {
+        await verifyOtpAndLogin(sanitizedEmail);
+      }
+
+      setLoading(false);
+      return;
     }
 
+    const passwordError = validateStrongPassword(password);
+    if (passwordError) {
+      setError(passwordError);
+      setLoading(false);
+      return;
+    }
+    if (!acceptTerms || !acceptPrivacy) {
+      setError("Voce precisa aceitar os Termos e a Politica de Privacidade.");
+      setLoading(false);
+      return;
+    }
+
+    const nowIso = new Date().toISOString();
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      email: sanitizedEmail,
+      password,
+      options: {
+        data: {
+          terms_accepted: true,
+          terms_version: TERMS_VERSION,
+          terms_accepted_at: nowIso,
+          privacy_accepted: true,
+          privacy_version: PRIVACY_VERSION,
+          privacy_accepted_at: nowIso,
+          marketing_opt_in: marketingOptIn,
+          open_finance_accepted: openFinanceConsent,
+        },
+      },
+    });
+
+    if (signUpError) {
+      setError(signUpError.message);
+      setLoading(false);
+      return;
+    }
+
+    if (signUpData.session?.access_token) {
+      await syncConsentIfAuthenticated(signUpData.session.access_token);
+    }
+
+    setMessage("Cadastro criado. Verifique seu email para confirmar.");
+    setPassword("");
     setLoading(false);
   };
 
@@ -273,21 +429,45 @@ export default function LoginPage() {
                 </div>
 
                 <div className="login-card">
-                  <h2>{mode === "login" ? "Entrar" : "Criar conta"}</h2>
-                  <p className="sub">Digite seus dados para continuar.</p>
+                  <h2>
+                    {mode === "signup"
+                      ? "Criar conta"
+                      : loginStep === "otp"
+                        ? "Verificacao em duas etapas"
+                        : "Entrar"}
+                  </h2>
+                  <p className="sub">
+                    {mode === "signup"
+                      ? "Crie sua conta com senha forte e consentimento LGPD."
+                      : loginStep === "otp"
+                        ? `Digite o codigo OTP enviado para ${otpMaskedEmail || "seu email"}.`
+                        : "Digite email e senha para receber seu codigo OTP."}
+                  </p>
 
                   <div className="auth-switch">
                     <button
                       type="button"
                       className={`switch-btn ${mode === "login" ? "active" : ""}`}
-                      onClick={() => setMode("login")}
+                      onClick={() => {
+                        setMode("login");
+                        setError(null);
+                        setMessage(null);
+                        resetOtpFlow();
+                      }}
+                      disabled={loading}
                     >
                       Entrar
                     </button>
                     <button
                       type="button"
                       className={`switch-btn ${mode === "signup" ? "active" : ""}`}
-                      onClick={() => setMode("signup")}
+                      onClick={() => {
+                        setMode("signup");
+                        setError(null);
+                        setMessage(null);
+                        resetOtpFlow();
+                      }}
+                      disabled={loading}
                     >
                       Criar conta
                     </button>
@@ -305,27 +485,86 @@ export default function LoginPage() {
                     />
                   </div>
 
-                  <div className="field">
-                    <label htmlFor="password">Senha</label>
-                    <input
-                      id="password"
-                      type="password"
-                      placeholder="••••••••"
-                      autoComplete="current-password"
-                      value={password}
-                      onChange={(event) => setPassword(event.target.value)}
-                    />
-                  </div>
+                  {mode === "login" && loginStep === "otp" ? (
+                    <div className="field">
+                      <label htmlFor="otp-code">Codigo OTP</label>
+                      <input
+                        id="otp-code"
+                        type="text"
+                        placeholder="000000"
+                        autoComplete="one-time-code"
+                        inputMode="numeric"
+                        maxLength={6}
+                        value={otpCode}
+                        onChange={(event) => setOtpCode(sanitizeOtpCode(event.target.value))}
+                      />
+                    </div>
+                  ) : (
+                    <div className="field">
+                      <label htmlFor="password">Senha</label>
+                      <input
+                        id="password"
+                        type="password"
+                        placeholder="••••••••"
+                        autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                        value={password}
+                        onChange={(event) => setPassword(event.target.value)}
+                      />
+                    </div>
+                  )}
 
-                  <label className="remember-row" htmlFor="remember-login">
-                    <input
-                      id="remember-login"
-                      type="checkbox"
-                      checked={rememberLogin}
-                      onChange={(event) => setRememberLogin(event.target.checked)}
-                    />
-                    <span>Salvar login neste dispositivo</span>
-                  </label>
+                  {mode === "login" && loginStep === "credentials" ? (
+                    <label className="remember-row" htmlFor="remember-login">
+                      <input
+                        id="remember-login"
+                        type="checkbox"
+                        checked={rememberLogin}
+                        onChange={(event) => setRememberLogin(event.target.checked)}
+                      />
+                      <span>Salvar login neste dispositivo</span>
+                    </label>
+                  ) : null}
+
+                  {mode === "signup" ? (
+                    <>
+                      <label className="remember-row" htmlFor="accept-terms">
+                        <input
+                          id="accept-terms"
+                          type="checkbox"
+                          checked={acceptTerms}
+                          onChange={(event) => setAcceptTerms(event.target.checked)}
+                        />
+                        <span>Aceito os Termos de Uso ({TERMS_VERSION})</span>
+                      </label>
+                      <label className="remember-row" htmlFor="accept-privacy">
+                        <input
+                          id="accept-privacy"
+                          type="checkbox"
+                          checked={acceptPrivacy}
+                          onChange={(event) => setAcceptPrivacy(event.target.checked)}
+                        />
+                        <span>Aceito a Politica de Privacidade ({PRIVACY_VERSION})</span>
+                      </label>
+                      <label className="remember-row" htmlFor="marketing-opt-in">
+                        <input
+                          id="marketing-opt-in"
+                          type="checkbox"
+                          checked={marketingOptIn}
+                          onChange={(event) => setMarketingOptIn(event.target.checked)}
+                        />
+                        <span>Aceito receber comunicacoes (opcional)</span>
+                      </label>
+                      <label className="remember-row" htmlFor="open-finance-consent">
+                        <input
+                          id="open-finance-consent"
+                          type="checkbox"
+                          checked={openFinanceConsent}
+                          onChange={(event) => setOpenFinanceConsent(event.target.checked)}
+                        />
+                        <span>Autorizo uso de dados Open Finance (opcional)</span>
+                      </label>
+                    </>
+                  ) : null}
 
                   {error ? <p className="feedback error">{error}</p> : null}
                   {!error && lockUntil ? (
@@ -333,12 +572,25 @@ export default function LoginPage() {
                       Login bloqueado temporariamente por seguranca.
                     </p>
                   ) : null}
+                  {mode === "login" && loginStep === "otp" && otpSecondsRemaining > 0 ? (
+                    <p className="feedback success">
+                      Codigo expira em {Math.ceil(otpSecondsRemaining / 60)} minuto(s).
+                    </p>
+                  ) : null}
                   {message ? <p className="feedback success">{message}</p> : null}
 
                   <div className="row">
-                    <a className="link" href="#" onClick={(event) => event.preventDefault()}>
-                      Esqueci minha senha
-                    </a>
+                    {mode === "signup" ? (
+                      <span className="link">Cadastro com seguranca bancaria</span>
+                    ) : (
+                      <a
+                        className="link"
+                        href="#"
+                        onClick={loginStep === "otp" ? handleResendOtp : handleForgotPassword}
+                      >
+                        {loginStep === "otp" ? "Reenviar codigo" : "Esqueci minha senha"}
+                      </a>
+                    )}
                     <button
                       ref={buttonRef}
                       className="btn"
@@ -349,9 +601,11 @@ export default function LoginPage() {
                     >
                       {loading
                         ? "Processando..."
-                        : mode === "login"
-                          ? "Entrar"
-                          : "Cadastrar"}
+                        : mode === "signup"
+                          ? "Cadastrar"
+                          : loginStep === "otp"
+                            ? "Validar codigo"
+                            : "Enviar codigo OTP"}
                       {ripple ? (
                         <span
                           className="ripple"

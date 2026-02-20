@@ -63,6 +63,30 @@ export const checkRateLimit = ({
 export const getRateLimitPolicy = (pathname: string): RateLimitPolicy => {
   const path = pathname.toLowerCase();
 
+  if (path.startsWith("/api/auth/login/start")) {
+    return { windowMs: 60_000, max: 20 };
+  }
+
+  if (path.startsWith("/api/auth/login/verify-otp")) {
+    return { windowMs: 60_000, max: 30 };
+  }
+
+  if (path.startsWith("/api/open-finance/token")) {
+    return { windowMs: 60_000, max: 20 };
+  }
+
+  if (path.startsWith("/api/backups/daily")) {
+    return { windowMs: 60_000, max: 5 };
+  }
+
+  if (path.startsWith("/api/maintenance/supabase-trim")) {
+    return { windowMs: 60_000, max: 5 };
+  }
+
+  if (path.startsWith("/api/investments/security/snapshot")) {
+    return { windowMs: 60_000, max: 20 };
+  }
+
   if (
     path.startsWith("/api/ai/")
     || path.startsWith("/api/whatsapp/")
@@ -91,4 +115,3 @@ export const compactRateLimitStore = () => {
     }
   }
 };
-

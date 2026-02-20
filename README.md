@@ -37,6 +37,18 @@ WHATSAPP_PHONE_NUMBER_ID=
 # Avatar (upload server-side):
 SUPABASE_SERVICE_ROLE_KEY=
 CRON_SECRET=
+# Security hardening:
+APP_ENCRYPTION_KEY= # 32 bytes em base64, hex(64) ou passphrase forte
+NEXT_PUBLIC_IDLE_TIMEOUT_MINUTES=15
+BACKUP_RETENTION_DAYS=30
+AUTH_OTP_STRICT_IP=false
+SUPABASE_LOW_USAGE_MODE=true
+NEXT_PUBLIC_SUPABASE_LOW_USAGE_MODE=true
+TRIM_SECURITY_EVENTS_DAYS=14
+TRIM_OTP_DAYS=2
+TRIM_LOGIN_ATTEMPTS_DAYS=30
+TRIM_INSIGHTS_DAYS=120
+TRIM_WHATSAPP_DAYS=60
 # Push notifications (Web Push):
 VAPID_PUBLIC_KEY=
 VAPID_PRIVATE_KEY=
@@ -74,9 +86,16 @@ Observacao:
 ## Endpoints prontos
 - `POST /api/ai/insights` -> resumo e insights com ChatGPT (fallback local se nao tiver key)
 - `POST /api/ai/categorize` -> sugestao de categoria por descricao
+- `POST /api/auth/login/start` -> login etapa 1 (senha) + envio de OTP por email
+- `POST /api/auth/login/verify-otp` -> login etapa 2 (validacao OTP) + sessao final
 - `GET/POST /api/whatsapp/webhook` -> webhook para mensagens
 - `POST /api/whatsapp/send` -> stub para envio
 - `GET/POST /api/alerts-smart/run` -> rotina cron de alertas inteligentes por email
+- `GET/PUT /api/privacy/consent` -> leitura e atualizacao de consentimentos LGPD
+- `GET/POST/DELETE /api/open-finance/token` -> cofre tokenizado/criptografado para tokens Open Finance
+- `GET/POST /api/backups/daily` -> backup diario criptografado para bucket privado `backups`
+- `GET/POST /api/maintenance/supabase-trim` -> limpeza automatica de tabelas/logs para controle de limite
+- `GET/POST /api/investments/security/snapshot` -> snapshot criptografado dos investimentos do usuario
 - `GET /api/push/vapid` -> publica configuracao VAPID para registrar push no navegador
 - `GET/POST/DELETE /api/push/subscribe` -> lista, cria e remove subscription Web Push por usuario
 - `POST /api/push/test` -> envia push de teste para o usuario logado
@@ -104,21 +123,26 @@ Observacao:
 
 ## Seguranca bancaria (checklist)
 - Login:
-  - Token JWT validado no backend (`src/lib/apiAuth.ts`).
-  - Bloqueio de tentativas no login web (5 tentativas, 15 min) em `src/app/page.tsx`.
-  - Habilite MFA/2FA no Supabase Auth para codigo por app autenticador.
+  - Token JWT validado e expiracao checada no backend (`src/lib/apiAuth.ts` + `src/lib/security/jwt.ts`).
+  - 2FA por email OTP no fluxo de login (`/api/auth/login/start` + `/api/auth/login/verify-otp`).
+  - Bloqueio server-side apos 5 tentativas (15 min) com auditoria (`public.auth_login_attempts`).
+  - Logout automatico por inatividade (`src/components/SessionInactivityGuard.tsx`).
 - API e app:
-  - Headers de seguranca ativos em `next.config.ts`.
-  - Rate limit global de API via `middleware.ts` + `src/lib/security/rateLimit.ts`.
-  - Sanitizacao de input em `src/lib/security/input.ts`.
+  - Middleware global com HTTPS, CSP, headers, CSRF (origin check) e rate limit (`middleware.ts`).
+  - Sanitizacao e validacao forte de input/senha em `src/lib/security/input.ts`.
 - Auditoria:
   - Tabela `public.security_events` em `supabase.sql` para eventos de autenticacao e seguranca.
+  - Deteccao de login suspeito (mudanca de IP) com alerta por email/push.
   - RLS habilitado, leitura apenas do proprio usuario.
 - Dados financeiros:
   - RLS ativa nas tabelas financeiras.
-  - Nao armazenar CVV/senha de cartao; use tokenizacao no provedor de pagamento.
+  - Nao armazenar CVV/senha/PIN de cartao (validacao no frontend de cartoes).
+  - Tokenizacao e criptografia de tokens Open Finance (`public.open_finance_tokens`).
+  - Snapshot criptografado dos investimentos (`public.investment_security_snapshots`).
 - Backups:
-  - Ative backup diario e PITR no Supabase (Project Settings -> Database -> Backups).
+  - Cron de limpeza roda em `/api/maintenance/supabase-trim` para reduzir consumo de storage/linhas.
+  - Cron diario em `/api/backups/daily` com modo economico (`SUPABASE_LOW_USAGE_MODE=true`) para menor custo.
+  - Ative tambem backup gerenciado + PITR no Supabase (Project Settings -> Database -> Backups).
   - Teste restore periodicamente em ambiente de homologacao.
 
 Boa evolucao para fase 2:

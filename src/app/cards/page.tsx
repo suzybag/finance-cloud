@@ -23,6 +23,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { getBankIconPath, resolveBankKey } from "@/lib/bankIcons";
 import { brl, toNumber } from "@/lib/money";
 import { Account, Card, Transaction, computeCardSummary } from "@/lib/finance";
+import { hasCardSensitiveData, sanitizeFreeText } from "@/lib/security/input";
 import { useBankRelationship } from "@/ui/dashboard/useBankRelationship";
 
 const BANK_ISSUER_OPTIONS = [
@@ -147,6 +148,16 @@ const parsePositiveAmountInput = (rawValue?: string | null) => {
   if (!Number.isFinite(amount) || amount <= 0) return null;
   return amount;
 };
+
+const hasSensitiveCardInput = ({
+  name,
+  issuer,
+  note,
+}: {
+  name: string;
+  issuer: string;
+  note: string;
+}) => hasCardSensitiveData(`${name} ${issuer} ${note}`);
 
 type CardQuickActionState =
   | {
@@ -371,10 +382,23 @@ export default function CardsPage() {
         return;
       }
 
-      const issuerToSave = resolveIssuerLabel(issuer, name);
+      const sanitizedName = sanitizeFreeText(name, 80);
+      if (!sanitizedName) {
+        setSaving(false);
+        setFeedback("Informe um nome valido para o cartao.");
+        return;
+      }
+      const issuerToSave = sanitizeFreeText(resolveIssuerLabel(issuer, name), 80);
+      const sanitizedNote = sanitizeFreeText(cardNote, 500);
+      if (hasSensitiveCardInput({ name: sanitizedName, issuer: issuerToSave, note: sanitizedNote })) {
+        setSaving(false);
+        setFeedback("Nao armazene numero completo do cartao, CVV, PIN ou senha.");
+        return;
+      }
+
       const basePayload = {
         user_id: resolvedUserId,
-        name: name.trim(),
+        name: sanitizedName,
         issuer: issuerToSave || null,
         limit_total: toNumber(limitTotal),
         closing_day: closingDayValue,
@@ -392,7 +416,7 @@ export default function CardsPage() {
           ...(includeStyle
             ? {
                 color: cardColor,
-                note: cardNote.trim() ? cardNote.trim() : null,
+                note: sanitizedNote || null,
               }
             : {}),
           ...(includeBankScore ? { bank_score: bankScoreValue } : {}),
@@ -564,9 +588,22 @@ export default function CardsPage() {
         return;
       }
 
-      const issuerToSave = resolveIssuerLabel(issuer, name);
+      const sanitizedName = sanitizeFreeText(name, 80);
+      if (!sanitizedName) {
+        setSaving(false);
+        setFeedback("Informe um nome valido para o cartao.");
+        return;
+      }
+      const issuerToSave = sanitizeFreeText(resolveIssuerLabel(issuer, name), 80);
+      const sanitizedNote = sanitizeFreeText(cardNote, 500);
+      if (hasSensitiveCardInput({ name: sanitizedName, issuer: issuerToSave, note: sanitizedNote })) {
+        setSaving(false);
+        setFeedback("Nao armazene numero completo do cartao, CVV, PIN ou senha.");
+        return;
+      }
+
       const basePayload = {
-        name: name.trim(),
+        name: sanitizedName,
         issuer: issuerToSave || null,
         limit_total: toNumber(limitTotal),
         closing_day: closingDayValue,
@@ -584,7 +621,7 @@ export default function CardsPage() {
           ...(includeStyle
             ? {
                 color: cardColor,
-                note: cardNote.trim() ? cardNote.trim() : null,
+                note: sanitizedNote || null,
               }
             : {}),
           ...(includeBankScore ? { bank_score: bankScoreValue } : {}),
@@ -670,6 +707,10 @@ export default function CardsPage() {
 
       const normalized = resolveIssuerLabel(next, card.name);
       if (!normalized) return;
+      if (hasCardSensitiveData(normalized)) {
+        setFeedback("Nao armazene dados sensiveis no nome do banco/cartao.");
+        return;
+      }
 
       const { data, error } = await supabase
         .from("cards")

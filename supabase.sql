@@ -244,6 +244,398 @@ begin
 end
 $$;
 
+-- Security hardening: login protection, OTP, token vault, LGPD consent and backups.
+create table if not exists public.auth_login_attempts (
+  attempt_key text primary key,
+  email text not null,
+  ip_address text,
+  failed_count int not null default 0,
+  lock_until timestamptz,
+  last_attempt_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.auth_login_attempts add column if not exists email text;
+alter table public.auth_login_attempts add column if not exists ip_address text;
+alter table public.auth_login_attempts add column if not exists failed_count int not null default 0;
+alter table public.auth_login_attempts add column if not exists lock_until timestamptz;
+alter table public.auth_login_attempts add column if not exists last_attempt_at timestamptz not null default now();
+alter table public.auth_login_attempts add column if not exists created_at timestamptz not null default now();
+alter table public.auth_login_attempts add column if not exists updated_at timestamptz not null default now();
+alter table public.auth_login_attempts enable row level security;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'auth_login_attempts_failed_count_non_negative'
+      and conrelid = 'public.auth_login_attempts'::regclass
+  ) then
+    alter table public.auth_login_attempts
+    add constraint auth_login_attempts_failed_count_non_negative
+    check (failed_count >= 0);
+  end if;
+end
+$$;
+
+create table if not exists public.auth_otp_challenges (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  email text not null,
+  code_hash text not null,
+  payload_enc text not null,
+  attempts_count int not null default 0,
+  max_attempts int not null default 5,
+  expires_at timestamptz not null,
+  consumed_at timestamptz,
+  ip_address text,
+  user_agent text,
+  created_at timestamptz not null default now()
+);
+
+alter table public.auth_otp_challenges add column if not exists user_id uuid;
+alter table public.auth_otp_challenges add column if not exists email text;
+alter table public.auth_otp_challenges add column if not exists code_hash text;
+alter table public.auth_otp_challenges add column if not exists payload_enc text;
+alter table public.auth_otp_challenges add column if not exists attempts_count int not null default 0;
+alter table public.auth_otp_challenges add column if not exists max_attempts int not null default 5;
+alter table public.auth_otp_challenges add column if not exists expires_at timestamptz;
+alter table public.auth_otp_challenges add column if not exists consumed_at timestamptz;
+alter table public.auth_otp_challenges add column if not exists ip_address text;
+alter table public.auth_otp_challenges add column if not exists user_agent text;
+alter table public.auth_otp_challenges add column if not exists created_at timestamptz not null default now();
+alter table public.auth_otp_challenges alter column user_id set not null;
+alter table public.auth_otp_challenges alter column email set not null;
+alter table public.auth_otp_challenges alter column code_hash set not null;
+alter table public.auth_otp_challenges alter column payload_enc set not null;
+alter table public.auth_otp_challenges alter column expires_at set not null;
+alter table public.auth_otp_challenges enable row level security;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'auth_otp_challenges_user_id_fkey'
+      and conrelid = 'public.auth_otp_challenges'::regclass
+  ) then
+    alter table public.auth_otp_challenges
+    add constraint auth_otp_challenges_user_id_fkey
+    foreign key (user_id) references auth.users(id) on delete cascade;
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'auth_otp_challenges_attempts_non_negative'
+      and conrelid = 'public.auth_otp_challenges'::regclass
+  ) then
+    alter table public.auth_otp_challenges
+    add constraint auth_otp_challenges_attempts_non_negative
+    check (attempts_count >= 0 and max_attempts >= 1);
+  end if;
+end
+$$;
+
+create table if not exists public.open_finance_tokens (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  provider text not null,
+  token_ref text not null,
+  token_hash text not null,
+  token_enc text not null,
+  expires_at timestamptz,
+  last_rotated_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id, provider),
+  unique (token_ref)
+);
+
+alter table public.open_finance_tokens add column if not exists user_id uuid;
+alter table public.open_finance_tokens add column if not exists provider text;
+alter table public.open_finance_tokens add column if not exists token_ref text;
+alter table public.open_finance_tokens add column if not exists token_hash text;
+alter table public.open_finance_tokens add column if not exists token_enc text;
+alter table public.open_finance_tokens add column if not exists expires_at timestamptz;
+alter table public.open_finance_tokens add column if not exists last_rotated_at timestamptz not null default now();
+alter table public.open_finance_tokens add column if not exists created_at timestamptz not null default now();
+alter table public.open_finance_tokens add column if not exists updated_at timestamptz not null default now();
+alter table public.open_finance_tokens alter column user_id set not null;
+alter table public.open_finance_tokens alter column provider set not null;
+alter table public.open_finance_tokens alter column token_ref set not null;
+alter table public.open_finance_tokens alter column token_hash set not null;
+alter table public.open_finance_tokens alter column token_enc set not null;
+alter table public.open_finance_tokens enable row level security;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'open_finance_tokens_user_id_fkey'
+      and conrelid = 'public.open_finance_tokens'::regclass
+  ) then
+    alter table public.open_finance_tokens
+    add constraint open_finance_tokens_user_id_fkey
+    foreign key (user_id) references auth.users(id) on delete cascade;
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'open_finance_tokens_user_provider_key'
+      and conrelid = 'public.open_finance_tokens'::regclass
+  ) then
+    alter table public.open_finance_tokens
+    add constraint open_finance_tokens_user_provider_key
+    unique (user_id, provider);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'open_finance_tokens_token_ref_key'
+      and conrelid = 'public.open_finance_tokens'::regclass
+  ) then
+    alter table public.open_finance_tokens
+    add constraint open_finance_tokens_token_ref_key
+    unique (token_ref);
+  end if;
+end
+$$;
+
+create table if not exists public.investment_security_snapshots (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  payload_enc text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.investment_security_snapshots add column if not exists payload_enc text;
+alter table public.investment_security_snapshots add column if not exists created_at timestamptz not null default now();
+alter table public.investment_security_snapshots add column if not exists updated_at timestamptz not null default now();
+alter table public.investment_security_snapshots alter column payload_enc set not null;
+alter table public.investment_security_snapshots enable row level security;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public' and tablename = 'investment_security_snapshots' and policyname = 'investment_security_snapshots_select_own'
+  ) then
+    create policy investment_security_snapshots_select_own
+    on public.investment_security_snapshots
+    for select
+    using (auth.uid() = user_id);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public' and tablename = 'investment_security_snapshots' and policyname = 'investment_security_snapshots_upsert_own'
+  ) then
+    create policy investment_security_snapshots_upsert_own
+    on public.investment_security_snapshots
+    for all
+    using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);
+  end if;
+end
+$$;
+
+create table if not exists public.user_consents (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  terms_accepted boolean not null default false,
+  terms_version text,
+  terms_accepted_at timestamptz,
+  privacy_accepted boolean not null default false,
+  privacy_version text,
+  privacy_accepted_at timestamptz,
+  marketing_opt_in boolean not null default false,
+  open_finance_accepted boolean not null default false,
+  open_finance_accepted_at timestamptz,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.user_consents add column if not exists terms_accepted boolean not null default false;
+alter table public.user_consents add column if not exists terms_version text;
+alter table public.user_consents add column if not exists terms_accepted_at timestamptz;
+alter table public.user_consents add column if not exists privacy_accepted boolean not null default false;
+alter table public.user_consents add column if not exists privacy_version text;
+alter table public.user_consents add column if not exists privacy_accepted_at timestamptz;
+alter table public.user_consents add column if not exists marketing_opt_in boolean not null default false;
+alter table public.user_consents add column if not exists open_finance_accepted boolean not null default false;
+alter table public.user_consents add column if not exists open_finance_accepted_at timestamptz;
+alter table public.user_consents add column if not exists updated_at timestamptz not null default now();
+alter table public.user_consents enable row level security;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public' and tablename = 'user_consents' and policyname = 'user_consents_select_own'
+  ) then
+    create policy user_consents_select_own
+    on public.user_consents
+    for select
+    using (auth.uid() = user_id);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public' and tablename = 'user_consents' and policyname = 'user_consents_upsert_own'
+  ) then
+    create policy user_consents_upsert_own
+    on public.user_consents
+    for all
+    using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);
+  end if;
+end
+$$;
+
+create table if not exists public.backup_runs (
+  id uuid primary key default gen_random_uuid(),
+  status text not null default 'success',
+  storage_path text,
+  error_message text,
+  started_at timestamptz not null default now(),
+  completed_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+
+alter table public.backup_runs add column if not exists status text not null default 'success';
+alter table public.backup_runs add column if not exists storage_path text;
+alter table public.backup_runs add column if not exists error_message text;
+alter table public.backup_runs add column if not exists started_at timestamptz not null default now();
+alter table public.backup_runs add column if not exists completed_at timestamptz not null default now();
+alter table public.backup_runs add column if not exists created_at timestamptz not null default now();
+alter table public.backup_runs enable row level security;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'backup_runs_status_check'
+      and conrelid = 'public.backup_runs'::regclass
+  ) then
+    alter table public.backup_runs
+    add constraint backup_runs_status_check
+    check (status in ('success', 'failed'));
+  end if;
+end
+$$;
+
+create index if not exists idx_auth_login_attempts_lock_until on public.auth_login_attempts(lock_until);
+create index if not exists idx_auth_login_attempts_email on public.auth_login_attempts(email);
+create index if not exists idx_auth_otp_challenges_user_created on public.auth_otp_challenges(user_id, created_at desc);
+create index if not exists idx_auth_otp_challenges_expires on public.auth_otp_challenges(expires_at);
+create index if not exists idx_open_finance_tokens_user on public.open_finance_tokens(user_id, provider);
+create index if not exists idx_open_finance_tokens_expires on public.open_finance_tokens(expires_at);
+create index if not exists idx_investment_security_snapshots_updated on public.investment_security_snapshots(updated_at desc);
+create index if not exists idx_user_consents_updated on public.user_consents(updated_at desc);
+create index if not exists idx_backup_runs_completed on public.backup_runs(completed_at desc);
+
+-- Storage bucket for encrypted backup snapshots (private).
+insert into storage.buckets (id, name, public)
+values ('backups', 'backups', false)
+on conflict (id) do update set public = false;
+
+create or replace function public.trim_supabase_usage(
+  security_days int default 14,
+  otp_days int default 2,
+  login_attempt_days int default 30,
+  insights_days int default 120,
+  whatsapp_days int default 60,
+  backup_days int default 30
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_security int := 0;
+  v_otp int := 0;
+  v_login_attempts int := 0;
+  v_insights int := 0;
+  v_whatsapp int := 0;
+  v_backup_runs int := 0;
+  v_backup_objects int := 0;
+begin
+  with deleted as (
+    delete from public.security_events
+    where created_at < now() - make_interval(days => greatest(security_days, 1))
+    returning 1
+  )
+  select count(*) into v_security from deleted;
+
+  with deleted as (
+    delete from public.auth_otp_challenges
+    where created_at < now() - make_interval(days => greatest(otp_days, 1))
+    returning 1
+  )
+  select count(*) into v_otp from deleted;
+
+  with deleted as (
+    delete from public.auth_login_attempts
+    where last_attempt_at < now() - make_interval(days => greatest(login_attempt_days, 1))
+    returning 1
+  )
+  select count(*) into v_login_attempts from deleted;
+
+  with deleted as (
+    delete from public.insights
+    where created_at < now() - make_interval(days => greatest(insights_days, 1))
+    returning 1
+  )
+  select count(*) into v_insights from deleted;
+
+  with deleted as (
+    delete from public.whatsapp_messages
+    where created_at < now() - make_interval(days => greatest(whatsapp_days, 1))
+    returning 1
+  )
+  select count(*) into v_whatsapp from deleted;
+
+  with deleted as (
+    delete from public.backup_runs
+    where completed_at < now() - make_interval(days => greatest(backup_days, 1))
+    returning storage_path
+  )
+  select count(*) into v_backup_runs from deleted;
+
+  with deleted as (
+    delete from storage.objects
+    where bucket_id = 'backups'
+      and created_at < now() - make_interval(days => greatest(backup_days, 1))
+    returning 1
+  )
+  select count(*) into v_backup_objects from deleted;
+
+  return jsonb_build_object(
+    'security_events_deleted', v_security,
+    'otp_challenges_deleted', v_otp,
+    'login_attempts_deleted', v_login_attempts,
+    'insights_deleted', v_insights,
+    'whatsapp_deleted', v_whatsapp,
+    'backup_runs_deleted', v_backup_runs,
+    'backup_objects_deleted', v_backup_objects,
+    'executed_at', now()
+  );
+end
+$$;
+
+revoke all on function public.trim_supabase_usage(int, int, int, int, int, int) from public;
+grant execute on function public.trim_supabase_usage(int, int, int, int, int, int) to service_role;
+
 create table if not exists public.security_events (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users(id) on delete set null,
@@ -2452,6 +2844,81 @@ create index if not exists idx_banking_relationship_scores_user_date on public.b
 create index if not exists idx_banking_relationship_scores_user_month on public.banking_relationship_scores(user_id, month_ref desc);
 create index if not exists idx_alerts_user_date on public.alerts(user_id, created_at desc);
 create index if not exists idx_whatsapp_user_date on public.whatsapp_messages(user_id, created_at desc);
+create table if not exists public.receivables (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  person_name text not null,
+  amount numeric not null,
+  due_date date not null,
+  description text,
+  is_received boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.receivables add column if not exists user_id uuid;
+alter table public.receivables add column if not exists person_name text;
+alter table public.receivables add column if not exists amount numeric not null default 0;
+alter table public.receivables add column if not exists due_date date default current_date;
+alter table public.receivables add column if not exists description text;
+alter table public.receivables add column if not exists is_received boolean not null default false;
+alter table public.receivables add column if not exists created_at timestamptz not null default now();
+alter table public.receivables add column if not exists updated_at timestamptz not null default now();
+
+update public.receivables set person_name = 'Nao informado' where person_name is null or trim(person_name) = '';
+update public.receivables set due_date = current_date where due_date is null;
+update public.receivables set amount = 0.01 where amount is null or amount <= 0;
+
+alter table public.receivables alter column user_id set not null;
+alter table public.receivables alter column person_name set not null;
+alter table public.receivables alter column amount set not null;
+alter table public.receivables alter column due_date set not null;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'receivables_user_id_fkey'
+      and conrelid = 'public.receivables'::regclass
+  ) then
+    alter table public.receivables
+    add constraint receivables_user_id_fkey
+    foreign key (user_id) references auth.users(id) on delete cascade;
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'receivables_amount_positive'
+      and conrelid = 'public.receivables'::regclass
+  ) then
+    alter table public.receivables
+    add constraint receivables_amount_positive
+    check (amount > 0);
+  end if;
+end
+$$;
+
+create index if not exists idx_receivables_user_due on public.receivables(user_id, due_date, created_at desc);
+create index if not exists idx_receivables_user_status on public.receivables(user_id, is_received, due_date);
+
+alter table public.receivables enable row level security;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'receivables' and policyname = 'receivables_crud_own'
+  ) then
+    create policy receivables_crud_own
+    on public.receivables
+    for all
+    using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);
+  end if;
+end
+$$;
 
 -- backfill optional institution/issuer labels so bank icons render on UI
 update public.accounts

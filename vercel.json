@@ -23,6 +23,14 @@
     {
       "path": "/api/agenda/reminders/run",
       "schedule": "25 9 * * *"
+    },
+    {
+      "path": "/api/maintenance/supabase-trim",
+      "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/backups/daily",
+      "schedule": "40 3 * * *"
     }
   ]
 }

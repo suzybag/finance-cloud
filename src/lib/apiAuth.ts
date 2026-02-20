@@ -1,5 +1,7 @@
 import { NextRequest } from "next/server";
 import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
+import { getJwtExpirationMs, isJwtExpired } from "@/lib/security/jwt";
+import { getClientIp } from "@/lib/security/requestContext";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
@@ -7,12 +9,6 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
 const BEARER_PATTERN = /^Bearer\s+(.+)$/i;
 const TOKEN_MAX_LENGTH = 8192;
-
-const getClientIp = (req: NextRequest) => {
-  const forwarded = req.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0]?.trim() || null;
-  return req.headers.get("x-real-ip");
-};
 
 export const getBearerToken = (req: NextRequest) => {
   const header = req.headers.get("authorization") || "";
@@ -58,7 +54,7 @@ export const getAdminClient = () => {
   return createClient(supabaseUrl, serviceRole);
 };
 
-const auditSecurityEvent = async ({
+export const logSecurityEvent = async ({
   req,
   eventType,
   severity,
@@ -93,24 +89,39 @@ const auditSecurityEvent = async ({
 
 export const getUserFromRequest = async (req: NextRequest) => {
   const token = getBearerToken(req);
+  const tokenExpirationMs = getJwtExpirationMs(token);
+
+  if (token && isJwtExpired(token)) {
+    await logSecurityEvent({
+      req,
+      eventType: "auth_expired_token",
+      severity: "warning",
+      message: "Token JWT expirado.",
+      metadata: { exp: tokenExpirationMs },
+    });
+    return { user: null as User | null, client: null as SupabaseClient | null, error: "Token expirado." };
+  }
+
   const { client, error } = getTokenClient(token);
   if (!client || error) {
-    await auditSecurityEvent({
+    await logSecurityEvent({
       req,
       eventType: "auth_missing_or_invalid_token",
       severity: "warning",
       message: error || "Token ausente ou invalido no header Authorization.",
+      metadata: { exp: tokenExpirationMs },
     });
     return { user: null as User | null, client: null as SupabaseClient | null, error };
   }
 
   const { data, error: userError } = await client.auth.getUser(token);
   if (userError || !data.user) {
-    await auditSecurityEvent({
+    await logSecurityEvent({
       req,
       eventType: "auth_token_rejected",
       severity: "warning",
       message: userError?.message || "Token rejeitado pelo provedor de autenticacao.",
+      metadata: { exp: tokenExpirationMs },
     });
     return { user: null as User | null, client: null as SupabaseClient | null, error: "Token invalido." };
   }

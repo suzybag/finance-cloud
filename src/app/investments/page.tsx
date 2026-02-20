@@ -80,6 +80,8 @@ const SECTION_CLASS =
 const PRIMARY_BUTTON_CLASS =
   "inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 via-fuchsia-500 to-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(124,58,237,0.4)] transition hover:brightness-110";
 
+const LOW_USAGE_MODE = process.env.NEXT_PUBLIC_SUPABASE_LOW_USAGE_MODE !== "false";
+
 const roundCurrency = (value: number) => Math.round(value * 100) / 100;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const toUuidOrNull = (value: string | null | undefined) => {
@@ -300,6 +302,18 @@ export default function InvestmentsPage() {
     return resolvedUserId;
   }, [userId]);
 
+  const syncInvestmentSecuritySnapshot = useCallback(async () => {
+    if (LOW_USAGE_MODE) return;
+    const sessionRes = await supabase.auth.getSession();
+    const token = sessionRes.data.session?.access_token;
+    if (!token) return;
+
+    await fetch("/api/investments/security/snapshot", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => null);
+  }, []);
+
   const loadInvestments = useCallback(async () => {
     try {
       setLoading(true);
@@ -314,7 +328,7 @@ export default function InvestmentsPage() {
       const [investmentsRes, banksRes, typesRes, assetsRes] = await Promise.all([
         supabase
           .from("investments")
-          .select("*")
+          .select("id, user_id, bank_id, type_id, asset_id, broker, category, investment_type, asset_name, asset_logo_url, quantity, average_price, current_price, invested_amount, current_amount, annual_rate, start_date, created_at, price_history, operation, costs, dividends_received")
           .eq("user_id", resolvedUserId)
           .order("created_at", { ascending: false }),
         supabase.from("banks").select("id, name, logo"),
@@ -355,28 +369,6 @@ export default function InvestmentsPage() {
 
       setInvestments(normalized);
       setLoading(false);
-
-      await Promise.allSettled(
-        normalized.map((item) =>
-          supabase
-            .from("investments")
-            .update({
-              operation: item.operation,
-              costs: item.costs,
-              dividends_received: item.dividends_received,
-              category: item.category,
-              asset_name: item.asset_name,
-              asset_logo_url: item.asset_logo_url,
-              quantity: item.quantity,
-              average_price: item.average_price,
-              current_price: item.current_price,
-              invested_amount: item.invested_amount,
-              current_amount: item.current_amount,
-              price_history: item.price_history,
-            })
-            .eq("id", item.id),
-        ),
-      );
     } catch (error) {
       setLoading(false);
       setFeedback(`Falha inesperada ao carregar investimentos: ${error instanceof Error ? error.message : "erro desconhecido"}`);
@@ -465,6 +457,7 @@ export default function InvestmentsPage() {
           : "Lancamento salvo com sucesso.",
       );
       await loadInvestments();
+      void syncInvestmentSecuritySnapshot();
     } catch (error) {
       setSaving(false);
       setFeedback(`Falha inesperada ao salvar investimento: ${error instanceof Error ? error.message : "erro desconhecido"}`);
@@ -501,6 +494,7 @@ export default function InvestmentsPage() {
 
       setFeedback("Investimento excluido.");
       await loadInvestments();
+      void syncInvestmentSecuritySnapshot();
     } catch (error) {
       setDeletingId(null);
       setFeedback(`Falha inesperada ao excluir investimento: ${error instanceof Error ? error.message : "erro desconhecido"}`);
@@ -601,6 +595,7 @@ export default function InvestmentsPage() {
 
       setFeedback("Investimento atualizado com sucesso.");
       await loadInvestments();
+      void syncInvestmentSecuritySnapshot();
     } catch (error) {
       setEditingId(null);
       setFeedback(`Falha inesperada ao editar investimento: ${error instanceof Error ? error.message : "erro desconhecido"}`);

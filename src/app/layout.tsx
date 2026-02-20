@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
+import { SessionInactivityGuard } from "@/components/SessionInactivityGuard";
 import { ThemeProvider } from "@/context/ThemeContext";
 import "./globals.css";
 
@@ -43,6 +44,7 @@ export default function RootLayout({
     <html lang="pt-BR">
       <body className={`${fontSans.variable} antialiased`}>
         <ThemeProvider>{children}</ThemeProvider>
+        <SessionInactivityGuard />
         <ServiceWorkerRegister />
       </body>
     </html>
