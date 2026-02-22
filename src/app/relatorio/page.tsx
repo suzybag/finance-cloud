@@ -2,7 +2,20 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Download, Mail, RefreshCcw } from "lucide-react";
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  BarChart3,
+  ClipboardList,
+  Download,
+  History,
+  Mail,
+  Medal,
+  PieChart as PieChartIcon,
+  RefreshCcw,
+  Sparkles,
+  Tag,
+} from "lucide-react";
 import {
   Cell,
   Pie,
@@ -157,6 +170,7 @@ const statusLabel = (status: MonthlyReportDelivery["status"]) => {
 export default function RelatorioPage() {
   const [monthFilter, setMonthFilter] = useState(currentMonth());
   const [emailTo, setEmailTo] = useState("");
+  const [showAllRows, setShowAllRows] = useState(false);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
@@ -200,6 +214,7 @@ export default function RelatorioPage() {
 
     setReportRows(data.report.rows || []);
     setSummary(data.report.summary || null);
+    setShowAllRows(false);
     setLoading(false);
   }, [getSessionToken, monthFilter]);
 
@@ -342,10 +357,42 @@ export default function RelatorioPage() {
     () => summary?.insights || [],
     [summary],
   );
+
   const topCategoryItem = useMemo(
     () => summary?.categoryTotals?.[0] || null,
     [summary],
   );
+
+  const topCategories = useMemo(
+    () => (summary?.categoryTotals || []).slice(0, 6),
+    [summary],
+  );
+
+  const daysInReferenceMonth = useMemo(() => {
+    const ref = summary?.month || monthFilter;
+    const [yearRaw, monthRaw] = ref.split("-");
+    const year = Number(yearRaw);
+    const month = Number(monthRaw);
+    if (!Number.isFinite(year) || !Number.isFinite(month) || year <= 0 || month <= 0) return 30;
+    return new Date(year, month, 0).getDate();
+  }, [monthFilter, summary?.month]);
+
+  const averagePerItem = useMemo(
+    () => (summary?.rowCount ? summary.total / summary.rowCount : 0),
+    [summary],
+  );
+
+  const averagePerDay = useMemo(
+    () => (summary ? summary.total / Math.max(daysInReferenceMonth, 1) : 0),
+    [daysInReferenceMonth, summary],
+  );
+
+  const displayRows = useMemo(
+    () => (showAllRows ? reportRows : reportRows.slice(0, 12)),
+    [reportRows, showAllRows],
+  );
+
+  const hasMoreRows = reportRows.length > 12;
 
   const actions = (
     <div className="flex flex-wrap items-center gap-2">
@@ -400,135 +447,207 @@ export default function RelatorioPage() {
           </div>
         ) : (
           <>
-            <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-2xl border border-violet-300/20 bg-[linear-gradient(160deg,rgba(34,18,61,0.88),rgba(12,9,31,0.9))] p-4">
-                <p className="text-xs text-slate-400">Total gasto no mes</p>
-                <p className="mt-1 text-2xl font-extrabold text-slate-100">{formatCurrency(summary.total)}</p>
-              </div>
-              <div className="rounded-2xl border border-violet-300/20 bg-[linear-gradient(160deg,rgba(34,18,61,0.88),rgba(12,9,31,0.9))] p-4">
-                <p className="text-xs text-slate-400">Maior categoria</p>
-                <div className="mt-1 flex items-center gap-2">
-                  <CategoryIcon
-                    categoryName={topCategoryItem?.category || summary.topCategory || "Sem categoria"}
-                    iconName={topCategoryItem?.categoryIconName}
-                    iconColor={topCategoryItem?.categoryIconColor}
-                    size={14}
-                    circleSize={30}
-                  />
-                  <p className="text-xl font-extrabold text-violet-200">{summary.topCategory || "-"}</p>
+            <section className="rounded-3xl border border-violet-300/20 bg-[linear-gradient(165deg,rgba(21,14,41,0.92),rgba(8,10,19,0.94))] p-4">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-violet-300/30 bg-violet-500/15 text-violet-100">
+                  <BarChart3 className="h-4.5 w-4.5" />
+                </span>
+                <div>
+                  <h2 className="text-lg font-extrabold text-slate-100">Resumo rapido do mes</h2>
+                  <p className="text-xs text-slate-400">Informacoes principais organizadas em blocos simples.</p>
                 </div>
-                <p className="text-xs text-slate-400">{formatCurrency(summary.topCategoryTotal)}</p>
               </div>
-              <div className="rounded-2xl border border-violet-300/20 bg-[linear-gradient(160deg,rgba(34,18,61,0.88),rgba(12,9,31,0.9))] p-4">
-                <p className="text-xs text-slate-400">Comparacao mes anterior</p>
-                <p className={`mt-1 text-2xl font-extrabold ${getDeltaColor(summary.deltaPercent)}`}>
-                  {getDeltaLabel(summary.deltaPercent)}
-                </p>
-                <p className="text-xs text-slate-400">
-                  Delta: {summary.delta >= 0 ? "+" : "-"}{formatCurrency(Math.abs(summary.delta))}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-violet-300/20 bg-[linear-gradient(160deg,rgba(34,18,61,0.88),rgba(12,9,31,0.9))] p-4">
-                <p className="text-xs text-slate-400">Itens no relatorio</p>
-                <p className="mt-1 text-2xl font-extrabold text-slate-100">{summary.rowCount}</p>
-                <p className="text-xs text-slate-400">{summary.monthLabel}</p>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                <div className="rounded-2xl border border-violet-300/20 bg-slate-950/35 p-3">
+                  <p className="text-xs text-slate-400">Total gasto</p>
+                  <p className="mt-1 text-2xl font-extrabold text-slate-100">{formatCurrency(summary.total)}</p>
+                  <p className="mt-1 text-[11px] text-slate-500">{summary.monthLabel}</p>
+                </div>
+
+                <div className="rounded-2xl border border-violet-300/20 bg-slate-950/35 p-3">
+                  <p className="text-xs text-slate-400">Media por item</p>
+                  <p className="mt-1 text-xl font-extrabold text-cyan-200">{formatCurrency(averagePerItem)}</p>
+                  <p className="mt-1 text-[11px] text-slate-500">{summary.rowCount} lancamentos</p>
+                </div>
+
+                <div className="rounded-2xl border border-violet-300/20 bg-slate-950/35 p-3">
+                  <p className="text-xs text-slate-400">Media por dia</p>
+                  <p className="mt-1 text-xl font-extrabold text-emerald-200">{formatCurrency(averagePerDay)}</p>
+                  <p className="mt-1 text-[11px] text-slate-500">{daysInReferenceMonth} dias no periodo</p>
+                </div>
+
+                <div className="rounded-2xl border border-violet-300/20 bg-slate-950/35 p-3">
+                  <p className="text-xs text-slate-400">Categoria lider</p>
+                  <div className="mt-1 flex items-center gap-2">
+                    <CategoryIcon
+                      categoryName={topCategoryItem?.category || summary.topCategory || "Sem categoria"}
+                      iconName={topCategoryItem?.categoryIconName}
+                      iconColor={topCategoryItem?.categoryIconColor}
+                      size={13}
+                      circleSize={28}
+                    />
+                    <p className="line-clamp-1 text-base font-extrabold text-violet-200">
+                      {summary.topCategory || "Sem categoria"}
+                    </p>
+                  </div>
+                  <p className="mt-1 text-[11px] text-slate-500">{formatCurrency(summary.topCategoryTotal)}</p>
+                </div>
+
+                <div className="rounded-2xl border border-violet-300/20 bg-slate-950/35 p-3">
+                  <p className="text-xs text-slate-400">Vs mes anterior</p>
+                  <p className={`mt-1 text-xl font-extrabold ${getDeltaColor(summary.deltaPercent)}`}>
+                    {getDeltaLabel(summary.deltaPercent)}
+                  </p>
+                  <p className="mt-1 inline-flex items-center gap-1 text-[11px] text-slate-500">
+                    {summary.delta >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                    Delta {summary.delta >= 0 ? "+" : "-"}{formatCurrency(Math.abs(summary.delta))}
+                  </p>
+                </div>
               </div>
             </section>
 
-            <section className="grid gap-4 xl:grid-cols-2">
-              <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-4">
-                <h2 className="text-lg font-extrabold text-slate-100">Distribuicao por categoria</h2>
-                <p className="text-xs text-slate-400">Grafico pizza dos gastos do periodo.</p>
-                <div className="mt-3 h-[320px]">
-                  {pieData.length ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={pieData}
-                          dataKey="value"
-                          nameKey="name"
-                          cx="50%"
-                          cy="50%"
-                          outerRadius={105}
-                          innerRadius={55}
-                          label={({ percent }) => `${(((percent ?? 0) as number) * 100).toFixed(0)}%`}
-                        >
-                          {pieData.map((entry, index) => (
-                            <Cell key={`${entry.name}-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          formatter={(value) => formatCurrency(Number(value ?? 0))}
-                          contentStyle={{
-                            background: "#0f172acc",
-                            border: "1px solid rgba(148,163,184,0.3)",
-                            borderRadius: "12px",
-                          }}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="flex h-full items-center justify-center rounded-xl border border-white/10 bg-slate-900/40 text-sm text-slate-300">
-                      Sem gastos para plotar no grafico.
-                    </div>
-                  )}
-                </div>
-                {pieData.length ? (
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {pieData.slice(0, 8).map((item) => (
-                      <div
-                        key={item.name}
-                        className="flex items-center justify-between rounded-xl border border-white/10 bg-slate-900/50 px-3 py-2"
-                      >
-                        <div className="flex min-w-0 items-center gap-2">
-                          <CategoryIcon
-                            categoryName={item.name}
-                            iconName={item.iconName}
-                            iconColor={item.iconColor}
-                            size={12}
-                            circleSize={24}
-                          />
-                          <p className="truncate text-xs text-slate-200">{item.name}</p>
-                        </div>
-                        <p className="text-xs font-semibold text-slate-300">{item.percent.toFixed(1).replace(".", ",")}%</p>
-                      </div>
-                    ))}
+            <section className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
+              <div className="rounded-3xl border border-white/10 bg-slate-950/45 p-4">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-cyan-300/30 bg-cyan-500/10 text-cyan-100">
+                    <PieChartIcon className="h-4.5 w-4.5" />
+                  </span>
+                  <div>
+                    <h2 className="text-lg font-extrabold text-slate-100">Categorias do mes</h2>
+                    <p className="text-xs text-slate-400">Visual simples da distribuicao por categoria.</p>
                   </div>
-                ) : null}
-              </div>
+                </div>
 
-              <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-4">
-                <h2 className="text-lg font-extrabold text-slate-100">Ranking de maiores gastos</h2>
-                <p className="text-xs text-slate-400">Itens com maior impacto no mes.</p>
-                <div className="mt-3 space-y-2">
-                  {rankingData.length ? (
-                    rankingData.slice(0, 8).map((row, index) => (
-                      <div
-                        key={`${row.id}-${index}`}
-                        className="flex items-center justify-between rounded-xl border border-white/10 bg-slate-900/50 px-3 py-2"
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-slate-100">
-                            {index + 1}. {row.description}
-                          </p>
-                          <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
-                            <CategoryIcon
-                              categoryName={row.category}
-                              iconName={row.categoryIconName}
-                              iconColor={row.categoryIconColor}
-                              size={11}
-                              circleSize={20}
+                <div className="mt-4 grid gap-4 lg:grid-cols-[320px_1fr]">
+                  <div className="relative h-[290px] rounded-2xl border border-white/10 bg-slate-900/30 p-2">
+                    {pieData.length ? (
+                      <>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={pieData}
+                              dataKey="value"
+                              nameKey="name"
+                              cx="50%"
+                              cy="50%"
+                              outerRadius={102}
+                              innerRadius={63}
+                              label={false}
+                              labelLine={false}
+                            >
+                              {pieData.map((entry, index) => (
+                                <Cell key={`${entry.name}-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                              ))}
+                            </Pie>
+                            <Tooltip
+                              formatter={(value) => formatCurrency(Number(value ?? 0))}
+                              contentStyle={{
+                                background: "#0f172acc",
+                                border: "1px solid rgba(148,163,184,0.3)",
+                                borderRadius: "12px",
+                              }}
                             />
-                            <span>{row.category}</span>
-                            <span>|</span>
-                            <span>{formatDateLabel(row.date)}</span>
-                            <span>|</span>
-                            <span>{row.expenseType}</span>
+                          </PieChart>
+                        </ResponsiveContainer>
+
+                        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                          <div className="rounded-2xl border border-violet-300/20 bg-slate-950/80 px-3 py-2 text-center">
+                            <p className="text-[11px] uppercase tracking-[0.14em] text-slate-400">Total</p>
+                            <p className="text-sm font-extrabold text-slate-100">{formatCurrency(summary.total)}</p>
                           </div>
                         </div>
-                        <p className="text-sm font-extrabold text-rose-300">{formatCurrency(row.amount)}</p>
+                      </>
+                    ) : (
+                      <div className="flex h-full items-center justify-center rounded-xl border border-white/10 bg-slate-900/40 text-sm text-slate-300">
+                        Sem gastos para plotar no grafico.
                       </div>
-                    ))
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    {topCategories.length ? (
+                      topCategories.map((item, index) => (
+                        <div key={`${item.category}-${index}`} className="rounded-xl border border-white/10 bg-slate-900/45 px-3 py-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex min-w-0 items-center gap-2">
+                              <CategoryIcon
+                                categoryName={item.category}
+                                iconName={item.categoryIconName}
+                                iconColor={item.categoryIconColor}
+                                size={12}
+                                circleSize={24}
+                              />
+                              <p className="truncate text-sm font-semibold text-slate-100">{item.category}</p>
+                            </div>
+                            <p className="text-xs font-semibold text-cyan-200">{item.percent.toFixed(1).replace(".", ",")}%</p>
+                          </div>
+
+                          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-cyan-400/80 to-violet-400/80"
+                              style={{ width: `${Math.max(Math.min(item.percent, 100), 2)}%` }}
+                            />
+                          </div>
+                          <p className="mt-1 text-[11px] text-slate-400">{formatCurrency(item.total)}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-xl border border-white/10 bg-slate-900/50 px-4 py-3 text-sm text-slate-300">
+                        Nenhuma categoria para mostrar.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-white/10 bg-slate-950/45 p-4">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-amber-300/30 bg-amber-500/10 text-amber-100">
+                    <Medal className="h-4.5 w-4.5" />
+                  </span>
+                  <div>
+                    <h2 className="text-lg font-extrabold text-slate-100">Ranking simplificado</h2>
+                    <p className="text-xs text-slate-400">Top gastos com maior impacto no resultado.</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 space-y-2">
+                  {rankingData.length ? (
+                    rankingData.slice(0, 6).map((row, index) => {
+                      const badgeClass =
+                        index === 0
+                          ? "border-amber-300/40 bg-amber-500/15 text-amber-200"
+                          : index === 1
+                            ? "border-slate-300/35 bg-slate-500/15 text-slate-200"
+                            : index === 2
+                              ? "border-orange-300/40 bg-orange-500/15 text-orange-200"
+                              : "border-slate-500/30 bg-slate-800/50 text-slate-300";
+
+                      return (
+                        <div key={`${row.id}-${index}`} className="rounded-xl border border-white/10 bg-slate-900/50 px-3 py-2">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="mb-1 flex items-center gap-2">
+                                <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${badgeClass}`}>
+                                  #{index + 1}
+                                </span>
+                                <p className="truncate text-sm font-semibold text-slate-100">{row.description}</p>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
+                                <Tag className="h-3 w-3" />
+                                <span>{row.category}</span>
+                                <span>|</span>
+                                <span>{formatDateLabel(row.date)}</span>
+                                <span>|</span>
+                                <span>{row.expenseType}</span>
+                              </div>
+                            </div>
+                            <p className="shrink-0 text-sm font-extrabold text-rose-300">{formatCurrency(row.amount)}</p>
+                          </div>
+                        </div>
+                      );
+                    })
                   ) : (
                     <div className="rounded-xl border border-white/10 bg-slate-900/50 px-4 py-3 text-sm text-slate-300">
                       Nenhum gasto encontrado.
@@ -538,26 +657,50 @@ export default function RelatorioPage() {
               </div>
             </section>
 
-            <section className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
-              <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-4">
-                <h2 className="text-lg font-extrabold text-slate-100">Detalhamento dos gastos</h2>
-                <p className="text-xs text-slate-400">Tabela completa do mes selecionado.</p>
+            <section className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
+              <div className="rounded-3xl border border-white/10 bg-slate-950/45 p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-cyan-300/30 bg-cyan-500/10 text-cyan-100">
+                      <ClipboardList className="h-4.5 w-4.5" />
+                    </span>
+                    <div>
+                      <h2 className="text-lg font-extrabold text-slate-100">Detalhamento simplificado</h2>
+                      <p className="text-xs text-slate-400">
+                        Mostrando {displayRows.length} de {reportRows.length} lancamentos.
+                      </p>
+                    </div>
+                  </div>
+
+                  {hasMoreRows ? (
+                    <button
+                      type="button"
+                      className="rounded-xl border border-white/10 bg-slate-900/45 px-3 py-2 text-xs font-semibold text-slate-100 transition hover:bg-slate-900/70"
+                      onClick={() => setShowAllRows((prev) => !prev)}
+                    >
+                      {showAllRows ? "Mostrar menos" : "Ver tudo"}
+                    </button>
+                  ) : null}
+                </div>
+
                 <div className="mt-3 overflow-x-auto">
                   <table className="min-w-full text-sm">
                     <thead>
                       <tr className="border-b border-white/10 text-left text-slate-400">
                         <th className="px-3 py-2 font-semibold">Data</th>
-                        <th className="px-3 py-2 font-semibold">Descricao</th>
+                        <th className="px-3 py-2 font-semibold">Item</th>
                         <th className="px-3 py-2 font-semibold">Categoria</th>
-                        <th className="px-3 py-2 font-semibold">Tipo</th>
                         <th className="px-3 py-2 font-semibold text-right">Valor</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {reportRows.map((row) => (
+                      {displayRows.map((row) => (
                         <tr key={row.id} className="border-b border-white/5">
                           <td className="px-3 py-2 text-slate-300">{formatDateLabel(row.date)}</td>
-                          <td className="px-3 py-2 text-slate-100">{row.description}</td>
+                          <td className="px-3 py-2">
+                            <p className="max-w-[340px] truncate text-slate-100">{row.description}</p>
+                            <p className="text-[11px] text-slate-500">{row.expenseType}</p>
+                          </td>
                           <td className="px-3 py-2 text-slate-300">
                             <div className="flex items-center gap-2">
                               <CategoryIcon
@@ -570,23 +713,42 @@ export default function RelatorioPage() {
                               <span>{row.category}</span>
                             </div>
                           </td>
-                          <td className="px-3 py-2 text-slate-300">{row.expenseType}</td>
                           <td className="px-3 py-2 text-right font-semibold text-rose-300">{formatCurrency(row.amount)}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
+
+                  {!displayRows.length ? (
+                    <div className="rounded-xl border border-white/10 bg-slate-900/50 px-3 py-2 text-sm text-slate-300">
+                      Nenhum item para mostrar neste periodo.
+                    </div>
+                  ) : null}
                 </div>
               </div>
 
               <div className="space-y-4">
-                <section className="rounded-2xl border border-white/10 bg-slate-950/45 p-4">
-                  <h2 className="text-lg font-extrabold text-slate-100">Insights automaticos</h2>
-                  <p className="text-xs text-slate-400">Analise automatica para reduzir gastos.</p>
+                <section className="rounded-3xl border border-white/10 bg-slate-950/45 p-4">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-violet-300/30 bg-violet-500/12 text-violet-100">
+                      <Sparkles className="h-4.5 w-4.5" />
+                    </span>
+                    <div>
+                      <h2 className="text-lg font-extrabold text-slate-100">Insights resumidos</h2>
+                      <p className="text-xs text-slate-400">Pontos de atencao em linguagem simples.</p>
+                    </div>
+                  </div>
+
                   <div className="mt-3 space-y-2">
                     {insights.length ? (
-                      insights.map((insight, index) => (
-                        <div key={`${index + 1}-${insight.slice(0, 20)}`} className="rounded-xl border border-violet-300/20 bg-violet-500/10 px-3 py-2 text-sm text-violet-100">
+                      insights.slice(0, 5).map((insight, index) => (
+                        <div
+                          key={`${index + 1}-${insight.slice(0, 20)}`}
+                          className="rounded-xl border border-violet-300/20 bg-violet-500/10 px-3 py-2 text-sm text-violet-100"
+                        >
+                          <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full border border-violet-300/30 bg-violet-500/20 text-[11px] font-semibold">
+                            {index + 1}
+                          </span>
                           {insight}
                         </div>
                       ))
@@ -598,7 +760,7 @@ export default function RelatorioPage() {
                   </div>
                 </section>
 
-                <section className="rounded-2xl border border-white/10 bg-slate-950/45 p-4">
+                <section className="rounded-3xl border border-white/10 bg-slate-950/45 p-4">
                   <h2 className="text-lg font-extrabold text-slate-100">Enviar por email</h2>
                   <p className="text-xs text-slate-400">Envia resumo + planilha Excel em anexo.</p>
                   <input
@@ -619,11 +781,16 @@ export default function RelatorioPage() {
                   </button>
                 </section>
 
-                <section className="rounded-2xl border border-white/10 bg-slate-950/45 p-4">
+                <section className="rounded-3xl border border-white/10 bg-slate-950/45 p-4">
                   <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <h2 className="text-lg font-extrabold text-slate-100">Historico de relatorios enviados</h2>
-                      <p className="text-xs text-slate-400">Ultimos relatorios mensais gerados/enviados.</p>
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-cyan-300/30 bg-cyan-500/10 text-cyan-100">
+                        <History className="h-4.5 w-4.5" />
+                      </span>
+                      <div>
+                        <h2 className="text-lg font-extrabold text-slate-100">Historico de envio</h2>
+                        <p className="text-xs text-slate-400">Ultimos relatorios gerados e enviados.</p>
+                      </div>
                     </div>
                     <button
                       type="button"
