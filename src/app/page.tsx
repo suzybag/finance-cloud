@@ -408,8 +408,8 @@ export default function LoginPage() {
         <DotGrid
           dotSize={5}
           gap={15}
-          baseColor="#271E37"
-          activeColor="#5227FF"
+          baseColor="#232831"
+          activeColor="#5a6472"
           proximity={120}
           shockRadius={250}
           shockStrength={5}
@@ -639,10 +639,6 @@ export default function LoginPage() {
 
       <style jsx>{`
         .login-root {
-          --bg-tl: #ac28a3;
-          --bg-tr: #c9995b;
-          --bg-bl: #562e87;
-          --bg-br: #ad32ba;
           --deep1: #101020;
           --deep2: #201030;
           --accent: #ff4fd8;
@@ -653,12 +649,7 @@ export default function LoginPage() {
           min-height: 100vh;
           color: rgba(255, 255, 255, 0.92);
           overflow: hidden;
-          background:
-            radial-gradient(900px 650px at 10% 8%, rgba(172, 40, 163, 0.95) 0%, rgba(172, 40, 163, 0) 60%),
-            radial-gradient(900px 650px at 92% 10%, rgba(201, 153, 91, 0.92) 0%, rgba(201, 153, 91, 0) 62%),
-            radial-gradient(900px 650px at 15% 92%, rgba(86, 46, 135, 0.92) 0%, rgba(86, 46, 135, 0) 60%),
-            radial-gradient(900px 650px at 92% 92%, rgba(173, 50, 186, 0.95) 0%, rgba(173, 50, 186, 0) 62%),
-            linear-gradient(180deg, var(--deep1), var(--deep2));
+          background: linear-gradient(135deg, #09090b 0%, #18181b 55%, #262626 100%);
         }
 
         .stars {
