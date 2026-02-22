@@ -2,22 +2,14 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 import {
-  CircleDollarSign,
   CalendarClock,
-  CalendarCheck2,
   CheckCircle2,
-  Flag,
   Loader2,
   Pencil,
   Plus,
-  Rocket,
-  Sparkles,
-  Target,
   Trash2,
   Trophy,
-  Wallet,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { CategoryIcon } from "@/components/CategoryIcon";
@@ -74,10 +66,10 @@ const EMPTY_PROGRESS_FORM: ProgressFormState = {
 };
 
 const INPUT_CLASS =
-  "w-full rounded-xl border border-slate-600/45 bg-slate-900/65 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-cyan-300/45 focus:ring-2 focus:ring-cyan-400/20";
+  "w-full rounded-xl border border-violet-300/20 bg-[#181126] px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-violet-400/70 focus:ring-2 focus:ring-violet-500/20";
 
 const SOFT_CARD_CLASS =
-  "relative overflow-hidden rounded-3xl border border-slate-700/45 bg-[linear-gradient(170deg,#0b0f17,#080a11)] p-4 backdrop-blur-xl";
+  "rounded-2xl border border-violet-300/20 bg-[linear-gradient(160deg,rgba(31,22,54,0.72),rgba(12,9,26,0.82))] p-4 backdrop-blur-xl";
 
 const roundCurrency = (value: number) => Math.round(value * 100) / 100;
 
@@ -512,12 +504,11 @@ export default function PlanningPage() {
   const actions = (
     <button
       type="button"
-      className="inline-flex items-center gap-2 rounded-xl border border-cyan-300/35 bg-cyan-500/15 px-3 py-2 text-xs font-semibold text-cyan-100 transition hover:bg-cyan-500/25"
+      className="inline-flex items-center gap-2 rounded-xl border border-violet-300/30 bg-violet-500/20 px-3 py-2 text-xs font-semibold text-violet-100 transition hover:bg-violet-500/30"
       onClick={() => createSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
     >
       <Plus className="h-3.5 w-3.5" />
       Nova meta
-      <Sparkles className="h-3.5 w-3.5 text-cyan-200" />
     </button>
   );
 
@@ -526,194 +517,105 @@ export default function PlanningPage() {
       title="Planejamento"
       subtitle="Planilha de metas para atingir objetivos de economia"
       actions={actions}
-      contentClassName="notes-dark-bg"
+      contentClassName="ultra-shell-bg"
     >
       {loading ? (
-        <div className={`${SOFT_CARD_CLASS} text-slate-200`}>
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(580px_240px_at_10%_-12%,rgba(56,189,248,.18),transparent)]" />
-          <div className="relative inline-flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin text-cyan-300" />
-            Carregando planejamento...
-          </div>
-        </div>
+        <div className={`${SOFT_CARD_CLASS} text-slate-200`}>Carregando planejamento...</div>
       ) : (
         <div className="space-y-6">
           {feedback ? (
-            <div className="rounded-xl border border-cyan-300/30 bg-cyan-950/35 px-4 py-3 text-sm text-cyan-100">
-              <span className="inline-flex items-center gap-2">
-                <Sparkles className="h-4 w-4" />
-                {feedback}
-              </span>
+            <div className="rounded-xl border border-violet-300/30 bg-violet-950/35 px-4 py-3 text-sm text-violet-100">
+              {feedback}
             </div>
           ) : null}
 
           <section className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
-            <article className="relative overflow-hidden rounded-3xl border border-slate-700/45 bg-[linear-gradient(160deg,#0f1624,#090d15)] p-5 shadow-[0_16px_45px_rgba(6,182,212,0.12)]">
-              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(560px_240px_at_4%_-12%,rgba(56,189,248,.2),transparent),radial-gradient(560px_260px_at_94%_8%,rgba(14,165,233,.12),transparent)]" />
-
-              <div className="relative">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="inline-flex items-center gap-1.5 rounded-full border border-cyan-300/25 bg-cyan-500/10 px-2 py-1 text-[11px] uppercase tracking-[0.12em] text-cyan-100">
-                      <Target className="h-3 w-3" />
-                      Objetivo em destaque
-                    </p>
-                    <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-100">
-                      {highlightedGoal?.goal_name || "Nenhuma meta cadastrada"}
-                    </h2>
-                    <p className="mt-1 text-xs text-slate-400">
-                      Acompanhe o progresso e ajuste o plano com mais clareza.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="rounded-xl border border-cyan-300/25 bg-black/35 p-2">
-                      <CategoryIcon
-                        categoryName={highlightedGoal?.goal_name || "Planejamento"}
-                        size={14}
-                        circleSize={28}
-                      />
-                    </div>
-                    <div className="relative h-14 w-14 overflow-hidden rounded-xl border border-cyan-300/25 bg-slate-900/70">
-                      <Image
-                        src="/assets/3d/forecast.png"
-                        alt="Planejamento 3D"
-                        fill
-                        className="object-contain p-2"
-                      />
-                    </div>
-                  </div>
+            <article className="rounded-3xl border border-violet-300/25 bg-[linear-gradient(160deg,rgba(35,20,64,0.88),rgba(12,10,30,0.92))] p-5 shadow-[0_18px_50px_rgba(50,20,100,0.35)]">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.18em] text-violet-200/70">
+                    Objetivo em destaque
+                  </p>
+                  <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-white">
+                    {highlightedGoal?.goal_name || "Nenhuma meta cadastrada"}
+                  </h2>
                 </div>
-
-                <div className="mt-6 grid gap-3 sm:grid-cols-[minmax(0,1fr)_220px]">
-                  <div>
-                    <p className="text-sm text-slate-300">Progresso atual</p>
-                    <p className="text-3xl font-black text-white">
-                      {highlightedMetrics.percentual.toFixed(1).replace(".", ",")}%
-                    </p>
-                    <p className="mt-1 text-xs text-slate-400">
-                      {highlightedMetrics.isCompleted ? "Meta concluida." : "Ainda em andamento."}
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border border-cyan-300/20 bg-black/35 p-3 text-right">
-                    <p className="text-xs text-slate-400">Guardado</p>
-                    <p className="mt-1 text-lg font-bold text-cyan-200">
-                      {brl(highlightedGoal?.current_amount || 0)}
-                    </p>
-                    <p className="mt-1 text-[11px] text-slate-400">
-                      de {brl(highlightedGoal?.goal_amount || 0)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-4">
-                  <ProgressBar
-                    percentual={highlightedMetrics.percentual}
-                    done={highlightedMetrics.isCompleted}
+                <div className="rounded-xl border border-violet-300/25 bg-black/25 p-2">
+                  <CategoryIcon
+                    categoryName={highlightedGoal?.goal_name || "Planejamento"}
+                    size={14}
+                    circleSize={28}
                   />
                 </div>
-
-                {highlightedMetrics.isCompleted ? (
-                  <div className="mt-3 inline-flex animate-pulse items-center gap-2 rounded-full border border-emerald-300/35 bg-emerald-500/15 px-3 py-1 text-xs font-bold text-emerald-200">
-                    <Trophy className="h-3.5 w-3.5" />
-                    Meta concluida com sucesso
-                  </div>
-                ) : null}
               </div>
+
+              <div className="mt-6 grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px]">
+                <div>
+                  <p className="text-sm text-violet-100/75">Progresso</p>
+                  <p className="text-3xl font-black text-white">
+                    {highlightedMetrics.percentual.toFixed(1).replace(".", ",")}%
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-violet-300/20 bg-black/20 p-3 text-right">
+                  <p className="text-xs text-violet-100/70">Guardado</p>
+                  <p className="mt-1 text-lg font-bold text-cyan-200">
+                    {brl(highlightedGoal?.current_amount || 0)}
+                  </p>
+                  <p className="mt-1 text-[11px] text-violet-100/65">
+                    de {brl(highlightedGoal?.goal_amount || 0)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <ProgressBar
+                  percentual={highlightedMetrics.percentual}
+                  done={highlightedMetrics.isCompleted}
+                />
+              </div>
+
+              {highlightedMetrics.isCompleted ? (
+                <div className="mt-3 inline-flex animate-pulse items-center gap-2 rounded-full border border-emerald-300/35 bg-emerald-500/15 px-3 py-1 text-xs font-bold text-emerald-200">
+                  <Trophy className="h-3.5 w-3.5" />
+                  Meta concluida com sucesso
+                </div>
+              ) : null}
             </article>
 
             <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
               <article className={SOFT_CARD_CLASS}>
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(320px_140px_at_2%_0%,rgba(34,197,94,.2),transparent)]" />
-                <div className="relative flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.12em] text-slate-400">Valor restante</p>
-                    <p className="mt-2 text-2xl font-bold text-white">
-                      {brl(highlightedMetrics.valueRestante)}
-                    </p>
-                  </div>
-                  <span className="rounded-xl border border-emerald-300/20 bg-emerald-500/10 p-2 text-emerald-200">
-                    <Wallet className="h-4 w-4" />
-                  </span>
-                </div>
+                <p className="text-xs uppercase tracking-[0.12em] text-slate-400">Valor restante</p>
+                <p className="mt-2 text-2xl font-bold text-white">
+                  {brl(highlightedMetrics.valueRestante)}
+                </p>
               </article>
               <article className={SOFT_CARD_CLASS}>
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(320px_140px_at_2%_0%,rgba(6,182,212,.2),transparent)]" />
-                <div className="relative flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.12em] text-slate-400">Valor mensal necessario</p>
-                    <p className="mt-2 text-2xl font-bold text-cyan-200">
-                      {brl(highlightedMetrics.valueMonthlyNeeded)}
-                    </p>
-                  </div>
-                  <span className="rounded-xl border border-cyan-300/20 bg-cyan-500/10 p-2 text-cyan-200">
-                    <CircleDollarSign className="h-4 w-4" />
-                  </span>
-                </div>
+                <p className="text-xs uppercase tracking-[0.12em] text-slate-400">Valor mensal necessario</p>
+                <p className="mt-2 text-2xl font-bold text-cyan-200">
+                  {brl(highlightedMetrics.valueMonthlyNeeded)}
+                </p>
               </article>
               <article className={SOFT_CARD_CLASS}>
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(320px_140px_at_2%_0%,rgba(14,165,233,.16),transparent)]" />
-                <div className="relative flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.12em] text-slate-400">Previsao de conclusao</p>
-                    <p className="mt-2 inline-flex items-center gap-2 text-lg font-bold text-white">
-                      <CalendarCheck2 className="h-4 w-4 text-cyan-200" />
-                      {formatDate(highlightedMetrics.forecastDate)}
-                    </p>
-                  </div>
-                  <span className="rounded-xl border border-cyan-300/20 bg-cyan-500/10 p-2 text-cyan-200">
-                    <Rocket className="h-4 w-4" />
-                  </span>
-                </div>
+                <p className="text-xs uppercase tracking-[0.12em] text-slate-400">Previsao de conclusao</p>
+                <p className="mt-2 inline-flex items-center gap-2 text-lg font-bold text-white">
+                  <CalendarClock className="h-4 w-4 text-violet-200" />
+                  {formatDate(highlightedMetrics.forecastDate)}
+                </p>
               </article>
             </div>
           </section>
 
-          <section ref={createSectionRef} className={SOFT_CARD_CLASS}>
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(560px_240px_at_4%_-10%,rgba(56,189,248,.14),transparent),radial-gradient(420px_220px_at_100%_0%,rgba(59,130,246,.12),transparent)]" />
-
-            <div className="relative">
+          <section ref={createSectionRef} className={`${SOFT_CARD_CLASS} rounded-3xl`}>
             <div className="mb-4 flex items-center justify-between gap-2">
-              <h3 className="inline-flex items-center gap-2 text-lg font-bold text-white">
-                <Target className="h-4.5 w-4.5 text-cyan-200" />
-                Nova meta de economia
-              </h3>
-              <span className="inline-flex items-center gap-1 rounded-full border border-cyan-300/30 bg-cyan-500/10 px-3 py-1 text-[11px] font-semibold text-cyan-100">
-                <Sparkles className="h-3 w-3" />
+              <h3 className="text-lg font-bold text-white">Nova meta de economia</h3>
+              <span className="rounded-full border border-violet-300/30 bg-violet-500/20 px-3 py-1 text-[11px] font-semibold text-violet-100">
                 Planejamento inteligente
               </span>
             </div>
 
-            <div className="mb-4 grid gap-3 rounded-2xl border border-slate-700/45 bg-slate-900/40 p-3 md:grid-cols-[minmax(0,1fr)_70px]">
-              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-300">
-                <span className="inline-flex items-center gap-1 rounded-full border border-cyan-300/25 bg-cyan-500/10 px-2 py-1 text-cyan-100">
-                  <Flag className="h-3 w-3" />
-                  Defina o objetivo
-                </span>
-                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300/25 bg-emerald-500/10 px-2 py-1 text-emerald-100">
-                  <Wallet className="h-3 w-3" />
-                  Informe o valor
-                </span>
-                <span className="inline-flex items-center gap-1 rounded-full border border-sky-300/25 bg-sky-500/10 px-2 py-1 text-sky-100">
-                  <CalendarClock className="h-3 w-3" />
-                  Ajuste o prazo
-                </span>
-              </div>
-              <div className="relative h-16 w-16 overflow-hidden rounded-xl border border-cyan-300/25 bg-slate-900/70">
-                <Image
-                  src="/assets/3d/money-stack.svg"
-                  alt="Dinheiro 3D"
-                  fill
-                  className="object-contain p-2"
-                />
-              </div>
-            </div>
-
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               <label className="block">
-                <span className="mb-1 inline-flex items-center gap-1 text-xs font-semibold text-slate-300">
-                  <Flag className="h-3.5 w-3.5 text-cyan-200" />
-                  Nome do objetivo
-                </span>
+                <span className="mb-1 block text-xs font-semibold text-violet-100/75">Nome do objetivo</span>
                 <input
                   className={INPUT_CLASS}
                   placeholder="Ex: Comprar carro"
@@ -723,10 +625,7 @@ export default function PlanningPage() {
               </label>
 
               <label className="block">
-                <span className="mb-1 inline-flex items-center gap-1 text-xs font-semibold text-slate-300">
-                  <Target className="h-3.5 w-3.5 text-cyan-200" />
-                  Valor total (R$)
-                </span>
+                <span className="mb-1 block text-xs font-semibold text-violet-100/75">Valor total (R$)</span>
                 <input
                   className={INPUT_CLASS}
                   placeholder="0,00"
@@ -739,10 +638,7 @@ export default function PlanningPage() {
               </label>
 
               <label className="block">
-                <span className="mb-1 inline-flex items-center gap-1 text-xs font-semibold text-slate-300">
-                  <Wallet className="h-3.5 w-3.5 text-cyan-200" />
-                  Valor ja guardado (R$)
-                </span>
+                <span className="mb-1 block text-xs font-semibold text-violet-100/75">Valor ja guardado (R$)</span>
                 <input
                   className={INPUT_CLASS}
                   placeholder="0,00"
@@ -755,10 +651,7 @@ export default function PlanningPage() {
               </label>
 
               <label className="block">
-                <span className="mb-1 inline-flex items-center gap-1 text-xs font-semibold text-slate-300">
-                  <CalendarClock className="h-3.5 w-3.5 text-cyan-200" />
-                  Prazo (meses)
-                </span>
+                <span className="mb-1 block text-xs font-semibold text-violet-100/75">Prazo (meses)</span>
                 <input
                   className={INPUT_CLASS}
                   type="number"
@@ -770,24 +663,17 @@ export default function PlanningPage() {
             </div>
 
             <div className="mt-4 grid gap-2 sm:grid-cols-3">
-              <div className="rounded-xl border border-emerald-300/20 bg-black/30 p-3">
+              <div className="rounded-xl border border-violet-300/20 bg-black/30 p-3">
                 <p className="text-[11px] text-slate-400">Falta juntar</p>
-                <p className="mt-1 inline-flex items-center gap-2 text-base font-bold text-white">
-                  <Wallet className="h-4 w-4 text-emerald-300" />
-                  {brl(previewMetrics.valueRestante)}
-                </p>
+                <p className="mt-1 text-base font-bold text-white">{brl(previewMetrics.valueRestante)}</p>
               </div>
-              <div className="rounded-xl border border-cyan-300/20 bg-black/30 p-3">
+              <div className="rounded-xl border border-violet-300/20 bg-black/30 p-3">
                 <p className="text-[11px] text-slate-400">Guardar por mes</p>
-                <p className="mt-1 inline-flex items-center gap-2 text-base font-bold text-cyan-200">
-                  <Rocket className="h-4 w-4" />
-                  {brl(previewMetrics.valueMonthlyNeeded)}
-                </p>
+                <p className="mt-1 text-base font-bold text-cyan-200">{brl(previewMetrics.valueMonthlyNeeded)}</p>
               </div>
-              <div className="rounded-xl border border-sky-300/20 bg-black/30 p-3">
+              <div className="rounded-xl border border-violet-300/20 bg-black/30 p-3">
                 <p className="text-[11px] text-slate-400">Percentual atingido</p>
-                <p className="mt-1 inline-flex items-center gap-2 text-base font-bold text-cyan-100">
-                  <CalendarCheck2 className="h-4 w-4" />
+                <p className="mt-1 text-base font-bold text-violet-100">
                   {previewMetrics.percentual.toFixed(1).replace(".", ",")}%
                 </p>
               </div>
@@ -796,7 +682,7 @@ export default function PlanningPage() {
             <div className="mt-4 flex justify-end">
               <button
                 type="button"
-                className="inline-flex items-center gap-2 rounded-xl border border-cyan-300/30 bg-cyan-500/15 px-4 py-2 text-sm font-semibold text-cyan-100 shadow-[0_12px_30px_rgba(6,182,212,0.25)] transition hover:bg-cyan-500/25 disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(124,58,237,0.4)] transition hover:brightness-110 disabled:opacity-60"
                 onClick={() => void handleCreateGoal()}
                 disabled={saving}
               >
@@ -804,24 +690,18 @@ export default function PlanningPage() {
                 Criar objetivo
               </button>
             </div>
-            </div>
           </section>
 
-          <section className={SOFT_CARD_CLASS}>
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(520px_220px_at_8%_-10%,rgba(56,189,248,.12),transparent)]" />
-            <div className="relative">
+          <section className={`${SOFT_CARD_CLASS} rounded-3xl`}>
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="inline-flex items-center gap-2 text-lg font-bold text-white">
-                <Rocket className="h-4.5 w-4.5 text-cyan-200" />
-                Planilha de metas ativas
-              </h3>
-              <span className="rounded-full border border-cyan-300/25 bg-cyan-900/30 px-3 py-1 text-[11px] font-semibold text-cyan-100">
+              <h3 className="text-lg font-bold text-white">Planilha de metas ativas</h3>
+              <span className="rounded-full border border-violet-300/25 bg-violet-900/35 px-3 py-1 text-[11px] font-semibold text-violet-100/85">
                 {activeGoals.length} ativa(s)
               </span>
             </div>
 
             {!activeGoals.length ? (
-              <p className="rounded-xl border border-slate-600/45 bg-black/25 px-4 py-5 text-sm text-slate-300">
+              <p className="rounded-xl border border-violet-300/20 bg-black/25 px-4 py-5 text-sm text-slate-300">
                 Nenhuma meta ativa no momento.
               </p>
             ) : (
@@ -843,7 +723,7 @@ export default function PlanningPage() {
                     {activeGoals.map((goal) => (
                       <tr
                         key={goal.id}
-                        className="rounded-2xl border border-slate-700/55 bg-slate-900/35 text-sm text-slate-100 transition hover:border-cyan-300/30 hover:bg-slate-800/45"
+                        className="rounded-2xl border border-violet-300/20 bg-black/25 text-sm text-slate-100"
                       >
                         <td className="rounded-l-xl px-3 py-3 font-semibold">
                           <div className="flex items-center gap-2">
@@ -872,7 +752,6 @@ export default function PlanningPage() {
                                 className="inline-flex items-center gap-1 rounded-lg border border-cyan-300/25 bg-cyan-500/10 px-2 py-1 text-xs text-cyan-100 hover:bg-cyan-500/20"
                                 onClick={() => openProgressModal(goal, "add_value")}
                               >
-                                <CircleDollarSign className="h-3.5 w-3.5" />
                                 + Valor
                               </button>
                               <button
@@ -880,7 +759,6 @@ export default function PlanningPage() {
                                 className="inline-flex items-center gap-1 rounded-lg border border-sky-300/25 bg-sky-500/10 px-2 py-1 text-xs text-sky-100 hover:bg-sky-500/20"
                                 onClick={() => openProgressModal(goal, "pay_months")}
                               >
-                                <CalendarCheck2 className="h-3.5 w-3.5" />
                                 + Mes(es)
                               </button>
                             </div>
@@ -910,12 +788,9 @@ export default function PlanningPage() {
                 </table>
               </div>
             )}
-            </div>
           </section>
 
-          <section className={SOFT_CARD_CLASS}>
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(520px_220px_at_8%_-10%,rgba(16,185,129,.14),transparent)]" />
-            <div className="relative">
+          <section className={`${SOFT_CARD_CLASS} rounded-3xl`}>
             <div className="mb-3 flex items-center justify-between">
               <h3 className="inline-flex items-center gap-2 text-lg font-bold text-white">
                 <CheckCircle2 className="h-5 w-5 text-emerald-300" />
@@ -935,7 +810,7 @@ export default function PlanningPage() {
                 {completedGoals.map((goal) => (
                   <article
                     key={goal.id}
-                    className="rounded-2xl border border-emerald-300/25 bg-emerald-500/10 p-4 shadow-[0_12px_30px_rgba(16,185,129,0.12)]"
+                    className="rounded-2xl border border-emerald-300/25 bg-emerald-500/10 p-4"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -966,22 +841,20 @@ export default function PlanningPage() {
                 ))}
               </div>
             )}
-            </div>
           </section>
         </div>
       )}
 
       {progressGoal && progressMode ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#03060c]/80 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-xl rounded-3xl border border-slate-700/55 bg-[linear-gradient(165deg,#0c1421,#080c14)] p-5 shadow-[0_28px_70px_rgba(0,0,0,0.55)]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#07030f]/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-xl rounded-2xl border border-cyan-300/30 bg-[linear-gradient(160deg,rgba(18,28,52,0.96),rgba(11,14,28,0.96))] p-5 shadow-[0_28px_70px_rgba(21,94,117,0.4)]">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="inline-flex items-center gap-2 text-xl font-extrabold text-white">
-                {progressMode === "pay_months" ? <CalendarCheck2 className="h-5 w-5 text-cyan-200" /> : <CircleDollarSign className="h-5 w-5 text-cyan-200" />}
+              <h3 className="text-xl font-extrabold text-white">
                 {progressMode === "pay_months" ? "Registrar meses pagos" : "Abater valor na meta"}
               </h3>
               <button
                 type="button"
-                className="rounded-lg border border-slate-600/50 px-2 py-1 text-xs text-slate-200 hover:bg-slate-700/45"
+                className="rounded-lg border border-cyan-300/30 px-2 py-1 text-xs text-cyan-100 hover:bg-cyan-500/20"
                 onClick={closeProgressModal}
                 disabled={saving}
               >
@@ -989,11 +862,8 @@ export default function PlanningPage() {
               </button>
             </div>
 
-            <div className="mb-3 rounded-xl border border-cyan-300/20 bg-black/35 p-3 text-xs text-cyan-100/85">
-              <p className="inline-flex items-center gap-1 font-semibold text-cyan-100">
-                <Target className="h-3.5 w-3.5" />
-                {progressGoal.goal_name}
-              </p>
+            <div className="mb-3 rounded-xl border border-cyan-300/20 bg-black/30 p-3 text-xs text-cyan-100/85">
+              <p className="font-semibold text-cyan-100">{progressGoal.goal_name}</p>
               <p className="mt-1">Guardado atual: {brl(progressGoal.current_amount)}</p>
               <p>Meta total: {brl(progressGoal.goal_amount)}</p>
               <p>Meses restantes: {progressGoal.months}</p>
@@ -1043,7 +913,7 @@ export default function PlanningPage() {
             <div className="mt-5 flex items-center justify-end gap-2">
               <button
                 type="button"
-                className="rounded-xl border border-slate-600/50 bg-slate-800/50 px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-slate-700/60"
+                className="rounded-xl border border-cyan-300/30 bg-cyan-950/40 px-4 py-2 text-sm font-semibold text-cyan-100 hover:bg-cyan-900/40"
                 onClick={closeProgressModal}
                 disabled={saving}
               >
@@ -1051,7 +921,7 @@ export default function PlanningPage() {
               </button>
               <button
                 type="button"
-                className="inline-flex items-center gap-2 rounded-xl border border-cyan-300/30 bg-cyan-500/15 px-4 py-2 text-sm font-semibold text-cyan-100 shadow-[0_12px_30px_rgba(6,182,212,0.25)] transition hover:bg-cyan-500/25 disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-sky-500 px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(14,165,233,0.4)] transition hover:brightness-110 disabled:opacity-60"
                 onClick={() => void handleApplyProgress()}
                 disabled={saving}
               >
@@ -1064,16 +934,13 @@ export default function PlanningPage() {
       ) : null}
 
       {editingGoal ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#03060c]/80 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-2xl rounded-3xl border border-slate-700/55 bg-[linear-gradient(165deg,#111829,#090e18)] p-5 shadow-[0_28px_70px_rgba(0,0,0,0.55)]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#07030f]/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-2xl border border-violet-300/30 bg-[linear-gradient(160deg,rgba(33,16,56,0.95),rgba(13,9,30,0.95))] p-5 shadow-[0_28px_70px_rgba(74,29,150,0.45)]">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="inline-flex items-center gap-2 text-xl font-extrabold text-white">
-                <Pencil className="h-5 w-5 text-cyan-200" />
-                Editar objetivo
-              </h3>
+              <h3 className="text-xl font-extrabold text-white">Editar objetivo</h3>
               <button
                 type="button"
-                className="rounded-lg border border-slate-600/50 px-2 py-1 text-xs text-slate-200 hover:bg-slate-700/45"
+                className="rounded-lg border border-violet-300/30 px-2 py-1 text-xs text-violet-100 hover:bg-violet-500/20"
                 onClick={closeEditModal}
                 disabled={saving}
               >
@@ -1127,7 +994,7 @@ export default function PlanningPage() {
             <div className="mt-5 flex items-center justify-end gap-2">
               <button
                 type="button"
-                className="rounded-xl border border-slate-600/50 bg-slate-800/50 px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-slate-700/60"
+                className="rounded-xl border border-violet-300/30 bg-violet-950/40 px-4 py-2 text-sm font-semibold text-violet-100 hover:bg-violet-900/40"
                 onClick={closeEditModal}
                 disabled={saving}
               >
@@ -1135,7 +1002,7 @@ export default function PlanningPage() {
               </button>
               <button
                 type="button"
-                className="inline-flex items-center gap-2 rounded-xl border border-cyan-300/30 bg-cyan-500/15 px-4 py-2 text-sm font-semibold text-cyan-100 shadow-[0_12px_30px_rgba(6,182,212,0.25)] transition hover:bg-cyan-500/25 disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(124,58,237,0.4)] transition hover:brightness-110 disabled:opacity-60"
                 onClick={() => void handleUpdateGoal()}
                 disabled={saving}
               >
