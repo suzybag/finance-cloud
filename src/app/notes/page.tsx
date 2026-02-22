@@ -434,6 +434,7 @@ export default function NotesPage() {
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [manualSaving, setManualSaving] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [noteCoverById, setNoteCoverById] = useState<Record<string, string>>({});
 
   const editorRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -475,6 +476,48 @@ export default function NotesPage() {
     () => attachments.filter((attachment) => !(attachment.mime_type || "").startsWith("image/")),
     [attachments],
   );
+
+  const noteCoverKey = useMemo(
+    () =>
+      notes
+        .map((note) => {
+          const firstImage = note.attachments.find((attachment) =>
+            (attachment.mime_type || "").startsWith("image/"),
+          );
+          return `${note.id}:${firstImage?.id || ""}:${firstImage?.file_path || ""}:${firstImage?.bucket || ""}`;
+        })
+        .join("|"),
+    [notes],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      const covers = await Promise.all(
+        notes.map(async (note) => {
+          const firstImage = note.attachments.find((attachment) =>
+            (attachment.mime_type || "").startsWith("image/"),
+          );
+          if (!firstImage) return [note.id, null] as const;
+          const url = await resolveAttachmentUrl(firstImage.bucket, firstImage.file_path);
+          return [note.id, url] as const;
+        }),
+      );
+
+      if (cancelled) return;
+      const next: Record<string, string> = {};
+      for (const [noteId, url] of covers) {
+        if (url) next[noteId] = url;
+      }
+      setNoteCoverById(next);
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [noteCoverKey, notes]);
 
   const persistStore = useCallback(
     async (nextNotes: NoteRow[]) => {
@@ -1073,6 +1116,7 @@ export default function NotesPage() {
                     const hasImage = note.attachments.some((attachment) =>
                       (attachment.mime_type || "").startsWith("image/"),
                     );
+                    const coverUrl = noteCoverById[note.id] || null;
 
                     return (
                       <button
@@ -1090,9 +1134,21 @@ export default function NotesPage() {
                             {getNoteCardTitle(note)}
                           </p>
                           {hasImage ? (
-                            <span className="inline-flex items-center rounded-lg border border-amber-300/30 bg-amber-500/10 p-1 text-amber-200">
-                              <ImageIcon className="h-3 w-3" />
-                            </span>
+                            coverUrl ? (
+                              <span className="inline-flex h-9 w-9 overflow-hidden rounded-lg border border-amber-300/35 bg-black/35 p-0.5 shadow-[0_6px_20px_rgba(245,158,11,0.25)]">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={coverUrl}
+                                  alt={`Capa da nota ${getNoteCardTitle(note)}`}
+                                  loading="lazy"
+                                  className="h-full w-full rounded-md object-cover"
+                                />
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center rounded-lg border border-amber-300/30 bg-amber-500/10 p-1 text-amber-200">
+                                <ImageIcon className="h-3 w-3" />
+                              </span>
+                            )
                           ) : null}
                         </div>
 
