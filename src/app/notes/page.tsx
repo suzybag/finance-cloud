@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
   Cloud,
-  File,
+  File as FileIcon,
   Loader2,
   Paperclip,
   Pencil,
@@ -52,6 +52,18 @@ type NotePersistRow = {
   updated_at: string;
 };
 
+type NoteFilePersistRow = {
+  id: string;
+  note_id: string;
+  user_id: string;
+  file_name: string;
+  file_path: string;
+  mime_type: string | null;
+  size_bytes: number | null;
+  created_at: string;
+  bucket?: string | null;
+};
+
 const PRIMARY_BUCKET = "note-files";
 const FALLBACK_BUCKET = "avatars";
 const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
@@ -95,6 +107,11 @@ const getNoteCardTitle = (note: NoteRow) => {
 const isStorageMissingError = (message?: string | null) => {
   const text = (message || "").toLowerCase();
   return text.includes("not found") || text.includes("does not exist");
+};
+
+const isMissingBucketColumnError = (message?: string | null) => {
+  const text = (message || "").toLowerCase();
+  return text.includes("bucket") && (text.includes("does not exist") || text.includes("could not find the column"));
 };
 
 const createId = () =>
@@ -176,6 +193,53 @@ const normalizeNotes = (userId: string, value: unknown): NoteRow[] => {
   );
 };
 
+const mergeAttachments = (storageAttachments: NoteAttachment[], dbAttachments: NoteAttachment[]) => {
+  const map = new Map<string, NoteAttachment>();
+  for (const attachment of [...storageAttachments, ...dbAttachments]) {
+    const previous = map.get(attachment.id);
+    if (!previous) {
+      map.set(attachment.id, attachment);
+      continue;
+    }
+
+    if (!previous.bucket && attachment.bucket) {
+      map.set(attachment.id, attachment);
+    }
+  }
+
+  return Array.from(map.values()).sort(
+    (a, b) => toSafeTimestamp(b.created_at) - toSafeTimestamp(a.created_at),
+  );
+};
+
+const mergeDbAttachmentsIntoNotes = (notes: NoteRow[], rows: NoteFilePersistRow[]) => {
+  const rowsByNote = new Map<string, NoteAttachment[]>();
+  for (const row of rows) {
+    const current = rowsByNote.get(row.note_id) ?? [];
+    current.push({
+      id: row.id,
+      file_name: row.file_name,
+      file_path: row.file_path,
+      bucket: row.bucket ?? null,
+      mime_type: row.mime_type ?? null,
+      size_bytes: row.size_bytes ?? null,
+      created_at: row.created_at,
+    });
+    rowsByNote.set(row.note_id, current);
+  }
+
+  return ensureSorted(
+    notes.map((note) => {
+      const dbAttachments = rowsByNote.get(note.id) ?? [];
+      if (!dbAttachments.length) return note;
+      return {
+        ...note,
+        attachments: mergeAttachments(note.attachments, dbAttachments),
+      };
+    }),
+  );
+};
+
 const saveStoreToBucket = async (userId: string, bucket: string, notes: NoteRow[]) => {
   const payload: NotesStorePayload = { version: 1, notes };
   const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
@@ -218,16 +282,115 @@ const loadStoreFromDatabase = async (userId: string) => {
   };
 };
 
-const resolveAttachmentUrl = async (bucket: string, filePath: string) => {
-  const { data: signed, error: signedError } = await supabase
-    .storage
-    .from(bucket)
-    .createSignedUrl(filePath, 60 * 60);
+const loadAttachmentsFromDatabase = async (userId: string) => {
+  const withBucketSelect = "id, note_id, user_id, file_name, file_path, mime_type, size_bytes, created_at, bucket";
+  const withoutBucketSelect = "id, note_id, user_id, file_name, file_path, mime_type, size_bytes, created_at";
 
-  if (!signedError && signed?.signedUrl) return signed.signedUrl;
+  const withBucketQuery = await supabase
+    .from("note_files")
+    .select(withBucketSelect)
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
 
-  const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(filePath);
-  return publicData.publicUrl || null;
+  let rowsData: unknown[] | null = withBucketQuery.data as unknown[] | null;
+  let rowsError = withBucketQuery.error;
+
+  if (rowsError && isMissingBucketColumnError(rowsError.message)) {
+    const withoutBucketQuery = await supabase
+      .from("note_files")
+      .select(withoutBucketSelect)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    rowsData = withoutBucketQuery.data as unknown[] | null;
+    rowsError = withoutBucketQuery.error;
+  }
+
+  if (rowsError) {
+    return { rows: [] as NoteFilePersistRow[], error: rowsError.message };
+  }
+
+  const rows = (Array.isArray(rowsData) ? rowsData : []).map((item) => {
+    const row = item as Partial<NoteFilePersistRow>;
+    return {
+      id: String(row.id || ""),
+      note_id: String(row.note_id || ""),
+      user_id: String(row.user_id || userId),
+      file_name: typeof row.file_name === "string" && row.file_name.trim() ? row.file_name : "arquivo",
+      file_path: String(row.file_path || ""),
+      mime_type: typeof row.mime_type === "string" ? row.mime_type : null,
+      size_bytes: typeof row.size_bytes === "number" ? row.size_bytes : null,
+      created_at: typeof row.created_at === "string" ? row.created_at : new Date().toISOString(),
+      bucket: typeof row.bucket === "string" && row.bucket.trim() ? row.bucket : null,
+    } satisfies NoteFilePersistRow;
+  }).filter((row) => row.id && row.note_id && row.file_path);
+
+  return { rows, error: null as string | null };
+};
+
+const saveAttachmentsToDatabase = async (
+  userId: string,
+  noteId: string,
+  attachments: NoteAttachment[],
+) => {
+  if (!attachments.length) return { ok: true, error: null as string | null };
+
+  const withBucketPayload: NoteFilePersistRow[] = attachments.map((attachment) => ({
+    id: attachment.id,
+    note_id: noteId,
+    user_id: userId,
+    file_name: attachment.file_name,
+    file_path: attachment.file_path,
+    bucket: attachment.bucket,
+    mime_type: attachment.mime_type,
+    size_bytes: attachment.size_bytes,
+    created_at: attachment.created_at,
+  }));
+
+  const withBucketWrite = await supabase
+    .from("note_files")
+    .upsert(withBucketPayload, { onConflict: "id" });
+
+  let writeError = withBucketWrite.error;
+  if (writeError && isMissingBucketColumnError(writeError.message)) {
+    const withoutBucketPayload = withBucketPayload.map((row) => ({
+      id: row.id,
+      note_id: row.note_id,
+      user_id: row.user_id,
+      file_name: row.file_name,
+      file_path: row.file_path,
+      mime_type: row.mime_type,
+      size_bytes: row.size_bytes,
+      created_at: row.created_at,
+    }));
+    const withoutBucketWrite = await supabase
+      .from("note_files")
+      .upsert(withoutBucketPayload, { onConflict: "id" });
+    writeError = withoutBucketWrite.error;
+  }
+
+  return { ok: !writeError, error: writeError?.message || null };
+};
+
+const resolveAttachmentUrl = async (bucket: string | null, filePath: string) => {
+  const candidates = Array.from(new Set([
+    bucket,
+    PRIMARY_BUCKET,
+    FALLBACK_BUCKET,
+  ].filter((value): value is string => !!value)));
+
+  for (const candidate of candidates) {
+    const { data: signed, error: signedError } = await supabase
+      .storage
+      .from(candidate)
+      .createSignedUrl(filePath, 60 * 60);
+
+    if (!signedError && signed?.signedUrl) return signed.signedUrl;
+
+    const { data: publicData } = supabase.storage.from(candidate).getPublicUrl(filePath);
+    if (publicData.publicUrl) return publicData.publicUrl;
+  }
+
+  return null;
 };
 
 export default function NotesPage() {
@@ -449,6 +612,13 @@ export default function NotesPage() {
       setFeedback(`Falha ao carregar notas: ${dbLoad.error}`);
     }
 
+    const attachmentLoad = await loadAttachmentsFromDatabase(user.id);
+    if (attachmentLoad.rows.length && initialNotes.length) {
+      initialNotes = mergeDbAttachmentsIntoNotes(initialNotes, attachmentLoad.rows);
+    } else if (attachmentLoad.error && !storageLoadFailed) {
+      setFeedback(`Falha ao carregar anexos: ${attachmentLoad.error}`);
+    }
+
     if (!initialNotes.length) {
       initialNotes = [createNewNote(user.id, "Minha primeira nota")];
       const firstWrite = await saveStoreToBucket(user.id, resolvedBucket, initialNotes);
@@ -538,8 +708,7 @@ export default function NotesPage() {
     const run = async () => {
       const views = await Promise.all(
         selectedNote.attachments.map(async (attachment) => {
-          const fileBucket = attachment.bucket || bucketName;
-          const signedUrl = await resolveAttachmentUrl(fileBucket, attachment.file_path);
+          const signedUrl = await resolveAttachmentUrl(attachment.bucket, attachment.file_path);
           return {
             ...attachment,
             signedUrl,
@@ -557,7 +726,7 @@ export default function NotesPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedNoteId, selectedAttachmentKey, bucketName, selectedNote]);
+  }, [selectedNoteId, selectedAttachmentKey, selectedNote]);
 
   const handleSelectNote = async (note: NoteRow) => {
     if (note.id === selectedNoteId) return;
@@ -602,9 +771,11 @@ export default function NotesPage() {
     setFeedback(null);
 
     const groupedByBucket = selectedNote.attachments.reduce<Record<string, string[]>>((acc, attachment) => {
-      const key = attachment.bucket || bucketName;
-      if (!acc[key]) acc[key] = [];
-      acc[key].push(attachment.file_path);
+      const keys = attachment.bucket ? [attachment.bucket] : [PRIMARY_BUCKET, FALLBACK_BUCKET];
+      for (const key of keys) {
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(attachment.file_path);
+      }
       return acc;
     }, {});
 
@@ -617,6 +788,12 @@ export default function NotesPage() {
       .from("notes")
       .delete()
       .eq("id", selectedNote.id)
+      .eq("user_id", userId);
+
+    await supabase
+      .from("note_files")
+      .delete()
+      .eq("note_id", selectedNote.id)
       .eq("user_id", userId);
 
     let remaining = latestNotesRef.current.filter((note) => note.id !== selectedNote.id);
@@ -637,7 +814,7 @@ export default function NotesPage() {
   };
 
   const uploadFileWithFallback = useCallback(
-    async (filePath: string, file: File) => {
+    async (filePath: string, file: globalThis.File) => {
       const first = await supabase
         .storage
         .from(bucketName)
@@ -648,6 +825,7 @@ export default function NotesPage() {
 
       if (!first.error) return { ok: true, bucket: bucketName, error: null as string | null };
 
+      let secondError: string | null = null;
       if (bucketName !== FALLBACK_BUCKET) {
         const second = await supabase
           .storage
@@ -661,9 +839,12 @@ export default function NotesPage() {
           setBucketName(FALLBACK_BUCKET);
           return { ok: true, bucket: FALLBACK_BUCKET, error: null as string | null };
         }
+
+        secondError = second.error.message;
       }
 
-      return { ok: false, bucket: bucketName, error: first.error.message };
+      const fullError = [first.error.message, secondError].filter(Boolean).join(" | ");
+      return { ok: false, bucket: bucketName, error: fullError || first.error.message };
     },
     [bucketName],
   );
@@ -733,6 +914,10 @@ export default function NotesPage() {
 
       setNotes(fixed);
       latestNotesRef.current = fixed;
+      const dbAttachSave = await saveAttachmentsToDatabase(userId, selectedNote.id, newAttachments);
+      if (!dbAttachSave.ok) {
+        failures.push(`metadata: ${dbAttachSave.error || "falha ao sincronizar anexos no banco"}`);
+      }
       await persistStore(fixed);
     }
 
@@ -748,7 +933,7 @@ export default function NotesPage() {
   };
 
   const handleDeleteAttachment = async (attachment: NoteFileView) => {
-    if (!selectedNote) return;
+    if (!selectedNote || !userId) return;
 
     const confirmed = window.confirm(`Remover anexo "${attachment.file_name}"?`);
     if (!confirmed) return;
@@ -757,8 +942,19 @@ export default function NotesPage() {
     setDeletingAttachmentId(attachment.id);
     setFeedback(null);
 
-    const fileBucket = attachment.bucket || bucketName;
-    await supabase.storage.from(fileBucket).remove([attachment.file_path]);
+    const candidateBuckets = attachment.bucket
+      ? [attachment.bucket]
+      : [PRIMARY_BUCKET, FALLBACK_BUCKET];
+
+    await Promise.all(
+      candidateBuckets.map((bucket) => supabase.storage.from(bucket).remove([attachment.file_path])),
+    );
+
+    await supabase
+      .from("note_files")
+      .delete()
+      .eq("id", attachment.id)
+      .eq("user_id", userId);
 
     const next = ensureSorted(
       latestNotesRef.current.map((note) =>
@@ -972,7 +1168,7 @@ export default function NotesPage() {
                       >
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <File className="h-4 w-4 text-slate-300" />
+                            <FileIcon className="h-4 w-4 text-slate-300" />
                             {attachment.signedUrl ? (
                               <a
                                 href={attachment.signedUrl}
