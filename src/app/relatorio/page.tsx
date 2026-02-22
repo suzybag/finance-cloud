@@ -25,6 +25,7 @@ import {
 } from "recharts";
 import { AppShell } from "@/components/AppShell";
 import { CategoryIcon } from "@/components/CategoryIcon";
+import { DrawOutlineButton } from "@/components/DrawOutlineButton";
 import { supabase } from "@/lib/supabaseClient";
 
 type MonthlyExpenseRow = {
@@ -402,23 +403,25 @@ export default function RelatorioPage() {
         value={monthFilter}
         onChange={(event) => setMonthFilter(event.target.value)}
       />
-      <button
+      <DrawOutlineButton
         type="button"
+        lineClassName="bg-slate-300"
         className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-900/55"
         onClick={() => void loadReport()}
       >
         <RefreshCcw className="h-4 w-4" />
         Atualizar
-      </button>
-      <button
+      </DrawOutlineButton>
+      <DrawOutlineButton
         type="button"
+        lineClassName="bg-violet-200"
         className="inline-flex items-center gap-2 rounded-xl border border-violet-300/30 bg-violet-500/20 px-3 py-2 text-sm font-semibold text-violet-100 transition hover:bg-violet-500/30 disabled:opacity-60"
         onClick={() => void handleExport()}
         disabled={exporting || loading}
       >
         <Download className="h-4 w-4" />
         {exporting ? "Exportando..." : "Exportar Excel"}
-      </button>
+      </DrawOutlineButton>
     </div>
   );
 

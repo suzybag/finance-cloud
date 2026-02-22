@@ -17,6 +17,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { DrawOutlineButton } from "@/components/DrawOutlineButton";
+import { SpringModal } from "@/components/SpringModal";
 import { supabase } from "@/lib/supabaseClient";
 
 type NoteAttachment = {
@@ -431,6 +433,8 @@ export default function NotesPage() {
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(null);
+  const [confirmDeleteNoteOpen, setConfirmDeleteNoteOpen] = useState(false);
+  const [pendingAttachmentDelete, setPendingAttachmentDelete] = useState<NoteFileView | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [manualSaving, setManualSaving] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -840,55 +844,59 @@ export default function NotesPage() {
 
   const handleDeleteCurrentNote = async () => {
     if (!selectedNote || !userId) return;
-
-    const confirmed = window.confirm("Excluir esta nota e todos os anexos?");
-    if (!confirmed) return;
+    const noteToDelete = selectedNote;
 
     await flushPendingSave();
-    setDeletingNoteId(selectedNote.id);
+    setDeletingNoteId(noteToDelete.id);
     setFeedback(null);
 
-    const groupedByBucket = selectedNote.attachments.reduce<Record<string, string[]>>((acc, attachment) => {
-      const keys = attachment.bucket ? [attachment.bucket] : [PRIMARY_BUCKET, FALLBACK_BUCKET];
-      for (const key of keys) {
-        if (!acc[key]) acc[key] = [];
-        acc[key].push(attachment.file_path);
+    try {
+      const groupedByBucket = noteToDelete.attachments.reduce<Record<string, string[]>>((acc, attachment) => {
+        const keys = attachment.bucket ? [attachment.bucket] : [PRIMARY_BUCKET, FALLBACK_BUCKET];
+        for (const key of keys) {
+          if (!acc[key]) acc[key] = [];
+          acc[key].push(attachment.file_path);
+        }
+        return acc;
+      }, {});
+
+      const removeJobs = Object.entries(groupedByBucket).map(([bucket, paths]) =>
+        supabase.storage.from(bucket).remove(paths),
+      );
+      await Promise.all(removeJobs);
+
+      await supabase
+        .from("notes")
+        .delete()
+        .eq("id", noteToDelete.id)
+        .eq("user_id", userId);
+
+      await supabase
+        .from("note_files")
+        .delete()
+        .eq("note_id", noteToDelete.id)
+        .eq("user_id", userId);
+
+      let remaining = latestNotesRef.current.filter((note) => note.id !== noteToDelete.id);
+      if (!remaining.length) {
+        remaining = [createNewNote(userId, "Nova nota 1")];
       }
-      return acc;
-    }, {});
+      remaining = ensureSorted(remaining);
 
-    const removeJobs = Object.entries(groupedByBucket).map(([bucket, paths]) =>
-      supabase.storage.from(bucket).remove(paths),
-    );
-    await Promise.all(removeJobs);
+      setNotes(remaining);
+      latestNotesRef.current = remaining;
 
-    await supabase
-      .from("notes")
-      .delete()
-      .eq("id", selectedNote.id)
-      .eq("user_id", userId);
-
-    await supabase
-      .from("note_files")
-      .delete()
-      .eq("note_id", selectedNote.id)
-      .eq("user_id", userId);
-
-    let remaining = latestNotesRef.current.filter((note) => note.id !== selectedNote.id);
-    if (!remaining.length) {
-      remaining = [createNewNote(userId, "Nova nota 1")];
+      const next = remaining[0];
+      setSelectedNoteId(next.id);
+      setDraftFromNote(next);
+      setSaveState("saving");
+      await persistStore(remaining);
+      setFeedback("Nota excluida com sucesso.");
+    } catch {
+      setFeedback("Nao foi possivel excluir a nota agora.");
+    } finally {
+      setDeletingNoteId(null);
     }
-    remaining = ensureSorted(remaining);
-
-    setNotes(remaining);
-    latestNotesRef.current = remaining;
-
-    const next = remaining[0];
-    setSelectedNoteId(next.id);
-    setDraftFromNote(next);
-    setDeletingNoteId(null);
-    setSaveState("saving");
-    await persistStore(remaining);
   };
 
   const uploadFileWithFallback = useCallback(
@@ -1013,43 +1021,63 @@ export default function NotesPage() {
   const handleDeleteAttachment = async (attachment: NoteFileView) => {
     if (!selectedNote || !userId) return;
 
-    const confirmed = window.confirm(`Remover anexo "${attachment.file_name}"?`);
-    if (!confirmed) return;
-
     await flushPendingSave();
     setDeletingAttachmentId(attachment.id);
     setFeedback(null);
 
-    const candidateBuckets = attachment.bucket
-      ? [attachment.bucket]
-      : [PRIMARY_BUCKET, FALLBACK_BUCKET];
+    try {
+      const candidateBuckets = attachment.bucket
+        ? [attachment.bucket]
+        : [PRIMARY_BUCKET, FALLBACK_BUCKET];
 
-    await Promise.all(
-      candidateBuckets.map((bucket) => supabase.storage.from(bucket).remove([attachment.file_path])),
-    );
+      await Promise.all(
+        candidateBuckets.map((bucket) => supabase.storage.from(bucket).remove([attachment.file_path])),
+      );
 
-    await supabase
-      .from("note_files")
-      .delete()
-      .eq("id", attachment.id)
-      .eq("user_id", userId);
+      await supabase
+        .from("note_files")
+        .delete()
+        .eq("id", attachment.id)
+        .eq("user_id", userId);
 
-    const next = ensureSorted(
-      latestNotesRef.current.map((note) =>
-        note.id === selectedNote.id
-          ? {
-            ...note,
-            attachments: note.attachments.filter((item) => item.id !== attachment.id),
-            updated_at: new Date().toISOString(),
-          }
-          : note,
-      ),
-    );
+      const next = ensureSorted(
+        latestNotesRef.current.map((note) =>
+          note.id === selectedNote.id
+            ? {
+              ...note,
+              attachments: note.attachments.filter((item) => item.id !== attachment.id),
+              updated_at: new Date().toISOString(),
+            }
+            : note,
+        ),
+      );
 
-    setNotes(next);
-    latestNotesRef.current = next;
-    setDeletingAttachmentId(null);
-    await persistStore(next);
+      setNotes(next);
+      latestNotesRef.current = next;
+      await persistStore(next);
+      setFeedback("Anexo removido com sucesso.");
+    } catch {
+      setFeedback("Nao foi possivel remover o anexo agora.");
+    } finally {
+      setDeletingAttachmentId(null);
+    }
+  };
+
+  const handleConfirmDeleteCurrentNote = async () => {
+    try {
+      await handleDeleteCurrentNote();
+    } finally {
+      setConfirmDeleteNoteOpen(false);
+    }
+  };
+
+  const handleConfirmDeleteAttachment = async () => {
+    if (!pendingAttachmentDelete) return;
+    try {
+      await handleDeleteAttachment(pendingAttachmentDelete);
+    } finally {
+      setPendingAttachmentDelete(null);
+    }
   };
 
   return (
@@ -1078,14 +1106,15 @@ export default function NotesPage() {
                     <p className="text-[11px] text-slate-400">{notes.length} itens sincronizados</p>
                   </div>
                 </div>
-                <button
+                <DrawOutlineButton
                   type="button"
+                  lineClassName="bg-cyan-200"
                   className="inline-flex items-center gap-2 rounded-xl border border-cyan-300/35 bg-cyan-500/15 px-3 py-1.5 text-xs font-semibold text-cyan-100 transition hover:bg-cyan-500/25"
                   onClick={handleCreateNote}
                 >
                   <Plus className="h-3.5 w-3.5" />
                   Nova
-                </button>
+                </DrawOutlineButton>
               </div>
 
               <label className="mb-3 block">
@@ -1189,42 +1218,46 @@ export default function NotesPage() {
                     {getSaveLabel(saveState)}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <button
+                    <DrawOutlineButton
                       type="button"
+                      lineClassName="bg-emerald-200"
                       className="inline-flex items-center gap-2 rounded-xl border border-emerald-300/35 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-60"
                       onClick={() => void handleManualSave()}
                       disabled={!selectedNoteId || manualSaving || saveState === "saving"}
                     >
                       {manualSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                       Salvar
-                    </button>
-                    <button
+                    </DrawOutlineButton>
+                    <DrawOutlineButton
                       type="button"
+                      lineClassName="bg-cyan-200"
                       className="inline-flex items-center gap-2 rounded-xl border border-cyan-300/35 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/20 disabled:opacity-60"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={!selectedNoteId || uploadingFiles}
                     >
                       {uploadingFiles ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Paperclip className="h-3.5 w-3.5" />}
                       Anexar foto ou arquivo
-                    </button>
-                    <button
+                    </DrawOutlineButton>
+                    <DrawOutlineButton
                       type="button"
+                      lineClassName="bg-slate-300"
                       className="inline-flex items-center gap-2 rounded-xl border border-slate-600/55 bg-slate-800/70 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-700/80 disabled:opacity-60"
                       onClick={handleRenameCurrentNote}
                       disabled={!selectedNoteId}
                     >
                       <Pencil className="h-3.5 w-3.5" />
                       Nomear nota
-                    </button>
-                    <button
+                    </DrawOutlineButton>
+                    <DrawOutlineButton
                       type="button"
+                      lineClassName="bg-rose-300"
                       className="inline-flex items-center gap-2 rounded-xl border border-rose-300/25 bg-rose-950/45 px-3 py-1.5 text-xs font-semibold text-rose-100 hover:bg-rose-900/45 disabled:opacity-60"
-                      onClick={() => void handleDeleteCurrentNote()}
+                      onClick={() => setConfirmDeleteNoteOpen(true)}
                       disabled={!selectedNoteId || deletingNoteId === selectedNoteId}
                     >
                       {deletingNoteId === selectedNoteId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                       Excluir nota
-                    </button>
+                    </DrawOutlineButton>
                   </div>
                 </div>
               </div>
@@ -1292,7 +1325,7 @@ export default function NotesPage() {
                             <button
                               type="button"
                               className="rounded-md border border-rose-400/35 bg-rose-500/10 p-1 text-rose-200 hover:bg-rose-500/20 disabled:opacity-60"
-                              onClick={() => void handleDeleteAttachment(attachment)}
+                              onClick={() => setPendingAttachmentDelete(attachment)}
                               disabled={deletingAttachmentId === attachment.id}
                               aria-label={`Excluir ${attachment.file_name}`}
                             >
@@ -1356,7 +1389,7 @@ export default function NotesPage() {
                           <button
                             type="button"
                             className="rounded-md border border-rose-400/35 bg-rose-500/10 p-1.5 text-rose-200 hover:bg-rose-500/20 disabled:opacity-60"
-                            onClick={() => void handleDeleteAttachment(attachment)}
+                            onClick={() => setPendingAttachmentDelete(attachment)}
                             disabled={deletingAttachmentId === attachment.id}
                             aria-label={`Excluir ${attachment.file_name}`}
                           >
@@ -1390,6 +1423,34 @@ export default function NotesPage() {
           </section>
         </div>
       )}
+
+      <SpringModal
+        isOpen={confirmDeleteNoteOpen}
+        onClose={() => setConfirmDeleteNoteOpen(false)}
+        onConfirm={() => void handleConfirmDeleteCurrentNote()}
+        title="Excluir nota?"
+        description="Essa acao remove a nota e todos os anexos vinculados da nuvem."
+        confirmLabel={deletingNoteId === selectedNoteId ? "Excluindo..." : "Excluir nota"}
+        cancelLabel="Cancelar"
+        loading={deletingNoteId === selectedNoteId}
+        tone="danger"
+      />
+
+      <SpringModal
+        isOpen={!!pendingAttachmentDelete}
+        onClose={() => setPendingAttachmentDelete(null)}
+        onConfirm={() => void handleConfirmDeleteAttachment()}
+        title="Remover anexo?"
+        description={
+          pendingAttachmentDelete
+            ? `O arquivo \"${pendingAttachmentDelete.file_name}\" sera removido permanentemente.`
+            : "Confirme para remover este anexo."
+        }
+        confirmLabel={pendingAttachmentDelete && deletingAttachmentId === pendingAttachmentDelete.id ? "Removendo..." : "Remover anexo"}
+        cancelLabel="Cancelar"
+        loading={!!pendingAttachmentDelete && deletingAttachmentId === pendingAttachmentDelete.id}
+        tone="danger"
+      />
     </AppShell>
   );
 }
