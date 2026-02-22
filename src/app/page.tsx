@@ -170,6 +170,33 @@ export default function LoginPage() {
     }).catch(() => null);
   };
 
+  const finalizeLoginSession = async (
+    sanitizedEmail: string,
+    session: { access_token?: string; refresh_token?: string } | undefined,
+  ) => {
+    if (!session?.access_token || !session.refresh_token) {
+      setError("Sessao de login invalida. Tente novamente.");
+      return false;
+    }
+
+    persistRememberChoice(sanitizedEmail);
+    const { error: sessionError } = await supabase.auth.setSession({
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+    });
+
+    if (sessionError) {
+      setError(sessionError.message);
+      return false;
+    }
+
+    resetOtpFlow();
+    setPassword("");
+    setLockUntil(0);
+    router.push("/dashboard");
+    return true;
+  };
+
   const startLoginWithOtp = async (sanitizedEmail: string) => {
     const response = await fetch("/api/auth/login/start", {
       method: "POST",
@@ -193,6 +220,21 @@ export default function LoginPage() {
         setError(baseMessage);
       }
       return false;
+    }
+
+    if (data?.requires_otp === false) {
+      const completed = await finalizeLoginSession(
+        sanitizedEmail,
+        data?.session as { access_token?: string; refresh_token?: string } | undefined,
+      );
+      if (!completed) return false;
+
+      if (data?.security_mode === "degraded") {
+        setMessage("Login concluido em modo degradado. Configure APP_ENCRYPTION_KEY e SUPABASE_SERVICE_ROLE_KEY para reativar OTP.");
+      } else {
+        setMessage("Login concluido.");
+      }
+      return true;
     }
 
     setLoginStep("otp");
@@ -233,27 +275,7 @@ export default function LoginPage() {
     }
 
     const session = data?.session as { access_token?: string; refresh_token?: string } | undefined;
-    if (!session?.access_token || !session.refresh_token) {
-      setError("Sessao de login invalida. Tente novamente.");
-      return false;
-    }
-
-    persistRememberChoice(sanitizedEmail);
-    const { error: sessionError } = await supabase.auth.setSession({
-      access_token: session.access_token,
-      refresh_token: session.refresh_token,
-    });
-
-    if (sessionError) {
-      setError(sessionError.message);
-      return false;
-    }
-
-    resetOtpFlow();
-    setPassword("");
-    setLockUntil(0);
-    router.push("/dashboard");
-    return true;
+    return finalizeLoginSession(sanitizedEmail, session);
   };
 
   const handleForgotPassword = async (event: React.MouseEvent<HTMLAnchorElement>) => {

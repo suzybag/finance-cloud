@@ -106,19 +106,52 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!hasEncryptionKey()) {
-    return NextResponse.json(
-      { ok: false, message: "APP_ENCRYPTION_KEY nao configurada." },
-      { status: 503 },
-    );
-  }
+  const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
 
+  const encryptionReady = hasEncryptionKey();
   const admin = getAdminClient();
-  if (!admin) {
-    return NextResponse.json(
-      { ok: false, message: "Service role nao configurada para seguranca de login." },
-      { status: 503 },
-    );
+  if (!encryptionReady || !admin) {
+    const { data: loginData, error: loginError } = await authClient.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (loginError || !loginData.user || !loginData.session) {
+      return NextResponse.json(
+        {
+          ok: false,
+          message: GENERIC_LOGIN_ERROR,
+        },
+        { status: 401 },
+      );
+    }
+
+    await logSecurityEvent({
+      req,
+      eventType: "auth_login_without_otp_fallback",
+      severity: "warning",
+      message: "Login concluido sem OTP por configuracao incompleta de seguranca.",
+      userId: loginData.user.id,
+      metadata: {
+        reason: !encryptionReady ? "missing_encryption_key" : "missing_service_role",
+      },
+    });
+
+    return NextResponse.json({
+      ok: true,
+      requires_otp: false,
+      security_mode: "degraded",
+      session: {
+        access_token: loginData.session.access_token,
+        refresh_token: loginData.session.refresh_token,
+      },
+    });
   }
 
   const attemptKey = getAttemptKey(email, ip);
@@ -161,14 +194,6 @@ export async function POST(req: NextRequest) {
       lockUntil: null,
     });
   }
-
-  const authClient = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
-    },
-  });
 
   const { data: loginData, error: loginError } = await authClient.auth.signInWithPassword({
     email,
