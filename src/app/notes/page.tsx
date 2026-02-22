@@ -2,13 +2,18 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
+  Clock3,
   Cloud,
   File as FileIcon,
+  FileText,
+  Image as ImageIcon,
   Loader2,
   Paperclip,
   Pencil,
   Plus,
   Save,
+  Search,
+  Sparkles,
   Trash2,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
@@ -102,6 +107,25 @@ const getSaveLabel = (state: "idle" | "saving" | "saved" | "error") => {
 const getNoteCardTitle = (note: NoteRow) => {
   const title = note.title.trim();
   return title || "Sem nome";
+};
+
+const compactText = (value: string) =>
+  value
+    .replace(/https?:\/\/\S+/gi, "[link]")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const getNotePreview = (note: NoteRow) => {
+  const cleaned = compactText(note.content || "");
+  if (!cleaned) return "Sem conteudo";
+  if (cleaned.length <= 90) return cleaned;
+  return `${cleaned.slice(0, 90)}...`;
+};
+
+const getAttachmentCountLabel = (count: number) => {
+  if (count <= 0) return "Sem anexos";
+  if (count === 1) return "1 anexo";
+  return `${count} anexos`;
 };
 
 const isStorageMissingError = (message?: string | null) => {
@@ -397,6 +421,7 @@ export default function NotesPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [bucketName, setBucketName] = useState<string>(PRIMARY_BUCKET);
   const [notes, setNotes] = useState<NoteRow[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
   const [draftContent, setDraftContent] = useState("");
@@ -423,6 +448,16 @@ export default function NotesPage() {
     () => notes.find((note) => note.id === selectedNoteId) ?? null,
     [notes, selectedNoteId],
   );
+
+  const filteredNotes = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return notes;
+    return notes.filter((note) => {
+      const title = getNoteCardTitle(note).toLowerCase();
+      const content = compactText(note.content || "").toLowerCase();
+      return title.includes(term) || content.includes(term);
+    });
+  }, [notes, searchTerm]);
 
   const selectedAttachmentKey = useMemo(() => {
     if (!selectedNote) return "";
@@ -985,242 +1020,317 @@ export default function NotesPage() {
           Carregando notas...
         </div>
       ) : (
-        <div className="grid gap-4 xl:grid-cols-[320px_1fr]">
-          <section className="rounded-2xl border border-slate-700/40 bg-[#0b0d12]/95 p-4 backdrop-blur-xl">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-base font-semibold text-slate-100">Minhas notas</h2>
-              <button
-                type="button"
-                className="inline-flex items-center gap-2 rounded-lg border border-slate-500/45 bg-slate-800/60 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-700/70"
-                onClick={handleCreateNote}
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Nova
-              </button>
-            </div>
+        <div className="grid gap-4 xl:grid-cols-[340px_1fr]">
+          <section className="relative overflow-hidden rounded-3xl border border-slate-700/45 bg-[linear-gradient(165deg,#0e1118,#090b11)] p-4 backdrop-blur-xl">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(520px_240px_at_10%_-12%,rgba(56,189,248,.18),transparent),radial-gradient(520px_280px_at_110%_14%,rgba(167,139,250,.16),transparent)]" />
 
-            <div className="max-h-[70vh] space-y-2 overflow-auto pr-1">
-              {notes.map((note) => {
-                const active = selectedNoteId === note.id;
-                return (
-                  <button
-                    key={note.id}
-                    type="button"
-                    onClick={() => void handleSelectNote(note)}
-                    className={`w-full rounded-xl border px-3 py-2 text-left transition ${
-                      active
-                        ? "border-slate-500/60 bg-slate-800/65"
-                        : "border-slate-700/45 bg-slate-900/45 hover:bg-slate-800/60"
-                    }`}
-                  >
-                    <p className="line-clamp-1 text-sm font-semibold text-slate-100">
-                      {getNoteCardTitle(note)}
-                    </p>
-                    <p className="mt-1 line-clamp-2 text-xs text-slate-400">
-                      {(note.content || "Sem conteudo").trim()}
-                    </p>
-                    <p className="mt-2 text-[11px] text-slate-500">
-                      {formatDateTime(note.updated_at)}
-                    </p>
-                  </button>
-                );
-              })}
+            <div className="relative">
+              <div className="mb-4 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-xl border border-cyan-300/25 bg-cyan-500/10 p-2 text-cyan-200">
+                    <FileText className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-semibold text-slate-100">Minhas notas</h2>
+                    <p className="text-[11px] text-slate-400">{notes.length} itens sincronizados</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 rounded-xl border border-cyan-300/35 bg-cyan-500/15 px-3 py-1.5 text-xs font-semibold text-cyan-100 transition hover:bg-cyan-500/25"
+                  onClick={handleCreateNote}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Nova
+                </button>
+              </div>
+
+              <label className="mb-3 block">
+                <span className="relative block">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
+                  <input
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                    placeholder="Buscar por titulo ou conteudo..."
+                    className="w-full rounded-xl border border-slate-600/45 bg-slate-900/65 py-2 pl-9 pr-3 text-xs font-medium text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-300/45 focus:ring-2 focus:ring-cyan-400/20"
+                  />
+                </span>
+              </label>
+
+              <div className="mb-3 flex items-center justify-between text-[11px] text-slate-400">
+                <span>{filteredNotes.length} exibidas</span>
+                <span className="inline-flex items-center gap-1 rounded-full border border-violet-300/25 bg-violet-500/10 px-2 py-0.5 text-violet-200">
+                  <Sparkles className="h-3 w-3" />
+                  Keep-like
+                </span>
+              </div>
+
+              <div className="max-h-[70vh] space-y-2 overflow-auto pr-1">
+                {filteredNotes.length ? (
+                  filteredNotes.map((note) => {
+                    const active = selectedNoteId === note.id;
+                    const attachmentCount = note.attachments.length;
+                    const hasImage = note.attachments.some((attachment) =>
+                      (attachment.mime_type || "").startsWith("image/"),
+                    );
+
+                    return (
+                      <button
+                        key={note.id}
+                        type="button"
+                        onClick={() => void handleSelectNote(note)}
+                        className={`w-full rounded-2xl border px-3.5 py-3 text-left transition ${
+                          active
+                            ? "border-cyan-300/35 bg-[linear-gradient(140deg,rgba(16,30,46,0.88),rgba(15,21,36,0.9))] shadow-[0_14px_35px_rgba(6,182,212,0.15)]"
+                            : "border-slate-700/55 bg-slate-900/45 hover:border-slate-500/55 hover:bg-slate-800/55"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="line-clamp-1 text-[15px] font-semibold tracking-tight text-slate-100">
+                            {getNoteCardTitle(note)}
+                          </p>
+                          {hasImage ? (
+                            <span className="inline-flex items-center rounded-lg border border-amber-300/30 bg-amber-500/10 p-1 text-amber-200">
+                              <ImageIcon className="h-3 w-3" />
+                            </span>
+                          ) : null}
+                        </div>
+
+                        <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-slate-300/90">
+                          {getNotePreview(note)}
+                        </p>
+
+                        <div className="mt-3 flex items-center justify-between gap-2">
+                          <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
+                            <Clock3 className="h-3 w-3" />
+                            {formatDateTime(note.updated_at)}
+                          </span>
+                          <span className="inline-flex items-center gap-1 rounded-full border border-slate-600/55 bg-slate-900/65 px-2 py-0.5 text-[11px] text-slate-300">
+                            <Paperclip className="h-3 w-3" />
+                            {getAttachmentCountLabel(attachmentCount)}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="rounded-xl border border-dashed border-slate-600/55 bg-slate-900/45 px-3 py-5 text-center text-xs text-slate-400">
+                    Nenhuma nota encontrada para a busca.
+                  </div>
+                )}
+              </div>
             </div>
           </section>
 
-          <section className="rounded-2xl border border-slate-700/40 bg-[#07080d]/95 p-4 backdrop-blur-xl">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-200">
-                <Cloud className="h-3.5 w-3.5" />
-                {getSaveLabel(saveState)}
+          <section className="relative overflow-hidden rounded-3xl border border-slate-700/45 bg-[linear-gradient(170deg,#0b0f17,#080a11)] p-4 backdrop-blur-xl">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(620px_240px_at_90%_-12%,rgba(14,165,233,.16),transparent),radial-gradient(520px_260px_at_-6%_100%,rgba(244,114,182,.08),transparent)]" />
+
+            <div className="relative">
+              <div className="mb-4 rounded-2xl border border-slate-700/45 bg-slate-900/45 p-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300/25 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-200">
+                    <Cloud className="h-3.5 w-3.5" />
+                    {getSaveLabel(saveState)}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-2 rounded-xl border border-emerald-300/35 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-60"
+                      onClick={() => void handleManualSave()}
+                      disabled={!selectedNoteId || manualSaving || saveState === "saving"}
+                    >
+                      {manualSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                      Salvar
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-2 rounded-xl border border-cyan-300/35 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/20 disabled:opacity-60"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={!selectedNoteId || uploadingFiles}
+                    >
+                      {uploadingFiles ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Paperclip className="h-3.5 w-3.5" />}
+                      Anexar foto ou arquivo
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-2 rounded-xl border border-slate-600/55 bg-slate-800/70 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-700/80 disabled:opacity-60"
+                      onClick={handleRenameCurrentNote}
+                      disabled={!selectedNoteId}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      Nomear nota
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-2 rounded-xl border border-rose-300/25 bg-rose-950/45 px-3 py-1.5 text-xs font-semibold text-rose-100 hover:bg-rose-900/45 disabled:opacity-60"
+                      onClick={() => void handleDeleteCurrentNote()}
+                      disabled={!selectedNoteId || deletingNoteId === selectedNoteId}
+                    >
+                      {deletingNoteId === selectedNoteId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                      Excluir nota
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-2 rounded-lg border border-emerald-300/35 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-60"
-                  onClick={() => void handleManualSave()}
-                  disabled={!selectedNoteId || manualSaving || saveState === "saving"}
-                >
-                  {manualSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                  Salvar
-                </button>
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-2 rounded-lg border border-slate-600/50 bg-slate-800/70 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-700/80 disabled:opacity-60"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={!selectedNoteId || uploadingFiles}
-                >
-                  {uploadingFiles ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Paperclip className="h-3.5 w-3.5" />}
-                  Anexar foto ou arquivo
-                </button>
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-2 rounded-lg border border-slate-600/50 bg-slate-800/70 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-700/80 disabled:opacity-60"
-                  onClick={handleRenameCurrentNote}
-                  disabled={!selectedNoteId}
-                >
+
+              <label className="mb-3 block rounded-2xl border border-slate-700/45 bg-slate-900/35 px-4 py-3">
+                <span className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.13em] text-slate-400">
                   <Pencil className="h-3.5 w-3.5" />
-                  Nomear nota
-                </button>
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-2 rounded-lg border border-rose-300/25 bg-rose-950/45 px-3 py-1.5 text-xs font-semibold text-rose-100 hover:bg-rose-900/45 disabled:opacity-60"
-                  onClick={() => void handleDeleteCurrentNote()}
-                  disabled={!selectedNoteId || deletingNoteId === selectedNoteId}
-                >
-                  {deletingNoteId === selectedNoteId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                  Excluir nota
-                </button>
-              </div>
-            </div>
+                  Nome da nota
+                </span>
+                <input
+                  value={draftTitle}
+                  onChange={(event) => setDraftTitle(event.target.value)}
+                  onBlur={(event) => setDraftTitle(event.target.value.trim())}
+                  placeholder="Digite o nome da nota"
+                  className="mt-2 w-full border-b border-slate-600/45 bg-transparent px-1 pb-1.5 pt-0.5 text-2xl font-extrabold tracking-tight text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-300/45"
+                />
+              </label>
 
-            <label className="mb-3 block">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
-                Nome da nota
-              </span>
-              <input
-                value={draftTitle}
-                onChange={(event) => setDraftTitle(event.target.value)}
-                onBlur={(event) => setDraftTitle(event.target.value.trim())}
-                placeholder="Digite o nome da nota"
-                className="w-full border-b border-slate-600/40 bg-transparent px-1 py-2 text-xl font-semibold text-slate-100 outline-none placeholder:text-slate-500"
-              />
-            </label>
+              <div
+                className="min-h-[360px] rounded-2xl border border-cyan-300/15 bg-[linear-gradient(180deg,rgba(3,7,18,.72),rgba(2,6,23,.88))] p-4"
+                onClick={() => editorRef.current?.focus()}
+              >
+                <textarea
+                  ref={editorRef}
+                  value={draftContent}
+                  onChange={(event) => setDraftContent(event.target.value)}
+                  placeholder="Escreva sua ideia, checklist ou observacoes..."
+                  className="h-[340px] w-full resize-none bg-transparent text-[15px] leading-7 text-slate-100 outline-none placeholder:text-slate-500"
+                />
 
-            <div
-              className="min-h-[320px] rounded-xl border border-violet-300/15 bg-black/35 p-3"
-              onClick={() => editorRef.current?.focus()}
-            >
-              <textarea
-                ref={editorRef}
-                value={draftContent}
-                onChange={(event) => setDraftContent(event.target.value)}
-                placeholder="Clique aqui e comeca a escrever..."
-                className="h-[320px] w-full resize-none bg-transparent text-sm leading-6 text-slate-100 outline-none placeholder:text-slate-500"
-              />
-
-              {imageAttachments.length ? (
-                <div className="mt-3 border-t border-violet-300/15 pt-3">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-slate-400">
-                    Imagens na nota
-                  </p>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {imageAttachments.map((attachment) => (
-                      <div
-                        key={attachment.id}
-                        className="overflow-hidden rounded-lg border border-violet-300/15 bg-black/35"
-                      >
-                        {attachment.signedUrl ? (
-                          <a href={attachment.signedUrl} target="_blank" rel="noreferrer">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={attachment.signedUrl}
-                              alt={attachment.file_name}
-                              loading="lazy"
-                              className="h-36 w-full bg-black/30 object-contain"
-                            />
-                          </a>
-                        ) : (
-                          <div className="flex h-36 items-center justify-center text-xs text-slate-500">
-                            Imagem indisponivel
+                {imageAttachments.length ? (
+                  <div className="mt-4 border-t border-cyan-300/15 pt-4">
+                    <div className="mb-3 flex items-center justify-between">
+                      <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.11em] text-cyan-100">
+                        <ImageIcon className="h-3.5 w-3.5" />
+                        Galeria da nota
+                      </p>
+                      <span className="rounded-full border border-cyan-300/25 bg-cyan-500/10 px-2 py-0.5 text-[11px] text-cyan-200">
+                        {imageAttachments.length} foto(s)
+                      </span>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {imageAttachments.map((attachment) => (
+                        <div
+                          key={attachment.id}
+                          className="overflow-hidden rounded-xl border border-cyan-300/20 bg-black/35"
+                        >
+                          {attachment.signedUrl ? (
+                            <a href={attachment.signedUrl} target="_blank" rel="noreferrer">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={attachment.signedUrl}
+                                alt={attachment.file_name}
+                                loading="lazy"
+                                className="h-36 w-full bg-black/40 object-cover"
+                              />
+                            </a>
+                          ) : (
+                            <div className="flex h-36 items-center justify-center text-xs text-slate-500">
+                              Imagem indisponivel
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between gap-2 border-t border-cyan-300/10 px-2 py-1.5">
+                            <span className="truncate text-xs text-slate-200">{attachment.file_name}</span>
+                            <button
+                              type="button"
+                              className="rounded-md border border-rose-400/35 bg-rose-500/10 p-1 text-rose-200 hover:bg-rose-500/20 disabled:opacity-60"
+                              onClick={() => void handleDeleteAttachment(attachment)}
+                              disabled={deletingAttachmentId === attachment.id}
+                              aria-label={`Excluir ${attachment.file_name}`}
+                            >
+                              {deletingAttachmentId === attachment.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-3 w-3" />
+                              )}
+                            </button>
                           </div>
-                        )}
-                        <div className="flex items-center justify-between gap-2 border-t border-violet-300/10 px-2 py-1.5">
-                          <span className="truncate text-xs text-slate-300">{attachment.file_name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-cyan-300/15 bg-slate-950/45 p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <h3 className="inline-flex items-center gap-2 text-sm font-semibold text-slate-100">
+                    <FileText className="h-4 w-4 text-cyan-300" />
+                    Arquivos anexados
+                  </h3>
+                  {loadingAttachments ? <Loader2 className="h-4 w-4 animate-spin text-slate-400" /> : null}
+                </div>
+
+                {!fileAttachments.length ? (
+                  <p className="text-xs text-slate-500">
+                    Sem arquivos extras. As imagens aparecem no bloco acima para visualizacao rapida.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {fileAttachments.map((attachment) => {
+                      return (
+                        <div
+                          key={attachment.id}
+                          className="flex items-center justify-between gap-3 rounded-xl border border-cyan-300/15 bg-black/30 px-3 py-2"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <FileIcon className="h-4 w-4 text-cyan-200" />
+                              {attachment.signedUrl ? (
+                                <a
+                                  href={attachment.signedUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="truncate text-xs font-medium text-cyan-100 hover:underline"
+                                >
+                                  {attachment.file_name}
+                                </a>
+                              ) : (
+                                <span className="truncate text-xs font-medium text-slate-300">
+                                  {attachment.file_name}
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-1 text-[11px] text-slate-500">
+                              {formatBytes(attachment.size_bytes)} - {formatDateTime(attachment.created_at)}
+                            </p>
+                          </div>
                           <button
                             type="button"
-                            className="rounded-md border border-rose-400/35 bg-rose-500/10 p-1 text-rose-200 hover:bg-rose-500/20 disabled:opacity-60"
+                            className="rounded-md border border-rose-400/35 bg-rose-500/10 p-1.5 text-rose-200 hover:bg-rose-500/20 disabled:opacity-60"
                             onClick={() => void handleDeleteAttachment(attachment)}
                             disabled={deletingAttachmentId === attachment.id}
                             aria-label={`Excluir ${attachment.file_name}`}
                           >
                             {deletingAttachmentId === attachment.id ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
                             ) : (
-                              <Trash2 className="h-3 w-3" />
+                              <Trash2 className="h-3.5 w-3.5" />
                             )}
                           </button>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
+                )}
+              </div>
+
+              {feedback ? (
+                <div className="mt-3 rounded-xl border border-violet-300/25 bg-violet-950/35 px-3 py-2 text-xs text-violet-100">
+                  {feedback}
                 </div>
               ) : null}
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                onChange={(event) => void handleAttachFiles(event)}
+                className="hidden"
+              />
             </div>
-
-            <div className="mt-4 rounded-xl border border-violet-300/15 bg-slate-950/45 p-3">
-              <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-slate-100">Arquivos anexados</h3>
-                {loadingAttachments ? <Loader2 className="h-4 w-4 animate-spin text-slate-400" /> : null}
-              </div>
-
-              {!fileAttachments.length ? (
-                <p className="text-xs text-slate-500">
-                  Sem arquivos extras. As imagens aparecem dentro do bloco da nota.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {fileAttachments.map((attachment) => {
-                    return (
-                      <div
-                        key={attachment.id}
-                        className="flex items-center justify-between gap-3 rounded-lg border border-violet-300/10 bg-black/30 px-3 py-2"
-                      >
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <FileIcon className="h-4 w-4 text-slate-300" />
-                            {attachment.signedUrl ? (
-                              <a
-                                href={attachment.signedUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="truncate text-xs font-medium text-violet-100 hover:underline"
-                              >
-                                {attachment.file_name}
-                              </a>
-                            ) : (
-                              <span className="truncate text-xs font-medium text-slate-300">
-                                {attachment.file_name}
-                              </span>
-                            )}
-                          </div>
-                          <p className="mt-1 text-[11px] text-slate-500">
-                            {formatBytes(attachment.size_bytes)} - {formatDateTime(attachment.created_at)}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          className="rounded-md border border-rose-400/35 bg-rose-500/10 p-1.5 text-rose-200 hover:bg-rose-500/20 disabled:opacity-60"
-                          onClick={() => void handleDeleteAttachment(attachment)}
-                          disabled={deletingAttachmentId === attachment.id}
-                          aria-label={`Excluir ${attachment.file_name}`}
-                        >
-                          {deletingAttachmentId === attachment.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-3.5 w-3.5" />
-                          )}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {feedback ? (
-              <div className="mt-3 rounded-lg border border-violet-300/20 bg-violet-950/35 px-3 py-2 text-xs text-violet-100">
-                {feedback}
-              </div>
-            ) : null}
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              onChange={(event) => void handleAttachFiles(event)}
-              className="hidden"
-            />
           </section>
         </div>
       )}
