@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import DotGrid from "@/components/DotGrid";
+import SystemIntro from "@/components/SystemIntro";
 import { getAuthStorageMode, setAuthStorageMode, supabase } from "@/lib/supabaseClient";
 import { sanitizeEmail, sanitizeOtpCode, validateStrongPassword } from "@/lib/security/input";
 
@@ -440,14 +441,7 @@ export default function LoginPage() {
 
               <main className="main">
                 <div className="hero">
-                  <div className="chip">
-                    <span className="dot" /> Interface Dark - 3D - Glass
-                  </div>
-                  <h1>Bem-vindo</h1>
-                  <p>
-                    Uma capa de login no mesmo estilo roxo/magenta + laranja,
-                    com efeito 3D, glow e animacoes suaves.
-                  </p>
+                  <SystemIntro />
                 </div>
 
                 <div className="login-card">
