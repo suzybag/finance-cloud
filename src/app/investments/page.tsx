@@ -20,7 +20,7 @@ import {
   resolvePriceHistory,
   type InvestmentCategory as InvestmentCategoryType,
 } from "@/lib/calculateInvestment";
-import { toNumber } from "@/lib/money";
+import { brl, toNumber } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
 
 type InvestmentRow = InvestmentCardItem & {
@@ -76,10 +76,10 @@ type AssetRow = {
 };
 
 const SECTION_CLASS =
-  "rounded-2xl border border-violet-300/30 bg-[linear-gradient(165deg,rgba(31,18,56,0.94),rgba(12,10,30,0.95))] shadow-[0_16px_42px_rgba(22,10,48,0.55)] backdrop-blur-xl";
+  "rounded-3xl border border-cyan-200/20 bg-slate-950/55 shadow-[0_24px_56px_rgba(8,47,73,0.35)] backdrop-blur-xl";
 
 const PRIMARY_BUTTON_CLASS =
-  "inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 via-fuchsia-500 to-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(124,58,237,0.4)] transition hover:brightness-110";
+  "inline-flex items-center gap-2 rounded-2xl border border-cyan-100/40 bg-cyan-300 px-4 py-2 text-sm font-semibold text-slate-950 shadow-[0_14px_34px_rgba(34,211,238,0.35)] transition hover:bg-cyan-200";
 
 const LOW_USAGE_MODE = process.env.NEXT_PUBLIC_SUPABASE_LOW_USAGE_MODE !== "false";
 
@@ -620,6 +620,31 @@ export default function InvestmentsPage() {
     return map;
   }, [investments]);
 
+  const activeCategoriesCount = useMemo(
+    () =>
+      INVESTMENT_CATEGORIES.reduce((count, category) => {
+        const items = groupedByCategory.get(category) || [];
+        return count + (items.length ? 1 : 0);
+      }, 0),
+    [groupedByCategory],
+  );
+
+  const portfolioCurrentTotal = useMemo(
+    () =>
+      investments.reduce(
+        (sum, item) => sum + (item.operation === "venda" ? -item.current_amount : item.current_amount),
+        0,
+      ),
+    [investments],
+  );
+
+  const isFeedbackError = useMemo(
+    () =>
+      !!feedback
+      && /(falha|nao foi possivel|nao encontrado|nao encontrada|nao carregada|sessao nao)/i.test(feedback),
+    [feedback],
+  );
+
   const toggleCategory = (category: string) => {
     setOpenCategories((prev) => ({
       ...prev,
@@ -630,7 +655,7 @@ export default function InvestmentsPage() {
   return (
     <AppShell
       title="Investimentos"
-      subtitle="Lista profissional por categoria com lancamentos de compra e venda"
+      subtitle="Visao minimalista e informativa para acompanhar sua carteira em segundos"
       contentClassName="investments-ultra-bg"
     >
       <InvestmentModal
@@ -641,41 +666,66 @@ export default function InvestmentsPage() {
       />
 
       {loading ? (
-        <div className={`${SECTION_CLASS} p-6 text-slate-200`}>
-          <span className="inline-flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin" />
+        <div className={`${SECTION_CLASS} p-6 text-slate-100`}>
+          <span className="inline-flex items-center gap-3 text-sm font-medium">
+            <Loader2 className="h-4 w-4 animate-spin text-cyan-300" />
             Carregando investimentos...
           </span>
         </div>
       ) : (
         <div className="space-y-5">
           {feedback ? (
-            <div className="rounded-xl border border-violet-300/30 bg-violet-950/35 px-4 py-3 text-sm text-violet-100">
+            <div className={`rounded-2xl border px-4 py-3 text-sm ${
+              isFeedbackError
+                ? "border-rose-300/35 bg-rose-400/10 text-rose-100"
+                : "border-emerald-300/35 bg-emerald-400/10 text-emerald-100"
+            }`}>
               {feedback}
             </div>
           ) : null}
 
-          <section className={`${SECTION_CLASS} p-5`}>
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div>
-                <h2 className="text-xl font-extrabold tracking-tight text-white">Lista de investimentos</h2>
-                <p className="mt-1 text-sm text-slate-300">
-                  Visual minimalista por categoria com foco em decisao rapida.
+          <section className={`${SECTION_CLASS} p-5 sm:p-6`}>
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+              <div className="space-y-2">
+                <span className="inline-flex items-center rounded-full border border-cyan-200/30 bg-cyan-400/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-100">
+                  Carteira em foco
+                </span>
+                <h2 className="text-xl font-extrabold tracking-tight text-white sm:text-2xl">
+                  Lista de investimentos
+                </h2>
+                <p className="max-w-2xl text-sm text-slate-300">
+                  Design limpo com destaque para os dados mais importantes: patrimonio, variacao e composicao por categoria.
                 </p>
               </div>
-              <button
-                type="button"
-                className={PRIMARY_BUTTON_CLASS}
-                onClick={() => setShowModal(true)}
-              >
-                <Plus className="h-4 w-4" />
-                Adicionar lancamento
-              </button>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="grid grid-cols-2 gap-2 sm:min-w-[300px]">
+                  <div className="rounded-2xl border border-cyan-200/20 bg-slate-900/70 px-3 py-2">
+                    <p className="text-[11px] uppercase tracking-[0.08em] text-slate-400">Ativos</p>
+                    <p className="mt-1 text-lg font-bold text-cyan-100">{investments.length}</p>
+                  </div>
+                  <div className="rounded-2xl border border-cyan-200/20 bg-slate-900/70 px-3 py-2">
+                    <p className="text-[11px] uppercase tracking-[0.08em] text-slate-400">Categorias</p>
+                    <p className="mt-1 text-lg font-bold text-teal-100">{activeCategoriesCount}</p>
+                  </div>
+                  <div className="col-span-2 rounded-2xl border border-cyan-200/20 bg-slate-900/70 px-3 py-2">
+                    <p className="text-[11px] uppercase tracking-[0.08em] text-slate-400">Posicao atual</p>
+                    <p className="mt-1 text-lg font-bold text-emerald-200">{brl(portfolioCurrentTotal)}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className={PRIMARY_BUTTON_CLASS}
+                  onClick={() => setShowModal(true)}
+                >
+                  <Plus className="h-4 w-4" />
+                  Adicionar lancamento
+                </button>
+              </div>
             </div>
           </section>
           <InvestmentSummary investments={investments} />
 
-          <section className={`${SECTION_CLASS} p-4`}>
+          <section className={`${SECTION_CLASS} p-4 sm:p-5`}>
             <div className="space-y-3">
               {INVESTMENT_CATEGORIES.map((category) => (
                 <InvestmentCategory

@@ -18,13 +18,16 @@ export function MiniChart({ prices }: MiniChartProps) {
   const last = series[series.length - 1]?.price ?? 0;
   const trendPct = first > 0 ? ((last - first) / first) * 100 : 0;
   const positive = trendPct >= 0;
-  const lineColor = positive ? "#22c55e" : "#ef4444";
+  const lineColor = positive ? "#34d399" : "#fb7185";
+  const panelClass = positive
+    ? "border-emerald-200/20 bg-emerald-400/6"
+    : "border-rose-200/20 bg-rose-400/8";
 
   return (
-    <div className="rounded-xl border border-violet-300/15 bg-[#0b1020]/75 px-3 py-2">
-      <div className="flex items-center justify-between text-[11px] text-slate-400">
+    <div className={`rounded-2xl border px-3 py-2 ${panelClass}`}>
+      <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.08em] text-slate-400">
         <span>Ultimos 7 dias</span>
-        <span className={positive ? "text-emerald-300" : "text-rose-300"}>
+        <span className={positive ? "text-emerald-200" : "text-rose-200"}>
           {formatPercent(trendPct)}
         </span>
       </div>
@@ -34,9 +37,9 @@ export function MiniChart({ prices }: MiniChartProps) {
             <Tooltip
               cursor={{ stroke: "rgba(148,163,184,0.2)" }}
               contentStyle={{
-                background: "rgba(15,23,42,0.9)",
-                border: "1px solid rgba(124,58,237,0.35)",
-                borderRadius: 8,
+                background: "rgba(2, 6, 23, 0.94)",
+                border: "1px solid rgba(148, 163, 184, 0.24)",
+                borderRadius: 12,
                 color: "#e2e8f0",
                 fontSize: "11px",
               }}

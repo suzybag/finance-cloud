@@ -127,7 +127,7 @@ const FALLBACK_ASSETS: AssetOption[] = [
 ];
 
 const INPUT_CLASS =
-  "w-full rounded-xl border border-violet-300/25 bg-[#121827] px-3 py-2 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30";
+  "w-full rounded-2xl border border-slate-200/14 bg-slate-900/82 px-3 py-2 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-200/40 focus:ring-2 focus:ring-cyan-300/25";
 
 const moneyMask = (value: string) => {
   const digits = value.replace(/\D/g, "");
@@ -407,12 +407,12 @@ export function InvestmentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
-      <div className="investment-modal-enter w-full max-w-3xl rounded-xl border border-violet-300/25 bg-[#0F172A] shadow-[0_28px_80px_rgba(2,6,23,0.65)]">
-        <div className="flex items-center justify-between border-b border-violet-300/15 px-5 py-4">
+      <div className="investment-modal-enter w-full max-w-3xl rounded-3xl border border-slate-200/14 bg-slate-950/94 shadow-[0_28px_80px_rgba(2,6,23,0.7)]">
+        <div className="flex items-center justify-between border-b border-slate-200/10 px-5 py-4">
           <h3 className="text-xl font-bold tracking-tight text-white">Adicionar Lancamento</h3>
           <button
             type="button"
-            className="rounded-lg border border-violet-300/25 bg-violet-900/25 p-1.5 text-violet-100 transition hover:bg-violet-800/45"
+            className="rounded-xl border border-slate-200/20 bg-slate-900/80 p-1.5 text-slate-100 transition hover:border-cyan-200/35 hover:bg-cyan-300/14"
             onClick={onClose}
             disabled={saving}
             aria-label="Fechar modal"
@@ -422,7 +422,7 @@ export function InvestmentModal({
         </div>
 
         <div className="space-y-5 px-5 py-5">
-          <div className="rounded-xl border border-violet-300/15 bg-[#121a2d] p-1.5">
+          <div className="rounded-2xl border border-slate-200/12 bg-slate-900/72 p-1.5">
             <div className="grid grid-cols-2 gap-1.5">
               <ToggleButton
                 variant="buy"
@@ -438,7 +438,7 @@ export function InvestmentModal({
           </div>
 
           {optionsError ? (
-            <div className="rounded-lg border border-rose-300/35 bg-rose-500/15 px-3 py-2 text-sm text-rose-100">
+            <div className="rounded-xl border border-rose-300/35 bg-rose-500/15 px-3 py-2 text-sm text-rose-100">
               {optionsError}
             </div>
           ) : null}
@@ -550,12 +550,12 @@ export function InvestmentModal({
           </div>
 
           {validationError ? (
-            <div className="rounded-lg border border-rose-300/35 bg-rose-500/15 px-3 py-2 text-sm text-rose-100">
+            <div className="rounded-xl border border-rose-300/35 bg-rose-500/15 px-3 py-2 text-sm text-rose-100">
               {validationError}
             </div>
           ) : null}
 
-          <div className="rounded-xl border border-violet-300/15 bg-[#0b1222] px-4 py-3">
+          <div className="rounded-2xl border border-cyan-200/20 bg-cyan-400/10 px-4 py-3">
             <div className="flex items-center justify-between">
               <p className="text-base font-bold text-slate-100">Valor total</p>
               <p className="text-2xl font-extrabold text-cyan-200">{brl(totalValue)}</p>
@@ -563,10 +563,10 @@ export function InvestmentModal({
           </div>
         </div>
 
-        <div className="flex flex-col-reverse gap-2 border-t border-violet-300/15 px-5 py-4 sm:flex-row sm:items-center sm:justify-end">
+        <div className="flex flex-col-reverse gap-2 border-t border-slate-200/10 px-5 py-4 sm:flex-row sm:items-center sm:justify-end">
           <button
             type="button"
-            className="rounded-xl border border-slate-600/60 bg-slate-800/50 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-700/60 disabled:opacity-60"
+            className="rounded-2xl border border-slate-200/20 bg-slate-900/72 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-200/32 hover:bg-slate-800/82 disabled:opacity-60"
             onClick={onClose}
             disabled={saving}
           >
@@ -574,7 +574,7 @@ export function InvestmentModal({
           </button>
           <button
             type="button"
-            className="rounded-xl border border-violet-300/30 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(139,92,246,0.4)] transition hover:brightness-110 disabled:opacity-60"
+            className="rounded-2xl border border-cyan-100/45 bg-cyan-300 px-4 py-2 text-sm font-semibold text-slate-950 shadow-[0_12px_30px_rgba(34,211,238,0.38)] transition hover:bg-cyan-200 disabled:opacity-60"
             onClick={() => void handleSave()}
             disabled={saving}
           >
