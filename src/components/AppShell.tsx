@@ -182,19 +182,18 @@ export const AppShell = ({
       <div className="flex min-h-screen">
         <aside className="w-64 hidden lg:flex flex-col gap-6 border-r border-violet-300/20 bg-[linear-gradient(180deg,rgba(20,12,42,0.94),rgba(11,9,29,0.94))] p-6 backdrop-blur-2xl">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 grid place-items-center font-bold shadow-[0_12px_28px_rgba(109,40,217,0.4)]">
-              FC
+            <div className="h-11 w-11 overflow-hidden rounded-xl border border-violet-300/20 bg-violet-950/45 shadow-[0_12px_28px_rgba(109,40,217,0.4)]">
+              {avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={avatarUrl} alt="Foto de perfil" className="h-full w-full object-cover" />
+              ) : (
+                <div className="grid h-full w-full place-items-center text-sm font-bold text-violet-100">
+                  {initials}
+                </div>
+              )}
             </div>
             <div>
               <div className="text-sm text-violet-100/80">Finance Cloud</div>
-              <div className="font-semibold">Painel pessoal</div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {renderAvatarButton()}
-            <div>
-              <div className="text-xs text-violet-100/60">Perfil</div>
               <div className="text-sm font-semibold">{displayName}</div>
             </div>
           </div>
