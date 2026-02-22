@@ -53,7 +53,6 @@ const mobilePrimaryHrefs = new Set(["/dashboard", "/accounts", "/cards", "/trans
 const mobilePrimaryItems = navItems.filter((item) => mobilePrimaryHrefs.has(item.href));
 const mobileSecondaryItems = navItems.filter((item) => !mobilePrimaryHrefs.has(item.href));
 const INTRO_SEEN_KEY = "finance_intro_seen";
-const INTRO_VIDEO_SRC = "/intro/intro-3d.mp4";
 
 type AppShellProps = {
   title: string;
@@ -80,7 +79,6 @@ export const AppShell = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const [introState, setIntroState] = useState<"hidden" | "visible" | "closing">("hidden");
   const [introProgress, setIntroProgress] = useState(0);
-  const [introVideoError, setIntroVideoError] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -142,7 +140,6 @@ export const AppShell = ({
     if (window.sessionStorage.getItem(INTRO_SEEN_KEY)) return;
 
     window.sessionStorage.setItem(INTRO_SEEN_KEY, "1");
-    setIntroVideoError(false);
     setIntroProgress(12);
     setIntroState("visible");
 
@@ -411,24 +408,7 @@ export const AppShell = ({
           }`}
           aria-hidden="true"
         >
-          {!introVideoError ? (
-            <video
-              className="absolute inset-0 h-full w-full object-cover"
-              src={INTRO_VIDEO_SRC}
-              autoPlay
-              muted
-              playsInline
-              preload="auto"
-              onError={() => setIntroVideoError(true)}
-            />
-          ) : null}
-          <div
-            className={`absolute inset-0 ${
-              introVideoError
-                ? "bg-[radial-gradient(60%_60%_at_50%_20%,rgba(14,165,233,0.32),transparent_60%),radial-gradient(58%_58%_at_50%_80%,rgba(244,114,182,0.24),transparent_60%),rgba(2,6,23,0.88)]"
-                : "bg-[linear-gradient(180deg,rgba(2,6,23,0.46),rgba(2,6,23,0.86))]"
-            } backdrop-blur-[2px]`}
-          />
+          <div className="absolute inset-0 bg-[radial-gradient(60%_60%_at_50%_20%,rgba(14,165,233,0.32),transparent_60%),radial-gradient(58%_58%_at_50%_80%,rgba(244,114,182,0.24),transparent_60%),rgba(2,6,23,0.88)] backdrop-blur-md" />
           <div
             className={`relative w-full max-w-md rounded-3xl border border-cyan-300/25 bg-[linear-gradient(165deg,rgba(12,18,34,0.95),rgba(11,8,31,0.95))] p-5 shadow-[0_24px_80px_rgba(8,145,178,0.35)] transition-all duration-500 ${
               introState === "closing" ? "translate-y-2 scale-95" : "translate-y-0 scale-100"
