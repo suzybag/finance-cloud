@@ -305,27 +305,61 @@ export default function NotesPage() {
     [persistStore],
   );
 
+  const syncDraftIntoLatestNotes = useCallback(() => {
+    if (!selectedNoteId) {
+      return { notes: latestNotesRef.current, changed: false };
+    }
+
+    const source = latestNotesRef.current;
+    let changed = false;
+    const now = new Date().toISOString();
+    const merged = source.map((note) => {
+      if (note.id !== selectedNoteId) return note;
+      if (note.title === draftTitle && note.content === draftContent) return note;
+      changed = true;
+      return {
+        ...note,
+        title: draftTitle,
+        content: draftContent,
+        updated_at: now,
+      };
+    });
+
+    if (!changed) {
+      return { notes: source, changed: false };
+    }
+
+    const sorted = ensureSorted(merged);
+    setNotes(sorted);
+    latestNotesRef.current = sorted;
+    return { notes: sorted, changed: true };
+  }, [draftContent, draftTitle, selectedNoteId]);
+
   const flushPendingSave = useCallback(async () => {
-    if (!saveTimerRef.current) return;
-    clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = null;
-    await persistStore(latestNotesRef.current);
-  }, [persistStore]);
+    const synced = syncDraftIntoLatestNotes();
+    if (!saveTimerRef.current && !synced.changed) return;
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    await persistStore(synced.notes);
+  }, [persistStore, syncDraftIntoLatestNotes]);
 
   const handleManualSave = useCallback(async () => {
     if (!userId) return;
     setFeedback(null);
     setManualSaving(true);
     try {
+      const synced = syncDraftIntoLatestNotes();
       if (saveTimerRef.current) {
-        await flushPendingSave();
-      } else {
-        await persistStore(latestNotesRef.current);
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
       }
+      await persistStore(synced.notes);
     } finally {
       setManualSaving(false);
     }
-  }, [flushPendingSave, persistStore, userId]);
+  }, [persistStore, syncDraftIntoLatestNotes, userId]);
 
   const setDraftFromNote = useCallback((note: NoteRow) => {
     setDraftTitle(note.title || "");
