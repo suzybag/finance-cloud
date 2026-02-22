@@ -422,7 +422,7 @@ export default function LoginPage() {
       <div className="wrap">
         <div className="scene">
           <section
-            className="panel"
+            className="panel rounded-3xl border border-white/10 bg-gradient-to-r from-zinc-900/90 via-zinc-900/80 to-zinc-800/70 backdrop-blur-xl shadow-2xl"
             ref={panelRef}
             onMouseMove={handlePanelMove}
             onMouseLeave={handlePanelLeave}
@@ -683,11 +683,12 @@ export default function LoginPage() {
           position: relative;
           border-radius: var(--r);
           background:
-            radial-gradient(1200px 500px at 30% 20%, rgba(255, 255, 255, 0.06) 0%, transparent 55%),
-            linear-gradient(180deg, rgba(16, 16, 32, 0.78), rgba(32, 16, 48, 0.78));
+            radial-gradient(1200px 500px at 28% 16%, rgba(255, 255, 255, 0.05) 0%, transparent 58%),
+            linear-gradient(90deg, rgba(24, 24, 27, 0.9), rgba(24, 24, 27, 0.8), rgba(39, 39, 42, 0.72));
           border: 1px solid rgba(255, 255, 255, 0.1);
           box-shadow: var(--shadow);
           overflow: hidden;
+          backdrop-filter: blur(18px);
           transform-style: preserve-3d;
           transform: rotateX(0deg) rotateY(0deg);
           transition: transform 260ms ease, border-color 260ms ease;
@@ -698,9 +699,9 @@ export default function LoginPage() {
           position: absolute;
           inset: -2px;
           background:
-            radial-gradient(520px 360px at var(--gx, 50%) var(--gy, 50%), rgba(255, 79, 216, 0.35) 0%, transparent 62%),
-            radial-gradient(560px 380px at calc(var(--gx, 50%) + 18%) calc(var(--gy, 50%) - 10%), rgba(255, 208, 138, 0.22) 0%, transparent 62%);
-          opacity: 0.9;
+            radial-gradient(520px 360px at var(--gx, 50%) var(--gy, 50%), rgba(148, 163, 184, 0.2) 0%, transparent 62%),
+            radial-gradient(560px 380px at calc(var(--gx, 50%) + 18%) calc(var(--gy, 50%) - 10%), rgba(212, 212, 216, 0.12) 0%, transparent 62%);
+          opacity: 0.72;
           pointer-events: none;
           transform: translateZ(2px);
           mix-blend-mode: screen;
@@ -730,7 +731,7 @@ export default function LoginPage() {
           border-radius: 999px;
           background:
             radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.35), transparent 52%),
-            linear-gradient(135deg, rgba(255, 79, 216, 0.75), rgba(124, 92, 255, 0.55));
+            linear-gradient(135deg, rgba(82, 82, 91, 0.88), rgba(39, 39, 42, 0.86));
           border: 1px solid rgba(255, 255, 255, 0.18);
           box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
         }
@@ -965,7 +966,7 @@ export default function LoginPage() {
           width: 110px;
           height: 70px;
           border-radius: 14px;
-          background: linear-gradient(135deg, rgba(255, 79, 216, 0.55), rgba(124, 92, 255, 0.3));
+          background: linear-gradient(135deg, rgba(113, 113, 122, 0.55), rgba(63, 63, 70, 0.3));
           border: 1px solid rgba(255, 255, 255, 0.12);
           opacity: 0.85;
           transform-style: preserve-3d;
@@ -995,7 +996,7 @@ export default function LoginPage() {
           height: 70px;
           border-radius: 999px;
           animation-duration: 9s;
-          background: linear-gradient(135deg, rgba(255, 208, 138, 0.55), rgba(255, 79, 216, 0.28));
+          background: linear-gradient(135deg, rgba(161, 161, 170, 0.55), rgba(82, 82, 91, 0.28));
         }
 
         .ripple {
