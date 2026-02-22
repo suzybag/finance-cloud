@@ -19,12 +19,9 @@ import {
   Home,
   Landmark,
   Layers,
-  LoaderCircle,
   Repeat2,
   Receipt,
   Settings,
-  ShieldCheck,
-  Sparkles,
   TrendingUp,
   Upload,
 } from "lucide-react";
@@ -52,7 +49,6 @@ const navItems = [
 const mobilePrimaryHrefs = new Set(["/dashboard", "/accounts", "/cards", "/transactions", "/ai"]);
 const mobilePrimaryItems = navItems.filter((item) => mobilePrimaryHrefs.has(item.href));
 const mobileSecondaryItems = navItems.filter((item) => !mobilePrimaryHrefs.has(item.href));
-const INTRO_SEEN_KEY = "finance_intro_seen";
 
 type AppShellProps = {
   title: string;
@@ -77,8 +73,6 @@ export const AppShell = ({
   const [profileName, setProfileName] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [introState, setIntroState] = useState<"hidden" | "visible" | "closing">("hidden");
-  const [introProgress, setIntroProgress] = useState(0);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -134,32 +128,6 @@ export const AppShell = ({
     document.addEventListener("mousedown", onClick);
     return () => document.removeEventListener("mousedown", onClick);
   }, [menuOpen]);
-
-  useEffect(() => {
-    if (loading || !user || typeof window === "undefined") return;
-    if (window.sessionStorage.getItem(INTRO_SEEN_KEY)) return;
-
-    window.sessionStorage.setItem(INTRO_SEEN_KEY, "1");
-    setIntroProgress(12);
-    setIntroState("visible");
-
-    const raf = window.requestAnimationFrame(() => setIntroProgress(100));
-    const closeTimer = window.setTimeout(() => setIntroState("closing"), 1700);
-    const hideTimer = window.setTimeout(() => setIntroState("hidden"), 2250);
-
-    return () => {
-      window.cancelAnimationFrame(raf);
-      window.clearTimeout(closeTimer);
-      window.clearTimeout(hideTimer);
-    };
-  }, [loading, user]);
-
-  const handleSignOut = async () => {
-    if (typeof window !== "undefined") {
-      window.sessionStorage.removeItem(INTRO_SEEN_KEY);
-    }
-    await supabase.auth.signOut();
-  };
 
   const handleAvatarFile = async (file: File | null) => {
     if (!file) return;
@@ -264,7 +232,7 @@ export const AppShell = ({
 
           <button
             className="mt-2 w-full rounded-xl border border-violet-300/20 bg-violet-950/35 px-3 py-2 text-sm text-violet-100 hover:border-violet-200/35"
-            onClick={() => void handleSignOut()}
+            onClick={() => supabase.auth.signOut()}
           >
             Sair
           </button>
@@ -325,7 +293,7 @@ export const AppShell = ({
                       <button
                         type="button"
                         className="w-full text-left rounded-lg px-3 py-2 text-violet-100 hover:bg-violet-500/15"
-                        onClick={() => void handleSignOut()}
+                        onClick={() => supabase.auth.signOut()}
                       >
                         Sair
                       </button>
@@ -356,7 +324,7 @@ export const AppShell = ({
                     <button
                       type="button"
                       className="w-full text-left rounded-lg px-3 py-2 text-violet-100 hover:bg-violet-500/15"
-                      onClick={() => void handleSignOut()}
+                      onClick={() => supabase.auth.signOut()}
                     >
                       Sair
                     </button>
@@ -400,56 +368,6 @@ export const AppShell = ({
           })}
         </div>
       </nav>
-
-      {introState !== "hidden" ? (
-        <div
-          className={`fixed inset-0 z-[160] flex items-center justify-center p-6 transition-opacity duration-500 ${
-            introState === "closing" ? "opacity-0" : "opacity-100"
-          }`}
-          aria-hidden="true"
-        >
-          <div className="absolute inset-0 bg-[radial-gradient(60%_60%_at_50%_20%,rgba(14,165,233,0.32),transparent_60%),radial-gradient(58%_58%_at_50%_80%,rgba(244,114,182,0.24),transparent_60%),rgba(2,6,23,0.88)] backdrop-blur-md" />
-          <div
-            className={`relative w-full max-w-md rounded-3xl border border-cyan-300/25 bg-[linear-gradient(165deg,rgba(12,18,34,0.95),rgba(11,8,31,0.95))] p-5 shadow-[0_24px_80px_rgba(8,145,178,0.35)] transition-all duration-500 ${
-              introState === "closing" ? "translate-y-2 scale-95" : "translate-y-0 scale-100"
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-100">
-                <Sparkles className="h-3.5 w-3.5" />
-                Iniciando ambiente
-              </div>
-              <LoaderCircle className="h-4 w-4 animate-spin text-cyan-200/80" />
-            </div>
-
-            <div className="mt-4 flex items-center gap-3">
-              <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-300/35 bg-cyan-500/12">
-                <span className="text-sm font-extrabold text-cyan-100">FC</span>
-              </div>
-              <div>
-                <p className="text-sm text-slate-300">Bem-vindo, {displayName}</p>
-                <p className="text-lg font-extrabold tracking-tight text-white">Entrando em {title}</p>
-              </div>
-            </div>
-
-            <div className="mt-4 rounded-xl border border-violet-300/25 bg-violet-500/8 p-3">
-              <div className="mb-2 flex items-center justify-between text-[11px] text-slate-400">
-                <span className="inline-flex items-center gap-1">
-                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-300" />
-                  Sessao protegida
-                </span>
-                <span>Carregando modulos...</span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-slate-800/90">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-violet-400 to-fuchsia-400 transition-[width] duration-[1600ms] ease-out"
-                  style={{ width: `${introProgress}%` }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 };
