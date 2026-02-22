@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { useConfirmDialog } from "@/context/ConfirmDialogContext";
 import { Account, Transaction } from "@/lib/finance";
 import { brl, toNumber } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
@@ -68,6 +69,7 @@ const LIGHT_SELECT_CLASS =
   "rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-black outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-300/40";
 
 export default function TransactionsPage() {
+  const confirmDialog = useConfirmDialog();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
@@ -313,7 +315,14 @@ export default function TransactionsPage() {
   };
 
   const deletePix = async (id: string) => {
-    if (!window.confirm("Excluir este PIX?")) return;
+    const confirmed = await confirmDialog({
+      title: "Excluir PIX?",
+      description: "Este lancamento PIX sera removido permanentemente.",
+      confirmLabel: "Excluir",
+      cancelLabel: "Cancelar",
+      tone: "danger",
+    });
+    if (!confirmed) return;
 
     const { error } = await supabase.from("transactions").delete().eq("id", id);
     if (error) {

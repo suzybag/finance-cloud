@@ -19,6 +19,7 @@ import { AppShell } from "@/components/AppShell";
 import { BankLogo } from "@/components/BankLogo";
 import { Bank3DCardVisual, StyledBankKey } from "@/components/Bank3DCardVisual";
 import { PicPayCardVisual } from "@/components/PicPayCardVisual";
+import { useConfirmDialog } from "@/context/ConfirmDialogContext";
 import { supabase } from "@/lib/supabaseClient";
 import { getBankIconPath, resolveBankKey } from "@/lib/bankIcons";
 import { brl, toNumber } from "@/lib/money";
@@ -196,6 +197,7 @@ const formatShortDate = (value: string) => {
 };
 
 export default function CardsPage() {
+  const confirmDialog = useConfirmDialog();
   const [cards, setCards] = useState<Card[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -507,9 +509,13 @@ export default function CardsPage() {
   const handleDelete = async (card: Card) => {
     try {
       setFeedback(null);
-      const ok = window.confirm(
-        `Excluir o cartao "${card.name}"? Essa acao nao pode ser desfeita.`,
-      );
+      const ok = await confirmDialog({
+        title: "Excluir cartao?",
+        description: `O cartao "${card.name}" sera removido e essa acao nao pode ser desfeita.`,
+        confirmLabel: "Excluir",
+        cancelLabel: "Cancelar",
+        tone: "danger",
+      });
       if (!ok) return;
       const resolvedUserId = await ensureUserId();
       if (!resolvedUserId) return;

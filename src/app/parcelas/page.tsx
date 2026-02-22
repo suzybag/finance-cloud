@@ -22,6 +22,7 @@ import {
   Utensils,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { useConfirmDialog } from "@/context/ConfirmDialogContext";
 import {
   computeInstallmentMetrics,
   normalizeInstallmentRow,
@@ -137,6 +138,7 @@ const formatDate = (value?: string | Date | null) => {
 };
 
 export default function ParcelasPage() {
+  const confirmDialog = useConfirmDialog();
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -380,7 +382,13 @@ export default function ParcelasPage() {
 
   const handleDeleteInstallment = async (row: InstallmentRow) => {
     if (!userId) return;
-    const confirmed = window.confirm(`Excluir o parcelamento "${row.name}"?`);
+    const confirmed = await confirmDialog({
+      title: "Excluir parcelamento?",
+      description: `O parcelamento "${row.name}" sera removido permanentemente.`,
+      confirmLabel: "Excluir",
+      cancelLabel: "Cancelar",
+      tone: "danger",
+    });
     if (!confirmed) return;
 
     setSaving(true);

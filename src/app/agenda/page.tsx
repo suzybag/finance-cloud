@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { VanishList } from "@/components/agenda/VanishList";
+import { useConfirmDialog } from "@/context/ConfirmDialogContext";
 import { supabase } from "@/lib/supabaseClient";
 
 type AgendaEventRow = {
@@ -151,6 +152,7 @@ const formFromEvent = (row: AgendaEventRow): AgendaFormState => ({
 });
 
 export default function AgendaPage() {
+  const confirmDialog = useConfirmDialog();
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -353,7 +355,13 @@ export default function AgendaPage() {
 
   const handleDelete = async (row: AgendaEventRow) => {
     if (!userId) return;
-    const confirmed = window.confirm(`Excluir o compromisso "${row.title}"?`);
+    const confirmed = await confirmDialog({
+      title: "Excluir compromisso?",
+      description: `O compromisso "${row.title}" sera removido permanentemente.`,
+      confirmLabel: "Excluir",
+      cancelLabel: "Cancelar",
+      tone: "danger",
+    });
     if (!confirmed) return;
 
     setSaving(true);

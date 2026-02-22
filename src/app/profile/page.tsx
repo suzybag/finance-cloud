@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
+import { useConfirmDialog } from "@/context/ConfirmDialogContext";
 import { useTheme } from "@/context/ThemeContext";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -92,6 +93,7 @@ const Toggle = ({
 );
 
 export default function ProfilePage() {
+  const confirmDialog = useConfirmDialog();
   const { setThemeMode, setBrightness, setContrast, setSaturation } = useTheme();
 
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -448,9 +450,13 @@ export default function ProfilePage() {
   };
 
   const handleDeleteAccount = async () => {
-    const confirmed = window.confirm(
-      "Tem certeza? Essa acao e irreversivel e remove todos os seus dados.",
-    );
+    const confirmed = await confirmDialog({
+      title: "Excluir conta?",
+      description: "Essa acao e irreversivel e remove todos os seus dados.",
+      confirmLabel: "Excluir conta",
+      cancelLabel: "Cancelar",
+      tone: "danger",
+    });
     if (!confirmed) return;
 
     setDeletingAccount(true);

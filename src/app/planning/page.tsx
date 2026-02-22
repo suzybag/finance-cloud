@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { CategoryIcon } from "@/components/CategoryIcon";
+import { useConfirmDialog } from "@/context/ConfirmDialogContext";
 import { brl, toNumber } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -173,6 +174,7 @@ const ProgressBar = ({ percentual, done }: { percentual: number; done: boolean }
 };
 
 export default function PlanningPage() {
+  const confirmDialog = useConfirmDialog();
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -472,7 +474,13 @@ export default function PlanningPage() {
 
   const handleDeleteGoal = async (goal: PlanningGoalRow) => {
     if (!userId) return;
-    const confirmDelete = window.confirm(`Excluir a meta "${goal.goal_name}"?`);
+    const confirmDelete = await confirmDialog({
+      title: "Excluir meta?",
+      description: `A meta "${goal.goal_name}" sera removida permanentemente.`,
+      confirmLabel: "Excluir",
+      cancelLabel: "Cancelar",
+      tone: "danger",
+    });
     if (!confirmDelete) return;
 
     setSaving(true);

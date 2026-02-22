@@ -7,6 +7,7 @@ import {
   Plus,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { useConfirmDialog } from "@/context/ConfirmDialogContext";
 import { InvestmentModal, type InvestmentLaunchPayload } from "@/components/investments/InvestmentModal";
 import { InvestmentCategory } from "@/components/investments/InvestmentCategory";
 import { InvestmentSummary } from "@/components/investments/InvestmentSummary";
@@ -262,6 +263,7 @@ const normalizeInvestment = (
 };
 
 export default function InvestmentsPage() {
+  const confirmDialog = useConfirmDialog();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -466,7 +468,13 @@ export default function InvestmentsPage() {
 
   const handleDelete = async (investmentId: string) => {
     try {
-      const confirmed = window.confirm("Excluir este investimento?");
+      const confirmed = await confirmDialog({
+        title: "Excluir investimento?",
+        description: "Este investimento sera removido permanentemente.",
+        confirmLabel: "Excluir",
+        cancelLabel: "Cancelar",
+        tone: "danger",
+      });
       if (!confirmed) return;
       const resolvedUserId = await ensureUserId();
       if (!resolvedUserId) return;

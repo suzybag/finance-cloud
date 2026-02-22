@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Plus, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { useConfirmDialog } from "@/context/ConfirmDialogContext";
 import { brl, toNumber } from "@/lib/money";
 import { sanitizeFreeText } from "@/lib/security/input";
 import { supabase } from "@/lib/supabaseClient";
@@ -43,6 +44,7 @@ const formatDateLabel = (value: string) => {
 };
 
 export default function ReceberPage() {
+  const confirmDialog = useConfirmDialog();
   const [rows, setRows] = useState<ReceivableRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -230,7 +232,13 @@ export default function ReceberPage() {
   };
 
   const handleDelete = async (row: ReceivableRow) => {
-    const confirmed = window.confirm(`Excluir registro de ${row.person_name}?`);
+    const confirmed = await confirmDialog({
+      title: "Excluir registro?",
+      description: `O registro de ${row.person_name} sera removido permanentemente.`,
+      confirmLabel: "Excluir",
+      cancelLabel: "Cancelar",
+      tone: "danger",
+    });
     if (!confirmed) return;
 
     const resolvedUserId = await ensureUserId();

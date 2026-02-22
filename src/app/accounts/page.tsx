@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { AccountCard } from "@/components/AccountCard";
+import { useConfirmDialog } from "@/context/ConfirmDialogContext";
 import { supabase } from "@/lib/supabaseClient";
 import { brl, toNumber } from "@/lib/money";
 import {
@@ -55,6 +56,7 @@ const computeAccountTxSignedAmount = (accountId: string, tx: Transaction) => {
 };
 
 export default function AccountsPage() {
+  const confirmDialog = useConfirmDialog();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -296,9 +298,13 @@ export default function AccountsPage() {
   const handleDelete = async (account: Account) => {
     try {
       setFeedback(null);
-      const ok = window.confirm(
-        `Excluir a conta "${account.name}"? As transacoes vao ficar sem conta vinculada.`,
-      );
+      const ok = await confirmDialog({
+        title: "Excluir conta?",
+        description: `A conta "${account.name}" sera removida e as transacoes ficarao sem conta vinculada.`,
+        confirmLabel: "Excluir",
+        cancelLabel: "Cancelar",
+        tone: "danger",
+      });
       if (!ok) return;
 
       const resolvedUserId = await ensureUserId();

@@ -19,6 +19,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { useConfirmDialog } from "@/context/ConfirmDialogContext";
 import { brl, toNumber } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
 import { useAutomationCenter } from "@/ui/dashboard/useAutomationCenter";
@@ -181,6 +182,7 @@ const formFromRule = (rule: EmailAlertRule): RuleFormState => ({
 });
 
 export default function AlertsPage() {
+  const confirmDialog = useConfirmDialog();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [ruleFeedback, setRuleFeedback] = useState<string | null>(null);
@@ -419,7 +421,13 @@ export default function AlertsPage() {
 
   const handleDelete = async (rule: EmailAlertRule) => {
     if (!userId) return;
-    const confirmed = window.confirm(`Excluir alerta "${typeLabel[rule.tipo_alerta]} - ${rule.ativo || "USD/BRL"}"?`);
+    const confirmed = await confirmDialog({
+      title: "Excluir alerta?",
+      description: `O alerta "${typeLabel[rule.tipo_alerta]} - ${rule.ativo || "USD/BRL"}" sera removido permanentemente.`,
+      confirmLabel: "Excluir",
+      cancelLabel: "Cancelar",
+      tone: "danger",
+    });
     if (!confirmed) return;
 
     setSaving(true);

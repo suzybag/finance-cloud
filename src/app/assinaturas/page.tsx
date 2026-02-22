@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Inter } from "next/font/google";
 import { AppShell } from "@/components/AppShell";
+import { useConfirmDialog } from "@/context/ConfirmDialogContext";
 import { brl, toNumber } from "@/lib/money";
 import {
   SUBSCRIPTION_ICON_OPTIONS,
@@ -150,6 +151,7 @@ const isMissingRecurringSubscriptionPaymentsTableError = (message?: string | nul
   || /schema cache/i.test((message || "").toLowerCase());
 
 export default function AssinaturasPage() {
+  const confirmDialog = useConfirmDialog();
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -571,7 +573,13 @@ export default function AssinaturasPage() {
 
   const handleDelete = async (row: RecurringSubscriptionRow) => {
     if (!userId) return;
-    const confirmed = window.confirm(`Excluir a assinatura "${row.name}"?`);
+    const confirmed = await confirmDialog({
+      title: "Excluir assinatura?",
+      description: `A assinatura "${row.name}" sera removida permanentemente.`,
+      confirmLabel: "Excluir",
+      cancelLabel: "Cancelar",
+      tone: "danger",
+    });
     if (!confirmed) return;
 
     setSaving(true);
