@@ -119,6 +119,27 @@ const createNewNote = (userId: string, title: string): NoteRow => {
 
 const ensureSorted = (notes: NoteRow[]) => [...notes].sort(sortNotesByUpdated);
 
+const toSafeTimestamp = (value: string) => {
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const mergeNotesByMostRecent = (storageNotes: NoteRow[], databaseNotes: NoteRow[]) => {
+  const map = new Map<string, NoteRow>();
+  for (const note of [...storageNotes, ...databaseNotes]) {
+    const previous = map.get(note.id);
+    if (!previous) {
+      map.set(note.id, note);
+      continue;
+    }
+
+    if (toSafeTimestamp(note.updated_at) >= toSafeTimestamp(previous.updated_at)) {
+      map.set(note.id, note);
+    }
+  }
+  return ensureSorted(Array.from(map.values()));
+};
+
 const normalizeAttachments = (value: unknown): NoteAttachment[] => {
   if (!Array.isArray(value)) return [];
   return value
@@ -264,6 +285,10 @@ export default function NotesPage() {
       setSaveState("saving");
       const firstTry = await saveStoreToBucket(userId, bucketName, nextNotes);
       if (firstTry.ok) {
+        const mirrorDb = await saveStoreToDatabase(userId, nextNotes);
+        if (!mirrorDb.ok) {
+          setFeedback("Notas salvas na nuvem, mas houve falha ao sincronizar no banco.");
+        }
         setSaveState("saved");
         return true;
       }
@@ -273,6 +298,10 @@ export default function NotesPage() {
         if (fallbackTry.ok) {
           setBucketName(FALLBACK_BUCKET);
           setFeedback("Storage principal indisponivel. Usando bucket de fallback.");
+          const mirrorDb = await saveStoreToDatabase(userId, nextNotes);
+          if (!mirrorDb.ok) {
+            setFeedback("Notas salvas no fallback, mas houve falha ao sincronizar no banco.");
+          }
           setSaveState("saved");
           return true;
         }
@@ -406,16 +435,18 @@ export default function NotesPage() {
       }
     }
 
-    if (!initialNotes.length) {
-      const dbLoad = await loadStoreFromDatabase(user.id);
-      if (dbLoad.notes.length) {
+    const dbLoad = await loadStoreFromDatabase(user.id);
+    if (dbLoad.notes.length) {
+      if (!initialNotes.length) {
         initialNotes = dbLoad.notes;
         if (storageLoadFailed) {
           setFeedback("Storage indisponivel. Notas carregadas do banco de dados.");
         }
-      } else if (dbLoad.error && storageLoadFailed) {
-        setFeedback(`Falha ao carregar notas: ${dbLoad.error}`);
+      } else {
+        initialNotes = mergeNotesByMostRecent(initialNotes, dbLoad.notes);
       }
+    } else if (dbLoad.error && storageLoadFailed) {
+      setFeedback(`Falha ao carregar notas: ${dbLoad.error}`);
     }
 
     if (!initialNotes.length) {
