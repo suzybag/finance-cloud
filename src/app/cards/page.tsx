@@ -1287,6 +1287,83 @@ export default function CardsPage() {
             </div>
           ) : null}
 
+          {quickAction ? (
+            <div
+              className="fixed inset-0 z-[125] overflow-y-auto p-4 backdrop-blur-sm"
+              style={{ backgroundColor: "rgba(6, 4, 13, 0.82)" }}
+            >
+              <div className="flex min-h-full items-start justify-center py-6 sm:items-center">
+                <div className="w-full max-w-lg rounded-2xl border border-violet-300/20 bg-[linear-gradient(170deg,rgba(31,17,56,0.96),rgba(14,10,31,0.97))] p-5 shadow-[0_20px_60px_rgba(76,29,149,0.45)]">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CircleDollarSign className="h-5 w-5 text-violet-200" />
+                      <h3 className="text-lg font-extrabold text-violet-100">
+                        {quickAction.type === "set_limit_used" ? "Definir limite usado" : "Adicionar gasto"}
+                      </h3>
+                    </div>
+                    <button
+                      type="button"
+                      className="rounded-lg border border-violet-300/20 px-2 py-1 text-sm text-violet-100 hover:bg-violet-500/15"
+                      onClick={closeQuickActionModal}
+                      disabled={quickSaving}
+                    >
+                      X
+                    </button>
+                  </div>
+
+                  <p className="mt-2 text-sm text-violet-200/80">
+                    Cartao: <span className="font-semibold text-violet-100">{quickAction.card.name}</span>
+                  </p>
+                  {quickAction.type === "set_limit_used" ? (
+                    <p className="mt-1 text-xs text-violet-200/70">
+                      Limite usado atual: {brl(quickAction.currentUsed)}
+                    </p>
+                  ) : null}
+
+                  <div className="mt-4 grid gap-3">
+                    <div>
+                      <p className="mb-1 text-sm font-semibold text-violet-100">Valor (R$)</p>
+                      <input
+                        className={CARD_INPUT_CLASS}
+                        placeholder="0,00"
+                        value={quickAmount}
+                        onChange={(event) => setQuickAmount(event.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <p className="mb-1 text-sm font-semibold text-violet-100">Descricao</p>
+                      <input
+                        className={CARD_INPUT_CLASS}
+                        placeholder="Ex: Compra mercado"
+                        value={quickDescription}
+                        onChange={(event) => setQuickDescription(event.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-5 flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      className={`${SOFT_BUTTON_CLASS} px-4 py-2 text-sm`}
+                      onClick={closeQuickActionModal}
+                      disabled={quickSaving}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      className={`${PRIMARY_BUTTON_CLASS} disabled:opacity-60`}
+                      onClick={handleSubmitQuickAction}
+                      disabled={quickSaving}
+                    >
+                      {quickSaving ? "Salvando..." : "Salvar"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           <section className={`${ULTRA_SECTION_CLASS} p-5`}>
             <div className="flex items-center gap-2">
               <button
