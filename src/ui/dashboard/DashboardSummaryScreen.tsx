@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { BankLogo } from "@/components/BankLogo";
 import { CategoryIcon } from "@/components/CategoryIcon";
+import { VelocityText } from "@/components/VelocityText";
 import { getBankIconPath } from "@/lib/bankIcons";
 import { normalizeCategoryKey } from "@/lib/categoryVisuals";
 import { summarizeInstallments } from "@/lib/installments";
@@ -357,6 +358,12 @@ export const DashboardSummaryScreen = () => {
         <div className="glass-panel p-6 text-slate-300">Carregando...</div>
       ) : (
         <div className="space-y-6">
+          <VelocityText
+            text="Persistencia e disciplina transformam metas financeiras em resultados concretos. Finance Cloud, controle total, clareza diaria e crescimento consistente."
+            heightClassName="h-[180vh]"
+            travel={-2200}
+          />
+
           <section className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_320px]">
             <div className="flex flex-wrap gap-3">
               <MarketIndicatorCard
