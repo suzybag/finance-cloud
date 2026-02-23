@@ -13,6 +13,8 @@ import {
   Lock,
   LogOut,
   Mail,
+  MoreVertical,
+  Pencil,
   Shield,
   Star,
   Trash2,
@@ -34,6 +36,16 @@ type PreferencesState = {
   twoFactorEnabled: boolean;
   currency: "BRL";
   monthStartDay: number;
+};
+
+type AdminUserRow = {
+  id: string;
+  name: string;
+  email: string;
+  status: string;
+  status_tone: "success" | "warning" | "error" | "neutral";
+  created_at: string | null;
+  last_sign_in_at: string | null;
 };
 
 type SecurityModalMode = "password" | "email";
@@ -76,6 +88,24 @@ const validateDisplayName = (value: string) => {
   if (!/\p{L}/u.test(value)) return "Use pelo menos uma letra.";
   if (/[^0-9\p{L}\s.'-]/u.test(value)) return "Use apenas letras, numeros, espacos, ponto, apostrofo ou hifen.";
   return null;
+};
+
+const getStatusBadgeClass = (tone: AdminUserRow["status_tone"]) => {
+  if (tone === "success") return "badge-success";
+  if (tone === "warning") return "badge-warning";
+  if (tone === "error") return "badge-error";
+  return "badge-neutral";
+};
+
+const formatUserDate = (value: string | null) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 };
 
 const baseInputClass =
@@ -151,6 +181,10 @@ export default function ProfilePage() {
   const [deletingAccount, setDeletingAccount] = useState(false);
 
   const [preferences, setPreferences] = useState<PreferencesState>(defaultPreferences);
+  const [isCeoViewEnabled, setIsCeoViewEnabled] = useState(false);
+  const [loadingAdminUsers, setLoadingAdminUsers] = useState(false);
+  const [adminUsers, setAdminUsers] = useState<AdminUserRow[]>([]);
+  const [adminUsersMessage, setAdminUsersMessage] = useState<string | null>(null);
 
   const loadProfile = async () => {
     const { data: userData } = await supabase.auth.getUser();
@@ -171,8 +205,48 @@ export default function ProfilePage() {
     setDisplayName(nextProfile?.display_name ?? "");
   };
 
+  const loadAdminUsers = async () => {
+    setLoadingAdminUsers(true);
+    setAdminUsersMessage(null);
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) {
+      setIsCeoViewEnabled(false);
+      setLoadingAdminUsers(false);
+      return;
+    }
+
+    const response = await fetch("/api/admin/users", {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const payload = await response.json().catch(() => ({}));
+
+    if (response.status === 403) {
+      setIsCeoViewEnabled(false);
+      setAdminUsers([]);
+      setLoadingAdminUsers(false);
+      return;
+    }
+
+    if (!response.ok) {
+      setIsCeoViewEnabled(false);
+      setAdminUsers([]);
+      setAdminUsersMessage(payload.message || "Falha ao carregar usuarios registrados.");
+      setLoadingAdminUsers(false);
+      return;
+    }
+
+    setIsCeoViewEnabled(true);
+    setAdminUsers(Array.isArray(payload.users) ? (payload.users as AdminUserRow[]) : []);
+    setAdminUsersMessage(null);
+    setLoadingAdminUsers(false);
+  };
+
   useEffect(() => {
     loadProfile();
+    void loadAdminUsers();
   }, []);
 
   useEffect(() => {
@@ -1106,6 +1180,77 @@ export default function ProfilePage() {
             </div>
           ) : null}
         </section>
+
+        {isCeoViewEnabled ? (
+          <section className={sectionClass}>
+            <div className="mb-2 flex items-center gap-2 text-slate-100">
+              <Shield className="h-4 w-4 text-violet-300" />
+              <h2 className="text-lg font-bold">Painel CEO</h2>
+            </div>
+            <p className="text-xs text-slate-300/80">
+              Lista de emails registrados no sistema. Visivel apenas para cargo CEO.
+            </p>
+
+            <div className="mt-4 w-full overflow-x-auto rounded-xl border border-violet-300/20 bg-slate-950/35 p-2">
+              <table className="table-striped-columns table">
+                <thead>
+                  <tr>
+                    <th>Nome</th>
+                    <th>Email</th>
+                    <th>Status</th>
+                    <th>Data</th>
+                    <th>Acoes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loadingAdminUsers ? (
+                    <tr>
+                      <td colSpan={5} className="text-sm text-slate-300/80">
+                        Carregando usuarios...
+                      </td>
+                    </tr>
+                  ) : adminUsers.length ? (
+                    adminUsers.map((row) => (
+                      <tr key={row.id}>
+                        <td>{row.name}</td>
+                        <td>{row.email}</td>
+                        <td>
+                          <span className={`badge badge-soft text-xs ${getStatusBadgeClass(row.status_tone)}`}>
+                            {row.status}
+                          </span>
+                        </td>
+                        <td>{formatUserDate(row.created_at)}</td>
+                        <td>
+                          <button type="button" className="btn btn-circle btn-text btn-sm" aria-label="Editar" title="Em breve">
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button type="button" className="btn btn-circle btn-text btn-sm" aria-label="Excluir" title="Em breve">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                          <button type="button" className="btn btn-circle btn-text btn-sm" aria-label="Mais opcoes" title="Em breve">
+                            <MoreVertical className="h-4 w-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="text-sm text-slate-300/80">
+                        Nenhum usuario encontrado.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {adminUsersMessage ? (
+              <div className="mt-4 rounded-xl border border-rose-500/40 bg-rose-950/40 px-4 py-3 text-sm text-rose-200">
+                {adminUsersMessage}
+              </div>
+            ) : null}
+          </section>
+        ) : null}
 
         <section className={sectionClass}>
           <div className="mb-2 flex items-center gap-2 text-slate-100">
