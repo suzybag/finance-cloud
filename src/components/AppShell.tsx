@@ -188,14 +188,14 @@ export const AppShell = ({
     <button
       type="button"
       onClick={() => setMenuOpen((prev) => !prev)}
-      className="h-10 w-10 rounded-full border border-violet-300/20 bg-violet-950/45 overflow-hidden flex items-center justify-center backdrop-blur-md"
+      className="h-11 w-11 rounded-full border border-violet-300/20 bg-violet-950/45 overflow-hidden flex items-center justify-center backdrop-blur-md"
       aria-label="Menu do perfil"
     >
       {avatarUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
       ) : (
-        <span className="text-xs font-semibold text-violet-100">{initials}</span>
+        <span className="text-sm font-semibold text-violet-100">{initials}</span>
       )}
     </button>
   );
@@ -204,11 +204,11 @@ export const AppShell = ({
     <button
       type="button"
       onClick={() => setNotificationsOpen((prev) => !prev)}
-      className="relative h-10 w-10 rounded-full border border-violet-300/20 bg-violet-950/45 flex items-center justify-center text-violet-100 transition hover:border-violet-200/35 hover:bg-violet-900/45"
+      className="relative h-11 w-11 rounded-full border border-violet-300/20 bg-violet-950/45 flex items-center justify-center text-violet-100 transition hover:border-violet-200/35 hover:bg-violet-900/45"
       aria-label="Notificacoes"
     >
-      <BellRing className="h-4 w-4" />
-      <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-rose-400" />
+      <BellRing className="h-5 w-5" />
+      <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-rose-400" />
     </button>
   );
 
@@ -323,6 +323,12 @@ export const AppShell = ({
         </aside>
 
         <main className={`ultra-shell-bg flex-1 p-4 pb-28 sm:p-6 sm:pb-28 lg:p-10 lg:pb-10 ${contentClassName ?? ""}`}>
+          <div className="mb-5 flex items-center justify-between rounded-2xl border border-violet-300/28 bg-[linear-gradient(90deg,rgba(196,181,253,0.28),rgba(147,51,234,0.2))] px-6 py-4 shadow-[0_14px_32px_rgba(91,33,182,0.24)]">
+            <p className="text-xl font-semibold tracking-tight text-violet-100/90 sm:text-3xl">
+              Finance Cloud
+            </p>
+            <span className="h-2.5 w-2.5 rounded-full bg-rose-400" />
+          </div>
           <div className="mb-4 flex gap-2 overflow-x-auto lg:hidden">
             {mobileSecondaryItems.map((item) => {
               const active = pathname === item.href;
@@ -346,7 +352,7 @@ export const AppShell = ({
             })}
           </div>
           {!hideHeader ? (
-            <header className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <header className="relative z-20 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <div className="text-xs uppercase tracking-[0.2em] text-violet-200/45">
                   Finance Cloud
@@ -358,10 +364,10 @@ export const AppShell = ({
               <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
                 {actions}
                 <div className="flex items-center gap-2">
-                  <div className="relative" ref={notificationsRef}>
+                  <div className="relative z-30" ref={notificationsRef}>
                     {renderNotificationsButton()}
                     {notificationsOpen && (
-                      <div className="absolute right-0 mt-2 w-72 rounded-xl border border-violet-300/20 bg-violet-950/95 backdrop-blur-xl shadow-lg p-2 text-sm">
+                      <div className="absolute right-0 z-50 mt-2 w-72 rounded-xl border border-violet-300/20 bg-violet-950/95 backdrop-blur-xl shadow-lg p-2 text-sm">
                         <div className="px-2 py-1 text-xs font-semibold text-violet-100/80">
                           Notificacoes recentes
                         </div>
@@ -381,10 +387,10 @@ export const AppShell = ({
                       </div>
                     )}
                   </div>
-                  <div className="relative" ref={menuRef}>
+                  <div className="relative z-30" ref={menuRef}>
                     {renderAvatarButton()}
                     {menuOpen && (
-                      <div className="absolute right-0 mt-2 w-44 rounded-xl border border-violet-300/20 bg-violet-950/95 backdrop-blur-xl shadow-lg p-2 text-sm">
+                      <div className="absolute right-0 z-50 mt-2 w-44 rounded-xl border border-violet-300/20 bg-violet-950/95 backdrop-blur-xl shadow-lg p-2 text-sm">
                         <Link
                           href="/profile"
                           className="block rounded-lg px-3 py-2 text-violet-100 hover:bg-violet-500/15"
@@ -414,10 +420,10 @@ export const AppShell = ({
           ) : (
             <div className="flex items-center justify-end">
               <div className="flex items-center gap-2">
-                <div className="relative" ref={notificationsRef}>
+                <div className="relative z-30" ref={notificationsRef}>
                   {renderNotificationsButton()}
                   {notificationsOpen && (
-                    <div className="absolute right-0 mt-2 w-72 rounded-xl border border-violet-300/20 bg-violet-950/95 backdrop-blur-xl shadow-lg p-2 text-sm">
+                    <div className="absolute right-0 z-50 mt-2 w-72 rounded-xl border border-violet-300/20 bg-violet-950/95 backdrop-blur-xl shadow-lg p-2 text-sm">
                       <div className="px-2 py-1 text-xs font-semibold text-violet-100/80">
                         Notificacoes recentes
                       </div>
@@ -437,10 +443,10 @@ export const AppShell = ({
                     </div>
                   )}
                 </div>
-                <div className="relative" ref={menuRef}>
+                <div className="relative z-30" ref={menuRef}>
                   {renderAvatarButton()}
                   {menuOpen && (
-                    <div className="absolute right-0 mt-2 w-44 rounded-xl border border-violet-300/20 bg-violet-950/95 backdrop-blur-xl shadow-lg p-2 text-sm">
+                    <div className="absolute right-0 z-50 mt-2 w-44 rounded-xl border border-violet-300/20 bg-violet-950/95 backdrop-blur-xl shadow-lg p-2 text-sm">
                       <Link
                         href="/profile"
                         className="block rounded-lg px-3 py-2 text-violet-100 hover:bg-violet-500/15"
