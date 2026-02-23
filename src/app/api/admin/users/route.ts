@@ -68,6 +68,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, message: error || "Nao autenticado." }, { status: 401 });
   }
 
+  const admin = getAdminClient();
+  if (!admin) {
+    return NextResponse.json({ ok: false, message: "Service role nao configurada." }, { status: 503 });
+  }
+
   const ceoEmails = parseCsv(process.env.CEO_EMAILS || process.env.ADMIN_CEO_EMAILS);
 
   const { data: profileData } = await client
@@ -76,18 +81,16 @@ export async function GET(req: NextRequest) {
     .eq("id", user.id)
     .maybeSingle();
 
+  const authUserRes = await admin.auth.admin.getUserById(user.id);
+  const authUser = authUserRes.data?.user || user;
+
   const roleCandidates = pickRoleCandidates(profileData as ProfileLike, {
-    app_metadata: user.app_metadata as unknown,
-    user_metadata: user.user_metadata as unknown,
+    app_metadata: authUser.app_metadata as unknown,
+    user_metadata: authUser.user_metadata as unknown,
   });
-  const userEmail = coerceString(user.email).toLowerCase();
+  const userEmail = coerceString(authUser.email || user.email).toLowerCase();
   const isCeoByRole = roleCandidates.some((role) => CEO_ROLE_VALUES.has(role));
   const isCeoByEmail = !!userEmail && ceoEmails.includes(userEmail);
-
-  const admin = getAdminClient();
-  if (!admin) {
-    return NextResponse.json({ ok: false, message: "Service role nao configurada." }, { status: 503 });
-  }
 
   let isCeo = isCeoByRole || isCeoByEmail;
   if (!isCeo) {
