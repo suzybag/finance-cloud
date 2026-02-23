@@ -21,9 +21,17 @@ export default function SystemIntro() {
       <div className="pointer-events-none absolute bottom-0 right-0 h-48 w-48 rounded-full bg-zinc-400/10 blur-3xl" />
 
       <div className="relative z-10 p-8 [text-shadow:0_2px_18px_rgba(0,0,0,0.75)] md:p-10">
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/45 px-3 py-1 text-sm font-medium text-zinc-100">
-          <span className="h-2 w-2 rounded-full bg-zinc-300" />
-          Finance Cloud
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/45 px-3 py-1 text-sm font-medium text-zinc-100">
+            <span className="h-2 w-2 rounded-full bg-zinc-300" />
+            Finance Cloud
+          </div>
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/45 px-3 py-1">
+            <div className="loader" aria-hidden="true" />
+            <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-200">
+              Intro
+            </span>
+          </div>
         </div>
 
         <h1 className="mb-4 text-4xl font-extrabold leading-tight text-zinc-50 md:text-5xl">
@@ -50,6 +58,33 @@ export default function SystemIntro() {
           </div>
         </div>
       </div>
+
+      <style jsx>{`
+        .loader {
+          width: 45px;
+          height: 40px;
+          background:
+            linear-gradient(#0000 calc(1 * 100% / 6), #fff 0 calc(3 * 100% / 6), #0000 0),
+            linear-gradient(#0000 calc(2 * 100% / 6), #fff 0 calc(4 * 100% / 6), #0000 0),
+            linear-gradient(#0000 calc(3 * 100% / 6), #fff 0 calc(5 * 100% / 6), #0000 0);
+          background-size: 10px 400%;
+          background-repeat: no-repeat;
+          background-position: 0% 100%, 50% 100%, 100% 100%;
+          animation: matrix 1s infinite linear;
+          transform: scale(0.52);
+          transform-origin: center;
+          opacity: 0.95;
+        }
+
+        @keyframes matrix {
+          0% {
+            background-position: 0% 100%, 50% 100%, 100% 100%;
+          }
+          100% {
+            background-position: 0% 0%, 50% 0%, 100% 0%;
+          }
+        }
+      `}</style>
     </div>
   );
 }

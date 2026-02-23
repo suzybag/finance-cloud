@@ -56,9 +56,15 @@ VAPID_SUBJECT=mailto:alerts@seu-dominio.com
 # Email alerts (use one provider or both):
 EMAIL_PROVIDER=resend
 ALERT_EMAIL_FROM=Finance Cloud <alerts@seu-dominio.com>
+RESEND_FROM=Finance Cloud <alerts@seu-dominio.com>
+BREVO_FROM=Finance Cloud <alerts@seu-dominio.com>
 RESEND_API_KEY=
 BREVO_API_KEY=
 ```
+
+Observacao importante (Resend):
+- `onboarding@resend.dev` (ou `@reenviar.dev`) e apenas para testes e normalmente envia so para o proprio email da conta.
+- Para enviar para outros destinatarios, verifique um dominio em `Dominios` no Resend e use esse dominio em `RESEND_FROM`.
 
 ## 3) Rodar local
 ```bash

@@ -18,6 +18,7 @@ type SendEmailResult = {
 };
 
 const DEFAULT_FROM = "Finance Cloud <alerts@finance-cloud.local>";
+const RESEND_TEST_DOMAINS = ["resend.dev", "reenviar.dev"];
 
 const parseFrom = (raw?: string) => {
   const value = (raw || "").trim() || DEFAULT_FROM;
@@ -36,13 +37,32 @@ const parseFrom = (raw?: string) => {
   };
 };
 
+const resolveFromDomain = (email: string) => {
+  const parts = email.toLowerCase().split("@");
+  return parts[1] || "";
+};
+
+const isResendTestDomain = (email: string) => {
+  const domain = resolveFromDomain(email);
+  return RESEND_TEST_DOMAINS.some((testDomain) => domain === testDomain || domain.endsWith(`.${testDomain}`));
+};
+
 const sendViaResend = async (input: SendEmailInput): Promise<SendEmailResult> => {
   const apiKey = process.env.RESEND_API_KEY ?? "";
   if (!apiKey) {
     return { ok: false, provider: "none", error: "RESEND_API_KEY nao configurada." };
   }
 
-  const fromRaw = process.env.ALERT_EMAIL_FROM || process.env.RESEND_FROM || DEFAULT_FROM;
+  const fromRaw = process.env.RESEND_FROM || process.env.ALERT_EMAIL_FROM || DEFAULT_FROM;
+  const from = parseFrom(fromRaw);
+  if (isResendTestDomain(from.email) && input.to.toLowerCase() !== from.email.toLowerCase()) {
+    return {
+      ok: false,
+      provider: "resend",
+      error: "Remetente em dominio de teste (resend.dev/reenviar.dev). Configure RESEND_FROM com dominio verificado no Resend.",
+    };
+  }
+
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -50,7 +70,7 @@ const sendViaResend = async (input: SendEmailInput): Promise<SendEmailResult> =>
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: fromRaw,
+      from: from.raw,
       to: [input.to],
       subject: input.subject,
       html: input.html,
@@ -84,7 +104,7 @@ const sendViaBrevo = async (input: SendEmailInput): Promise<SendEmailResult> => 
     return { ok: false, provider: "none", error: "BREVO_API_KEY nao configurada." };
   }
 
-  const fromRaw = process.env.ALERT_EMAIL_FROM || process.env.BREVO_FROM || DEFAULT_FROM;
+  const fromRaw = process.env.BREVO_FROM || process.env.ALERT_EMAIL_FROM || DEFAULT_FROM;
   const from = parseFrom(fromRaw);
   const response = await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
