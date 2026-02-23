@@ -11,6 +11,7 @@ import {
   Trash2,
   Trophy,
 } from "lucide-react";
+import { AnimatedCircularProgressBar } from "@/components/AnimatedCircularProgressBar";
 import { AppShell } from "@/components/AppShell";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { useConfirmDialog } from "@/context/ConfirmDialogContext";
@@ -549,11 +550,27 @@ export default function PlanningPage() {
                 </div>
               </div>
 
-              <div className="mt-6 grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px]">
+              <div className="mt-6 grid gap-4 sm:grid-cols-[auto_minmax(0,1fr)_190px] sm:items-center">
+                <div className="mx-auto sm:mx-0">
+                  <AnimatedCircularProgressBar
+                    value={highlightedMetrics.percentual}
+                    size={128}
+                    strokeWidth={11}
+                    gaugePrimaryColor={
+                      highlightedMetrics.isCompleted
+                        ? "rgb(52 211 153)"
+                        : "rgb(79 70 229)"
+                    }
+                    gaugeSecondaryColor="rgba(148, 163, 184, 0.2)"
+                  />
+                </div>
                 <div>
                   <p className="text-sm text-violet-100/75">Progresso</p>
                   <p className="text-3xl font-black text-white">
                     {highlightedMetrics.percentual.toFixed(1).replace(".", ",")}%
+                  </p>
+                  <p className="mt-1 text-xs text-violet-100/65">
+                    Evolucao da meta em tempo real
                   </p>
                 </div>
                 <div className="rounded-2xl border border-violet-300/20 bg-black/20 p-3 text-right">
@@ -567,7 +584,7 @@ export default function PlanningPage() {
                 </div>
               </div>
 
-              <div className="mt-4">
+              <div className="mt-5">
                 <ProgressBar
                   percentual={highlightedMetrics.percentual}
                   done={highlightedMetrics.isCompleted}
