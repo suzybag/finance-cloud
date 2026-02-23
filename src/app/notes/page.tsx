@@ -503,6 +503,7 @@ export default function NotesPage() {
   }, []);
 
   const handleDestroyFileUpload = () => {
+    setFileUploadDestroyed(true);
     if (typeof window === "undefined") return;
     const root = fileUploadDestroyRef.current;
     if (!root) return;
@@ -511,16 +512,18 @@ export default function NotesPage() {
     const instance = win.HSFileUpload?.getInstance?.(root, true) as
       | { element?: { destroy: () => void } }
       | undefined;
-    if (!instance?.element?.destroy) return;
-    instance.element.destroy();
-    setFileUploadDestroyed(true);
+    if (instance?.element?.destroy) {
+      instance.element.destroy();
+    }
   };
 
   const handleReinitFileUpload = () => {
+    setFileUploadDestroyed(false);
     if (typeof window === "undefined") return;
     const win = window as unknown as FileUploadWindow;
-    win.HSFileUpload?.autoInit?.();
-    setFileUploadDestroyed(false);
+    window.requestAnimationFrame(() => {
+      win.HSFileUpload?.autoInit?.();
+    });
   };
 
   const selectedNote = useMemo(
@@ -1336,44 +1339,6 @@ export default function NotesPage() {
                 </div>
               </div>
 
-              <div className="mb-4">
-                <div id="file-upload-to-destroy" ref={fileUploadDestroyRef} data-file-upload={fileUploadConfig}>
-                  <div className="rounded-box bg-base-200/60 flex flex-col justify-center border-2 border-base-content/20 border-dashed">
-                    <div className="cursor-pointer p-8 text-center" data-file-upload-trigger="">
-                      <p className="text-base-content/50 mb-3 text-sm">Escolha um arquivo com tamanho maximo de 2 MB.</p>
-                      <button type="button" className="btn btn-soft btn-sm btn-primary text-nowrap">
-                        <span className="icon-[tabler--file-upload] size-4.5 shrink-0"></span>
-                        Arraste e solte para enviar
-                      </button>
-                      <p className="text-base-content/50 my-2 text-xs">ou</p>
-                      <p className="link link-animated link-primary text-sm font-medium">Navegar</p>
-                    </div>
-                    <div className="mx-8 mb-6 space-y-2 empty:m-0" data-file-upload-previews=""></div>
-                  </div>
-                </div>
-
-                <div className="mt-3 flex gap-3">
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm"
-                    id="destroy-btn"
-                    onClick={handleDestroyFileUpload}
-                    disabled={fileUploadDestroyed}
-                  >
-                    Destroy
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm"
-                    id="reinit-btn"
-                    onClick={handleReinitFileUpload}
-                    disabled={!fileUploadDestroyed}
-                  >
-                    Reinitialize
-                  </button>
-                </div>
-              </div>
-
               <label className="mb-3 block rounded-2xl border border-slate-700/45 bg-slate-900/35 px-4 py-3">
                 <span className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.13em] text-slate-400">
                   <Pencil className="h-3.5 w-3.5" />
@@ -1459,6 +1424,53 @@ export default function NotesPage() {
                     </div>
                   </div>
                 ) : null}
+              </div>
+
+              <div className="mt-4">
+                <div
+                  id="file-upload-to-destroy"
+                  ref={fileUploadDestroyRef}
+                  data-file-upload={fileUploadConfig}
+                  className={fileUploadDestroyed ? "pointer-events-none opacity-45" : ""}
+                >
+                  <div className="rounded-box bg-base-200/60 flex flex-col justify-center border-2 border-base-content/20 border-dashed">
+                    <div
+                      className="cursor-pointer p-8 text-center"
+                      data-file-upload-trigger=""
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <p className="text-base-content/50 mb-3 text-sm">Escolha um arquivo com tamanho maximo de 2 MB.</p>
+                      <button type="button" className="btn btn-soft btn-sm btn-primary text-nowrap">
+                        <span className="icon-[tabler--file-upload] size-4.5 shrink-0"></span>
+                        Arraste e solte para enviar
+                      </button>
+                      <p className="text-base-content/50 my-2 text-xs">ou</p>
+                      <p className="link link-animated link-primary text-sm font-medium">Navegar</p>
+                    </div>
+                    <div className="mx-8 mb-6 space-y-2 empty:m-0" data-file-upload-previews=""></div>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex gap-3">
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    id="destroy-btn"
+                    onClick={handleDestroyFileUpload}
+                    disabled={fileUploadDestroyed}
+                  >
+                    Destroy
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    id="reinit-btn"
+                    onClick={handleReinitFileUpload}
+                    disabled={!fileUploadDestroyed}
+                  >
+                    Reinitialize
+                  </button>
+                </div>
               </div>
 
               <div className="mt-4 rounded-2xl border border-cyan-300/15 bg-slate-950/45 p-3">
