@@ -43,9 +43,9 @@ const formatQty = (value: number) =>
   });
 
 const statusStyles: Record<ReturnType<typeof calculateInvestmentStatus>, string> = {
-  CARO: "border-rose-200/35 bg-rose-400/12 text-rose-100",
-  NORMAL: "border-amber-200/35 bg-amber-400/12 text-amber-100",
-  BARATO: "border-emerald-200/35 bg-emerald-400/12 text-emerald-100",
+  CARO: "border-rose-200/26 bg-rose-400/10 text-rose-100",
+  NORMAL: "border-slate-300/22 bg-slate-700/35 text-slate-100",
+  BARATO: "border-emerald-200/26 bg-emerald-400/10 text-emerald-100",
 };
 
 const resolveFallbackLogo = (item: InvestmentCardItem) => {
@@ -114,7 +114,7 @@ export function InvestmentCard({ item, deleting, editing, onEdit, onDelete }: In
   const assetInitials = useMemo(() => toAssetInitials(item.asset_name), [item.asset_name]);
 
   return (
-    <article className="group rounded-3xl border border-slate-200/10 bg-slate-950/68 p-4 shadow-[0_22px_44px_rgba(2,6,23,0.42)] transition-all duration-300 hover:-translate-y-0.5 hover:border-cyan-200/30 hover:shadow-[0_28px_52px_rgba(8,145,178,0.28)] sm:p-5">
+    <article className="group rounded-3xl border border-slate-200/10 bg-slate-950/68 p-4 shadow-[0_22px_44px_rgba(2,6,23,0.42)] transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-200/20 hover:shadow-[0_28px_52px_rgba(2,6,23,0.54)] sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-2xl border border-slate-200/15 bg-slate-900/85">
@@ -128,7 +128,7 @@ export function InvestmentCard({ item, deleting, editing, onEdit, onDelete }: In
                 onError={() => setLogoFailed(true)}
               />
             ) : (
-              <span className="text-sm font-bold tracking-wide text-cyan-100">{assetInitials}</span>
+              <span className="text-sm font-bold tracking-wide text-slate-100">{assetInitials}</span>
             )}
           </div>
 
@@ -137,8 +137,8 @@ export function InvestmentCard({ item, deleting, editing, onEdit, onDelete }: In
               <h4 className="truncate text-lg font-bold tracking-tight text-white">{item.asset_name}</h4>
               <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${
                 isBuy
-                  ? "border-emerald-200/35 bg-emerald-400/12 text-emerald-100"
-                  : "border-rose-200/35 bg-rose-400/12 text-rose-100"
+                  ? "border-emerald-200/28 bg-emerald-400/10 text-emerald-100"
+                  : "border-rose-200/28 bg-rose-400/10 text-rose-100"
               }`}>
                 {isBuy ? "Compra" : "Venda"}
               </span>
@@ -155,7 +155,7 @@ export function InvestmentCard({ item, deleting, editing, onEdit, onDelete }: In
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="rounded-xl border border-slate-200/20 bg-slate-800/50 p-1.5 text-slate-100 transition hover:border-cyan-200/30 hover:bg-cyan-300/15 disabled:opacity-60"
+            className="rounded-xl border border-slate-200/20 bg-slate-800/50 p-1.5 text-slate-100 transition hover:border-slate-200/35 hover:bg-slate-700/55 disabled:opacity-60"
             onClick={() => onEdit(item.id)}
             disabled={deleting || editing}
             aria-label="Editar investimento"
@@ -176,7 +176,7 @@ export function InvestmentCard({ item, deleting, editing, onEdit, onDelete }: In
         </div>
         <div className="rounded-2xl border border-slate-200/10 bg-slate-900/85 p-3">
           <p className="text-[11px] uppercase tracking-[0.08em] text-slate-400">Preco atual</p>
-          <p className="mt-1 text-sm font-bold text-cyan-100">{brl(item.current_price)}</p>
+          <p className="mt-1 text-sm font-bold text-slate-100">{brl(item.current_price)}</p>
         </div>
       </div>
 
@@ -187,13 +187,13 @@ export function InvestmentCard({ item, deleting, editing, onEdit, onDelete }: In
         </div>
         <div className="rounded-2xl border border-slate-200/10 bg-slate-900/78 p-3">
           <p className="text-[11px] uppercase tracking-[0.08em] text-slate-400">Valor atual</p>
-          <p className="mt-1 text-sm font-bold text-cyan-100">{brl(item.current_amount)}</p>
+          <p className="mt-1 text-sm font-bold text-slate-100">{brl(item.current_amount)}</p>
         </div>
       </div>
 
       <div className="mt-2 rounded-2xl border border-slate-200/10 bg-slate-900/78 p-3">
         <p className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.08em] text-slate-400">
-          <BarChart3 className="h-3.5 w-3.5 text-cyan-200" />
+          <BarChart3 className="h-3.5 w-3.5 text-slate-300" />
           Rentabilidade
         </p>
         <div className="mt-1 flex items-center justify-between gap-2">

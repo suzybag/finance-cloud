@@ -19,9 +19,7 @@ export function MiniChart({ prices }: MiniChartProps) {
   const trendPct = first > 0 ? ((last - first) / first) * 100 : 0;
   const positive = trendPct >= 0;
   const lineColor = positive ? "#34d399" : "#fb7185";
-  const panelClass = positive
-    ? "border-emerald-200/20 bg-emerald-400/6"
-    : "border-rose-200/20 bg-rose-400/8";
+  const panelClass = "border-slate-200/10 bg-slate-900/76";
 
   return (
     <div className={`rounded-2xl border px-3 py-2 ${panelClass}`}>

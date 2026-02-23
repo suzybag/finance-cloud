@@ -76,10 +76,10 @@ type AssetRow = {
 };
 
 const SECTION_CLASS =
-  "rounded-3xl border border-cyan-200/20 bg-slate-950/55 shadow-[0_24px_56px_rgba(8,47,73,0.35)] backdrop-blur-xl";
+  "rounded-3xl border border-slate-200/12 bg-slate-950/60 shadow-[0_24px_56px_rgba(2,6,23,0.46)] backdrop-blur-xl";
 
 const PRIMARY_BUTTON_CLASS =
-  "inline-flex items-center gap-2 rounded-2xl border border-cyan-100/40 bg-cyan-300 px-4 py-2 text-sm font-semibold text-slate-950 shadow-[0_14px_34px_rgba(34,211,238,0.35)] transition hover:bg-cyan-200";
+  "inline-flex items-center gap-2 rounded-2xl border border-slate-100/60 bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-950 shadow-[0_14px_34px_rgba(15,23,42,0.28)] transition hover:bg-white";
 
 const LOW_USAGE_MODE = process.env.NEXT_PUBLIC_SUPABASE_LOW_USAGE_MODE !== "false";
 
@@ -637,6 +637,11 @@ export default function InvestmentsPage() {
       ),
     [investments],
   );
+  const portfolioCurrentTone = portfolioCurrentTotal > 0
+    ? "text-emerald-200"
+    : portfolioCurrentTotal < 0
+      ? "text-rose-200"
+      : "text-slate-100";
 
   const isFeedbackError = useMemo(
     () =>
@@ -668,7 +673,7 @@ export default function InvestmentsPage() {
       {loading ? (
         <div className={`${SECTION_CLASS} p-6 text-slate-100`}>
           <span className="inline-flex items-center gap-3 text-sm font-medium">
-            <Loader2 className="h-4 w-4 animate-spin text-cyan-300" />
+            <Loader2 className="h-4 w-4 animate-spin text-slate-300" />
             Carregando investimentos...
           </span>
         </div>
@@ -687,7 +692,7 @@ export default function InvestmentsPage() {
           <section className={`${SECTION_CLASS} p-5 sm:p-6`}>
             <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
               <div className="space-y-2">
-                <span className="inline-flex items-center rounded-full border border-cyan-200/30 bg-cyan-400/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-100">
+                <span className="inline-flex items-center rounded-full border border-slate-200/20 bg-slate-800/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-200">
                   Carteira em foco
                 </span>
                 <h2 className="text-xl font-extrabold tracking-tight text-white sm:text-2xl">
@@ -699,17 +704,17 @@ export default function InvestmentsPage() {
               </div>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <div className="grid grid-cols-2 gap-2 sm:min-w-[300px]">
-                  <div className="rounded-2xl border border-cyan-200/20 bg-slate-900/70 px-3 py-2">
+                  <div className="rounded-2xl border border-slate-200/12 bg-slate-900/74 px-3 py-2">
                     <p className="text-[11px] uppercase tracking-[0.08em] text-slate-400">Ativos</p>
-                    <p className="mt-1 text-lg font-bold text-cyan-100">{investments.length}</p>
+                    <p className="mt-1 text-lg font-bold text-slate-100">{investments.length}</p>
                   </div>
-                  <div className="rounded-2xl border border-cyan-200/20 bg-slate-900/70 px-3 py-2">
+                  <div className="rounded-2xl border border-slate-200/12 bg-slate-900/74 px-3 py-2">
                     <p className="text-[11px] uppercase tracking-[0.08em] text-slate-400">Categorias</p>
-                    <p className="mt-1 text-lg font-bold text-teal-100">{activeCategoriesCount}</p>
+                    <p className="mt-1 text-lg font-bold text-slate-100">{activeCategoriesCount}</p>
                   </div>
-                  <div className="col-span-2 rounded-2xl border border-cyan-200/20 bg-slate-900/70 px-3 py-2">
+                  <div className="col-span-2 rounded-2xl border border-slate-200/12 bg-slate-900/74 px-3 py-2">
                     <p className="text-[11px] uppercase tracking-[0.08em] text-slate-400">Posicao atual</p>
-                    <p className="mt-1 text-lg font-bold text-emerald-200">{brl(portfolioCurrentTotal)}</p>
+                    <p className={`mt-1 text-lg font-bold ${portfolioCurrentTone}`}>{brl(portfolioCurrentTotal)}</p>
                   </div>
                 </div>
                 <button

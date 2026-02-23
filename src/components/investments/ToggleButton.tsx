@@ -14,20 +14,25 @@ const contentByVariant = {
   buy: {
     label: "Compra",
     Icon: ArrowUpRight,
-    activeClass: "bg-emerald-300 text-slate-950 border-emerald-100/60 shadow-[0_10px_24px_rgba(16,185,129,0.36)]",
-    idleClass: "bg-transparent text-slate-300 border-transparent hover:bg-emerald-400/12",
+    activeClass: "bg-slate-100 text-slate-950 border-slate-100/70 shadow-[0_10px_24px_rgba(15,23,42,0.32)]",
+    idleClass: "bg-transparent text-slate-300 border-transparent hover:bg-slate-700/35",
   },
   sell: {
     label: "Venda",
     Icon: ArrowDownRight,
-    activeClass: "bg-rose-300 text-slate-950 border-rose-100/60 shadow-[0_10px_24px_rgba(244,63,94,0.36)]",
-    idleClass: "bg-transparent text-slate-300 border-transparent hover:bg-rose-400/12",
+    activeClass: "bg-slate-100 text-slate-950 border-slate-100/70 shadow-[0_10px_24px_rgba(15,23,42,0.32)]",
+    idleClass: "bg-transparent text-slate-300 border-transparent hover:bg-slate-700/35",
   },
 } as const;
 
 export function ToggleButton({ variant, active, onClick }: ToggleButtonProps) {
   const config = contentByVariant[variant];
   const Icon = config.Icon;
+  const iconTone = active
+    ? variant === "buy"
+      ? "text-emerald-600"
+      : "text-rose-600"
+    : "text-slate-400";
 
   return (
     <button
@@ -38,7 +43,7 @@ export function ToggleButton({ variant, active, onClick }: ToggleButtonProps) {
       }`}
       aria-pressed={active}
     >
-      <Icon className="h-4 w-4" />
+      <Icon className={`h-4 w-4 ${iconTone}`} />
       {config.label}
     </button>
   );

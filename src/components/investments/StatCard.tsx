@@ -14,24 +14,24 @@ type StatCardProps = {
 
 const ACCENT_STYLES = [
   {
-    cardShadow: "shadow-[0_20px_40px_rgba(34,211,238,0.14)]",
-    iconClass: "border-cyan-200/30 bg-cyan-300/15 text-cyan-100",
-    valueClass: "text-cyan-100",
+    cardShadow: "shadow-[0_20px_40px_rgba(2,6,23,0.28)]",
+    iconClass: "border-slate-300/16 bg-slate-800/85 text-slate-200",
+    valueClass: "text-slate-100",
   },
   {
-    cardShadow: "shadow-[0_20px_40px_rgba(16,185,129,0.14)]",
-    iconClass: "border-emerald-200/30 bg-emerald-300/15 text-emerald-100",
-    valueClass: "text-emerald-100",
+    cardShadow: "shadow-[0_20px_40px_rgba(2,6,23,0.28)]",
+    iconClass: "border-slate-300/16 bg-slate-800/85 text-slate-200",
+    valueClass: "text-slate-100",
   },
   {
-    cardShadow: "shadow-[0_20px_40px_rgba(251,146,60,0.14)]",
-    iconClass: "border-orange-200/30 bg-orange-300/15 text-orange-100",
-    valueClass: "text-orange-100",
+    cardShadow: "shadow-[0_20px_40px_rgba(2,6,23,0.28)]",
+    iconClass: "border-slate-300/16 bg-slate-800/85 text-slate-200",
+    valueClass: "text-slate-100",
   },
   {
-    cardShadow: "shadow-[0_20px_40px_rgba(96,165,250,0.14)]",
-    iconClass: "border-sky-200/30 bg-sky-300/15 text-sky-100",
-    valueClass: "text-sky-100",
+    cardShadow: "shadow-[0_20px_40px_rgba(2,6,23,0.28)]",
+    iconClass: "border-slate-300/16 bg-slate-800/85 text-slate-200",
+    valueClass: "text-slate-100",
   },
 ] as const;
 

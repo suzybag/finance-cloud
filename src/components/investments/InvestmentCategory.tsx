@@ -27,32 +27,32 @@ const CATEGORY_ICON_MAP = {
 
 const CATEGORY_THEME_MAP = {
   Criptomoedas: {
-    iconClass: "border-cyan-200/35 bg-cyan-300/18 text-cyan-100",
-    tagClass: "border-cyan-200/35 bg-cyan-300/12 text-cyan-100",
+    iconClass: "border-slate-300/20 bg-slate-800/78 text-slate-200",
+    tagClass: "border-slate-300/20 bg-slate-900/72 text-slate-200",
   },
   "Tesouro Direto": {
-    iconClass: "border-emerald-200/35 bg-emerald-300/18 text-emerald-100",
-    tagClass: "border-emerald-200/35 bg-emerald-300/12 text-emerald-100",
+    iconClass: "border-slate-300/20 bg-slate-800/78 text-slate-200",
+    tagClass: "border-slate-300/20 bg-slate-900/72 text-slate-200",
   },
   "Renda Fixa": {
-    iconClass: "border-emerald-200/35 bg-emerald-300/18 text-emerald-100",
-    tagClass: "border-emerald-200/35 bg-emerald-300/12 text-emerald-100",
+    iconClass: "border-slate-300/20 bg-slate-800/78 text-slate-200",
+    tagClass: "border-slate-300/20 bg-slate-900/72 text-slate-200",
   },
   Acoes: {
-    iconClass: "border-sky-200/35 bg-sky-300/18 text-sky-100",
-    tagClass: "border-sky-200/35 bg-sky-300/12 text-sky-100",
+    iconClass: "border-slate-300/20 bg-slate-800/78 text-slate-200",
+    tagClass: "border-slate-300/20 bg-slate-900/72 text-slate-200",
   },
   FIIs: {
-    iconClass: "border-sky-200/35 bg-sky-300/18 text-sky-100",
-    tagClass: "border-sky-200/35 bg-sky-300/12 text-sky-100",
+    iconClass: "border-slate-300/20 bg-slate-800/78 text-slate-200",
+    tagClass: "border-slate-300/20 bg-slate-900/72 text-slate-200",
   },
   Commodities: {
-    iconClass: "border-amber-200/35 bg-amber-300/18 text-amber-100",
-    tagClass: "border-amber-200/35 bg-amber-300/12 text-amber-100",
+    iconClass: "border-slate-300/20 bg-slate-800/78 text-slate-200",
+    tagClass: "border-slate-300/20 bg-slate-900/72 text-slate-200",
   },
   Outros: {
-    iconClass: "border-slate-300/35 bg-slate-300/12 text-slate-100",
-    tagClass: "border-slate-300/35 bg-slate-300/12 text-slate-100",
+    iconClass: "border-slate-300/20 bg-slate-800/78 text-slate-200",
+    tagClass: "border-slate-300/20 bg-slate-900/72 text-slate-200",
   },
 } as const;
 

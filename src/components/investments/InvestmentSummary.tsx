@@ -31,7 +31,7 @@ const getTrendAppearance = (value: number) => {
     };
   }
   return {
-    textClass: "text-amber-200",
+    textClass: "text-slate-200",
     Icon: Minus,
   };
 };

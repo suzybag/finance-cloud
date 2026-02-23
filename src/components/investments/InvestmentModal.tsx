@@ -127,7 +127,7 @@ const FALLBACK_ASSETS: AssetOption[] = [
 ];
 
 const INPUT_CLASS =
-  "w-full rounded-2xl border border-slate-200/14 bg-slate-900/82 px-3 py-2 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-200/40 focus:ring-2 focus:ring-cyan-300/25";
+  "w-full rounded-2xl border border-slate-200/14 bg-slate-900/82 px-3 py-2 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-slate-300/40 focus:ring-2 focus:ring-slate-300/20";
 
 const moneyMask = (value: string) => {
   const digits = value.replace(/\D/g, "");
@@ -412,7 +412,7 @@ export function InvestmentModal({
           <h3 className="text-xl font-bold tracking-tight text-white">Adicionar Lancamento</h3>
           <button
             type="button"
-            className="rounded-xl border border-slate-200/20 bg-slate-900/80 p-1.5 text-slate-100 transition hover:border-cyan-200/35 hover:bg-cyan-300/14"
+            className="rounded-xl border border-slate-200/20 bg-slate-900/80 p-1.5 text-slate-100 transition hover:border-slate-200/35 hover:bg-slate-700/45"
             onClick={onClose}
             disabled={saving}
             aria-label="Fechar modal"
@@ -555,10 +555,10 @@ export function InvestmentModal({
             </div>
           ) : null}
 
-          <div className="rounded-2xl border border-cyan-200/20 bg-cyan-400/10 px-4 py-3">
+          <div className="rounded-2xl border border-slate-200/15 bg-slate-900/74 px-4 py-3">
             <div className="flex items-center justify-between">
               <p className="text-base font-bold text-slate-100">Valor total</p>
-              <p className="text-2xl font-extrabold text-cyan-200">{brl(totalValue)}</p>
+              <p className="text-2xl font-extrabold text-slate-100">{brl(totalValue)}</p>
             </div>
           </div>
         </div>
@@ -574,7 +574,7 @@ export function InvestmentModal({
           </button>
           <button
             type="button"
-            className="rounded-2xl border border-cyan-100/45 bg-cyan-300 px-4 py-2 text-sm font-semibold text-slate-950 shadow-[0_12px_30px_rgba(34,211,238,0.38)] transition hover:bg-cyan-200 disabled:opacity-60"
+            className="rounded-2xl border border-slate-100/60 bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-950 shadow-[0_12px_30px_rgba(15,23,42,0.32)] transition hover:bg-white disabled:opacity-60"
             onClick={() => void handleSave()}
             disabled={saving}
           >

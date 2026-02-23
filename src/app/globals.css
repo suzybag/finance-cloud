@@ -400,10 +400,10 @@ body.theme-reading .dashboard-cosmic::after {
   pointer-events: none;
   z-index: -1;
   background:
-    radial-gradient(760px 520px at 8% 5%, rgba(34, 211, 238, 0.24), transparent 62%),
-    radial-gradient(820px 540px at 92% 14%, rgba(16, 185, 129, 0.2), transparent 62%),
-    radial-gradient(860px 540px at 54% 96%, rgba(251, 191, 36, 0.14), transparent 66%),
-    linear-gradient(148deg, rgba(6, 16, 31, 0.92), rgba(6, 12, 24, 0.95));
+    radial-gradient(760px 520px at 8% 5%, rgba(148, 163, 184, 0.15), transparent 62%),
+    radial-gradient(820px 540px at 92% 14%, rgba(100, 116, 139, 0.14), transparent 62%),
+    radial-gradient(860px 540px at 54% 96%, rgba(51, 65, 85, 0.2), transparent 66%),
+    linear-gradient(148deg, rgba(6, 11, 20, 0.94), rgba(4, 8, 15, 0.96));
 }
 
 .notes-dark-bg {
