@@ -323,11 +323,11 @@ export const AppShell = ({
         </aside>
 
         <main className={`ultra-shell-bg flex-1 p-4 pb-28 sm:p-6 sm:pb-28 lg:p-10 lg:pb-10 ${contentClassName ?? ""}`}>
-          <div className="mb-5 flex items-center justify-between rounded-2xl border border-violet-300/28 bg-[linear-gradient(90deg,rgba(196,181,253,0.28),rgba(147,51,234,0.2))] px-6 py-4 shadow-[0_14px_32px_rgba(91,33,182,0.24)]">
-            <p className="text-xl font-semibold tracking-tight text-violet-100/90 sm:text-3xl">
+          <div className="mb-5 flex items-center justify-between rounded-xl border border-violet-300/24 bg-[linear-gradient(90deg,rgba(196,181,253,0.2),rgba(147,51,234,0.14))] px-5 py-2.5 shadow-[0_10px_24px_rgba(91,33,182,0.2)]">
+            <p className="text-sm font-medium tracking-[0.01em] text-violet-300/95 sm:text-base">
               Finance Cloud
             </p>
-            <span className="h-2.5 w-2.5 rounded-full bg-rose-400" />
+            <span className="h-2 w-2 rounded-full bg-violet-300/90" />
           </div>
           <div className="mb-4 flex gap-2 overflow-x-auto lg:hidden">
             {mobileSecondaryItems.map((item) => {
