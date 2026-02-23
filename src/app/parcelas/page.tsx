@@ -442,38 +442,28 @@ export default function ParcelasPage() {
           </section>
 
           <section className="parcelas-explain-card">
-            <div className="flex items-start gap-3">
-              <div className="parcelas-explain-icon">
-                {(() => {
-                  const Icon = getCategoryIconVisual(undefined, explainCard.title).icon;
-                  return <Icon className="h-4 w-4" />;
-                })()}
-              </div>
+            <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-2xl font-semibold tracking-tight text-white">Parcelas</p>
-                <p className="text-xs text-violet-200/80">Gerencie compras parceladas com progresso visual</p>
+                <p className="text-[11px] uppercase tracking-[0.14em] text-cyan-100/70">Compra em destaque</p>
+                <p className="line-clamp-1 text-2xl font-semibold tracking-tight text-white">{explainCard.title}</p>
               </div>
+              <p className="text-3xl font-bold tracking-tight text-white">{brl(explainCard.installmentValue)}</p>
             </div>
 
-            <div className="parcelas-explain-item">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <div>
-                  <p className="line-clamp-1 text-base font-semibold text-white">{explainCard.title}</p>
-                  <p className="text-xs text-slate-300/80">{explainCard.paid}/{explainCard.total} parcelas</p>
-                </div>
-                <p className="text-2xl font-bold tracking-tight text-white">{brl(explainCard.installmentValue)}</p>
+            <div className="mt-4 rounded-2xl border border-blue-300/30 bg-[linear-gradient(132deg,rgba(30,64,175,0.35),rgba(6,78,59,0.3))] px-4 py-3.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs uppercase tracking-[0.12em] text-blue-100/85">Andamento</p>
+                <p className="text-xs font-semibold text-blue-100/95">
+                  {clampPercent(explainCard.progress).toFixed(1).replace(".", ",")}% pago
+                </p>
               </div>
-              <div className="mb-2 grid gap-2 text-[11px] text-cyan-100/80 sm:grid-cols-2">
-                <div className="rounded-md border border-blue-300/25 bg-blue-500/10 px-2.5 py-1.5">
-                  <p className="text-blue-100/80">Pago ate agora</p>
-                  <p className="font-semibold text-blue-50">{brl(explainCard.paidValue)}</p>
-                </div>
-                <div className="rounded-md border border-cyan-300/25 bg-cyan-500/10 px-2.5 py-1.5">
-                  <p className="text-cyan-100/80">Falta pagar</p>
-                  <p className="font-semibold text-cyan-50">{brl(explainCard.remainingValue)}</p>
-                </div>
+              <div className="mt-2 flex items-end justify-between gap-2">
+                <p className="text-4xl font-black leading-none tracking-tight text-white">
+                  {explainCard.paid}/{explainCard.total}
+                </p>
+                <p className="text-sm font-semibold text-blue-100/90">parcelas</p>
               </div>
-              <div className="parcelas-explain-track">
+              <div className="mt-3 parcelas-explain-track">
                 <div
                   className="parcelas-explain-fill"
                   style={{
@@ -483,9 +473,26 @@ export default function ParcelasPage() {
                   }}
                 />
               </div>
-              <div className="mt-1.5 flex items-center justify-between text-[11px] text-blue-100/80">
+              <div className="mt-1.5 flex items-center justify-between text-[11px] text-blue-100/90">
                 <span>Ja pago: {clampPercent(explainCard.progress).toFixed(1).replace(".", ",")}%</span>
                 <span>Restante: {(100 - clampPercent(explainCard.progress)).toFixed(1).replace(".", ",")}%</span>
+              </div>
+            </div>
+
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              <div className="rounded-xl border border-blue-300/25 bg-blue-500/12 px-3 py-2.5">
+                <p className="text-[11px] text-blue-100/78">Pago ate agora</p>
+                <p className="mt-1 text-lg font-bold text-blue-50">{brl(explainCard.paidValue)}</p>
+              </div>
+              <div className="rounded-xl border border-cyan-300/25 bg-cyan-500/12 px-3 py-2.5">
+                <p className="text-[11px] text-cyan-100/78">Falta pagar</p>
+                <p className="mt-1 text-lg font-bold text-cyan-50">{brl(explainCard.remainingValue)}</p>
+              </div>
+              <div className="rounded-xl border border-emerald-300/25 bg-emerald-500/12 px-3 py-2.5">
+                <p className="text-[11px] text-emerald-100/78">Total da compra</p>
+                <p className="mt-1 text-lg font-bold text-emerald-50">
+                  {brl(round2(explainCard.paidValue + explainCard.remainingValue))}
+                </p>
               </div>
             </div>
           </section>
