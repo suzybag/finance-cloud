@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -43,6 +42,32 @@ const MAX_SIZE_BYTES = 2 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const PREFERENCES_KEY = "finance_cloud_preferences";
 const REVIEW_URL = process.env.NEXT_PUBLIC_APP_REVIEW_URL || "https://github.com/";
+const strongPasswordOptions = JSON.stringify({
+  target: "#password-hints-to-destroy",
+  hints: "#password-hints-content-to-destroy",
+  stripClasses:
+    "strong-password:bg-primary strong-password-accepted:bg-teal-500 h-1.5 flex-auto bg-neutral/20",
+});
+
+type StrongPasswordCollectionItem = {
+  element: {
+    destroy: () => void;
+  };
+};
+
+type StrongPasswordGlobalApi = {
+  getInstance: (
+    target: HTMLElement | string,
+    isInstance?: boolean,
+  ) => StrongPasswordCollectionItem | HTMLElement | null;
+  autoInit: () => void;
+};
+
+declare global {
+  interface Window {
+    HSStrongPassword?: StrongPasswordGlobalApi;
+  }
+}
 
 const normalizeDisplayName = (value: string) => value.replace(/\s+/g, " ").trim();
 const validateDisplayName = (value: string) => {
@@ -118,6 +143,7 @@ export default function ProfilePage() {
   const [securityModalValue, setSecurityModalValue] = useState("");
   const [securityModalConfirm, setSecurityModalConfirm] = useState("");
   const [securityModalSaving, setSecurityModalSaving] = useState(false);
+  const [isStrongPasswordDestroyed, setIsStrongPasswordDestroyed] = useState(false);
 
   const [privacyMessage, setPrivacyMessage] = useState<string | null>(null);
   const [privacyError, setPrivacyError] = useState<string | null>(null);
@@ -336,6 +362,7 @@ export default function ProfilePage() {
     setSecurityModalValue("");
     setSecurityModalConfirm("");
     setSecurityModalSaving(false);
+    setIsStrongPasswordDestroyed(false);
   };
 
   const openSecurityModal = (mode: SecurityModalMode) => {
@@ -345,6 +372,45 @@ export default function ProfilePage() {
     setSecurityModalValue(mode === "email" ? userEmail : "");
     setSecurityModalConfirm("");
     setSecurityModalSaving(false);
+    setIsStrongPasswordDestroyed(false);
+  };
+
+  useEffect(() => {
+    if (securityModalMode !== "password") return;
+
+    let canceled = false;
+
+    const initializeStrongPassword = async () => {
+      await import("flyonui/dist/strong-password");
+      if (canceled) return;
+      window.HSStrongPassword?.autoInit();
+    };
+
+    void initializeStrongPassword();
+
+    return () => {
+      canceled = true;
+    };
+  }, [securityModalMode]);
+
+  const handleDestroyStrongPassword = () => {
+    const strongPassword = document.querySelector("#strong-password-to-destroy") as HTMLElement | null;
+    if (!strongPassword) return;
+
+    const api = window.HSStrongPassword;
+    if (!api) return;
+
+    const instance = api.getInstance(strongPassword, true);
+    if (instance && "element" in instance) {
+      instance.element.destroy();
+      setIsStrongPasswordDestroyed(true);
+    }
+  };
+
+  const handleReinitializeStrongPassword = async () => {
+    await import("flyonui/dist/strong-password");
+    window.HSStrongPassword?.autoInit();
+    setIsStrongPasswordDestroyed(false);
   };
 
   const handleSaveSecurityModal = async () => {
@@ -538,13 +604,78 @@ export default function ProfilePage() {
                   <label className="text-sm font-semibold text-violet-100">
                     Nova senha
                     <input
+                      id="password-hints-to-destroy"
                       type="password"
-                      className={`${baseInputClass} mt-1`}
+                      className={`${baseInputClass} input mt-1`}
                       placeholder="Minimo 6 caracteres"
                       value={securityModalValue}
                       onChange={(event) => setSecurityModalValue(event.target.value)}
                     />
+                    <div
+                      id="strong-password-to-destroy"
+                      data-strong-password={strongPasswordOptions}
+                      className="mt-2 flex gap-0.5 overflow-hidden rounded-full"
+                    ></div>
                   </label>
+
+                  <div id="password-hints-content-to-destroy" className="rounded-xl border border-violet-300/20 bg-slate-900/35 p-3">
+                    <div>
+                      <span className="text-sm text-slate-200">Nivel: </span>
+                      <span
+                        data-pw-strength-hint='["Vazio", "Fraca", "Media", "Forte", "Muito forte", "Super forte"]'
+                        className="text-sm font-semibold text-violet-200"
+                      ></span>
+                    </div>
+                    <h6 className="my-2 text-sm font-semibold text-slate-100">Sua senha deve conter:</h6>
+                    <ul className="space-y-1 text-xs text-slate-300/90">
+                      <li data-pw-strength-rule="min-length" className="strong-password-active:text-success flex items-center gap-x-2">
+                        <span className="icon-[tabler--circle-check] hidden size-4 shrink-0" data-check></span>
+                        <span className="icon-[tabler--circle-x] hidden size-4 shrink-0" data-uncheck></span>
+                        Minimo de 6 caracteres.
+                      </li>
+                      <li data-pw-strength-rule="lowercase" className="strong-password-active:text-success flex items-center gap-x-2">
+                        <span className="icon-[tabler--circle-check] hidden size-4 shrink-0" data-check></span>
+                        <span className="icon-[tabler--circle-x] hidden size-4 shrink-0" data-uncheck></span>
+                        Letras minusculas.
+                      </li>
+                      <li data-pw-strength-rule="uppercase" className="strong-password-active:text-success flex items-center gap-x-2">
+                        <span className="icon-[tabler--circle-check] hidden size-4 shrink-0" data-check></span>
+                        <span className="icon-[tabler--circle-x] hidden size-4 shrink-0" data-uncheck></span>
+                        Letras maiusculas.
+                      </li>
+                      <li data-pw-strength-rule="numbers" className="strong-password-active:text-success flex items-center gap-x-2">
+                        <span className="icon-[tabler--circle-check] hidden size-4 shrink-0" data-check></span>
+                        <span className="icon-[tabler--circle-x] hidden size-4 shrink-0" data-uncheck></span>
+                        Numeros.
+                      </li>
+                      <li data-pw-strength-rule="special-characters" className="strong-password-active:text-success flex items-center gap-x-2">
+                        <span className="icon-[tabler--circle-check] hidden size-4 shrink-0" data-check></span>
+                        <span className="icon-[tabler--circle-x] hidden size-4 shrink-0" data-uncheck></span>
+                        Caracteres especiais.
+                      </li>
+                    </ul>
+
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        type="button"
+                        id="destroy-btn"
+                        className="rounded-lg bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                        onClick={handleDestroyStrongPassword}
+                        disabled={isStrongPasswordDestroyed}
+                      >
+                        Destroy
+                      </button>
+                      <button
+                        type="button"
+                        id="reinit-btn"
+                        className="rounded-lg bg-violet-500/60 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                        onClick={() => void handleReinitializeStrongPassword()}
+                        disabled={!isStrongPasswordDestroyed}
+                      >
+                        Reinitialize
+                      </button>
+                    </div>
+                  </div>
                   <label className="text-sm font-semibold text-violet-100">
                     Confirmar senha
                     <input
