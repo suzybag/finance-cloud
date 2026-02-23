@@ -108,6 +108,23 @@ const formatUserDate = (value: string | null) => {
   });
 };
 
+const hasCeoSignal = (payload: {
+  email?: string | null;
+  user_metadata?: Record<string, unknown>;
+  app_metadata?: Record<string, unknown>;
+  display_name?: string | null;
+}) => {
+  const roleCandidates = [
+    String(payload.user_metadata?.role || "").toLowerCase(),
+    String(payload.user_metadata?.cargo || "").toLowerCase(),
+    String(payload.app_metadata?.role || "").toLowerCase(),
+    String(payload.app_metadata?.cargo || "").toLowerCase(),
+    String(payload.display_name || "").toLowerCase(),
+  ].filter(Boolean);
+
+  return roleCandidates.some((item) => item.includes("ceo"));
+};
+
 const baseInputClass =
   "mt-2 w-full rounded-xl border border-violet-300/15 bg-slate-900/45 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-400/60";
 const sectionClass =
@@ -203,6 +220,17 @@ export default function ProfilePage() {
     const nextProfile = (data as Profile) ?? null;
     setProfile(nextProfile);
     setDisplayName(nextProfile?.display_name ?? "");
+
+    if (
+      hasCeoSignal({
+        email: user.email,
+        user_metadata: (user.user_metadata || {}) as Record<string, unknown>,
+        app_metadata: (user.app_metadata || {}) as Record<string, unknown>,
+        display_name: nextProfile?.display_name ?? null,
+      })
+    ) {
+      setIsCeoViewEnabled(true);
+    }
   };
 
   const loadAdminUsers = async () => {
@@ -212,7 +240,7 @@ export default function ProfilePage() {
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData.session?.access_token;
     if (!token) {
-      setIsCeoViewEnabled(false);
+      setAdminUsersMessage("Sessao nao encontrada para carregar o painel CEO.");
       setLoadingAdminUsers(false);
       return;
     }
@@ -224,14 +252,13 @@ export default function ProfilePage() {
     const payload = await response.json().catch(() => ({}));
 
     if (response.status === 403) {
-      setIsCeoViewEnabled(false);
       setAdminUsers([]);
+      setAdminUsersMessage(payload.message || "Acesso restrito ao cargo CEO.");
       setLoadingAdminUsers(false);
       return;
     }
 
     if (!response.ok) {
-      setIsCeoViewEnabled(false);
       setAdminUsers([]);
       setAdminUsersMessage(payload.message || "Falha ao carregar usuarios registrados.");
       setLoadingAdminUsers(false);
@@ -1185,14 +1212,14 @@ export default function ProfilePage() {
           ) : null}
         </section>
 
-        {isCeoViewEnabled ? (
+        {isCeoViewEnabled || loadingAdminUsers || !!adminUsersMessage ? (
           <section className={sectionClass}>
             <div className="mb-2 flex items-center gap-2 text-slate-100">
               <Shield className="h-4 w-4 text-violet-300" />
               <h2 className="text-lg font-bold">Painel CEO</h2>
             </div>
             <p className="text-xs text-slate-300/80">
-              Lista de emails registrados no sistema. Visivel apenas para cargo CEO.
+              Lista de emails registrados no sistema. Dados exibidos apenas para CEO.
             </p>
 
             <div className="mt-4 w-full overflow-x-auto rounded-xl border border-violet-300/20 bg-slate-950/35 p-2">
