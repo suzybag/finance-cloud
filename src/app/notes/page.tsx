@@ -74,6 +74,16 @@ type NoteFilePersistRow = {
 const PRIMARY_BUCKET = "note-files";
 const FALLBACK_BUCKET = "avatars";
 const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
+const CSV_FILE_ICON = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v4\"/><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/><path d=\"m5 12-3 3 3 3\"/><path d=\"m9 18 3-3-3-3\"/></svg>";
+
+type FileUploadWindow = Window & {
+  _?: unknown;
+  Dropzone?: unknown;
+  HSFileUpload?: {
+    autoInit: () => void;
+    getInstance: (target: HTMLElement | string, isInstance?: boolean) => unknown;
+  };
+};
 
 const sortNotesByUpdated = (a: NoteRow, b: NoteRow) =>
   new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
@@ -439,15 +449,79 @@ export default function NotesPage() {
   const [manualSaving, setManualSaving] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [noteCoverById, setNoteCoverById] = useState<Record<string, string>>({});
+  const [fileUploadDestroyed, setFileUploadDestroyed] = useState(false);
 
   const editorRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const fileUploadDestroyRef = useRef<HTMLDivElement | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestNotesRef = useRef<NoteRow[]>([]);
+
+  const fileUploadConfig = useMemo(
+    () =>
+      JSON.stringify({
+        url: "/upload",
+        autoProcessQueue: false,
+        maxFilesize: 2,
+        extensions: {
+          csv: {
+            icon: CSV_FILE_ICON,
+            class: "shrink-0 size-5",
+          },
+        },
+      }),
+    [],
+  );
 
   useEffect(() => {
     latestNotesRef.current = notes;
   }, [notes]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const initFileUploadPlugin = async () => {
+      if (typeof window === "undefined") return;
+      const win = window as unknown as FileUploadWindow;
+      if (!win.HSFileUpload) {
+        const [{ default: lodash }, { default: Dropzone }] = await Promise.all([
+          import("lodash"),
+          import("dropzone"),
+        ]);
+        win._ = lodash;
+        win.Dropzone = Dropzone;
+        await import("flyonui/flyonui.js");
+      }
+      if (cancelled) return;
+      win.HSFileUpload?.autoInit?.();
+    };
+
+    void initFileUploadPlugin();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleDestroyFileUpload = () => {
+    if (typeof window === "undefined") return;
+    const root = fileUploadDestroyRef.current;
+    if (!root) return;
+
+    const win = window as unknown as FileUploadWindow;
+    const instance = win.HSFileUpload?.getInstance?.(root, true) as
+      | { element?: { destroy: () => void } }
+      | undefined;
+    if (!instance?.element?.destroy) return;
+    instance.element.destroy();
+    setFileUploadDestroyed(true);
+  };
+
+  const handleReinitFileUpload = () => {
+    if (typeof window === "undefined") return;
+    const win = window as unknown as FileUploadWindow;
+    win.HSFileUpload?.autoInit?.();
+    setFileUploadDestroyed(false);
+  };
 
   const selectedNote = useMemo(
     () => notes.find((note) => note.id === selectedNoteId) ?? null,
@@ -1259,6 +1333,44 @@ export default function NotesPage() {
                       Excluir nota
                     </DrawOutlineButton>
                   </div>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <div id="file-upload-to-destroy" ref={fileUploadDestroyRef} data-file-upload={fileUploadConfig}>
+                  <div className="rounded-box bg-base-200/60 flex flex-col justify-center border-2 border-base-content/20 border-dashed">
+                    <div className="cursor-pointer p-8 text-center" data-file-upload-trigger="">
+                      <p className="text-base-content/50 mb-3 text-sm">Escolha um arquivo com tamanho maximo de 2 MB.</p>
+                      <button type="button" className="btn btn-soft btn-sm btn-primary text-nowrap">
+                        <span className="icon-[tabler--file-upload] size-4.5 shrink-0"></span>
+                        Arraste e solte para enviar
+                      </button>
+                      <p className="text-base-content/50 my-2 text-xs">ou</p>
+                      <p className="link link-animated link-primary text-sm font-medium">Navegar</p>
+                    </div>
+                    <div className="mx-8 mb-6 space-y-2 empty:m-0" data-file-upload-previews=""></div>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex gap-3">
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    id="destroy-btn"
+                    onClick={handleDestroyFileUpload}
+                    disabled={fileUploadDestroyed}
+                  >
+                    Destroy
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    id="reinit-btn"
+                    onClick={handleReinitFileUpload}
+                    disabled={!fileUploadDestroyed}
+                  >
+                    Reinitialize
+                  </button>
                 </div>
               </div>
 
