@@ -11,7 +11,6 @@ import {
   Paperclip,
   Pencil,
   Plus,
-  Save,
   Search,
   Sparkles,
   Trash2,
@@ -1220,12 +1219,12 @@ export default function NotesPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <DrawOutlineButton
                       type="button"
-                      lineClassName="bg-emerald-200"
-                      className="inline-flex items-center gap-2 rounded-xl border border-emerald-300/35 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-60"
+                      lineClassName="bg-slate-200"
+                      className="inline-flex items-center gap-2 rounded-lg border border-slate-500/70 bg-slate-950/70 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:border-slate-400/80 hover:bg-slate-900/80 disabled:opacity-60"
                       onClick={() => void handleManualSave()}
                       disabled={!selectedNoteId || manualSaving || saveState === "saving"}
                     >
-                      {manualSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                      {manualSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
                       Salvar
                     </DrawOutlineButton>
                     <DrawOutlineButton
