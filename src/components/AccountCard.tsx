@@ -2,6 +2,7 @@ import { BankLogo } from "@/components/BankLogo";
 import { Bank3DCardVisual, StyledBankKey } from "@/components/Bank3DCardVisual";
 import { Image3DCard } from "@/components/Image3DCard";
 import { PicPayCardVisual } from "@/components/PicPayCardVisual";
+import { DeleteActionButton } from "@/components/DeleteActionButton";
 import { Account } from "@/lib/finance";
 import { brl } from "@/lib/money";
 import { resolveBankKey } from "@/lib/bankIcons";
@@ -134,13 +135,12 @@ export function AccountCard({
         <button type="button" className={softButtonClassName} onClick={() => onToggleArchive(account)}>
           {account.archived ? "Desarquivar" : "Arquivar"}
         </button>
-        <button
-          type="button"
-          className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200 hover:bg-rose-500/20 transition"
+        <DeleteActionButton
           onClick={() => onDelete(account)}
-        >
-          Excluir
-        </button>
+          label="Excluir"
+          ariaLabel={`Excluir conta ${account.name}`}
+          size="sm"
+        />
       </div>
     </div>
   );

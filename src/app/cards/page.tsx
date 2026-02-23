@@ -10,7 +10,6 @@ import {
   Pencil,
   ShieldCheck,
   Sparkles,
-  Trash2,
   TriangleAlert,
   TrendingDown,
   TrendingUp,
@@ -18,6 +17,7 @@ import {
 import { AppShell } from "@/components/AppShell";
 import { BankLogo } from "@/components/BankLogo";
 import { Bank3DCardVisual, StyledBankKey } from "@/components/Bank3DCardVisual";
+import { DeleteActionButton } from "@/components/DeleteActionButton";
 import { PicPayCardVisual } from "@/components/PicPayCardVisual";
 import { useConfirmDialog } from "@/context/ConfirmDialogContext";
 import { supabase } from "@/lib/supabaseClient";
@@ -1559,15 +1559,14 @@ export default function CardsPage() {
                         >
                           <Archive className="h-4 w-4" />
                         </button>
-                        <button
-                          type="button"
-                          className="relative z-20 flex h-9 w-9 items-center justify-center rounded-xl border border-rose-400/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 disabled:opacity-60"
+                        <DeleteActionButton
                           onClick={() => handleDelete(card)}
                           disabled={busyCardId === card.id}
-                          aria-label="Excluir cartao"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                          label="Excluir"
+                          ariaLabel={`Excluir cartao ${card.name}`}
+                          size="sm"
+                          className="relative z-20"
+                        />
                       </div>
                     </div>
                   </div>

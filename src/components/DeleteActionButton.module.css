@@ -1,0 +1,81 @@
+.deleteButton {
+  --delete-size: 50px;
+  --delete-expand: 140px;
+  --delete-icon-size: 12px;
+  --delete-icon-hover-size: 50px;
+  --delete-label-size: 13px;
+  width: var(--delete-size);
+  height: var(--delete-size);
+  border-radius: 9999px;
+  background-color: rgb(20, 20, 20);
+  border: none;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.164);
+  cursor: pointer;
+  transition: 0.3s;
+  overflow: hidden;
+  position: relative;
+  color: white;
+}
+
+.deleteButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.deleteButtonSmall {
+  --delete-size: 42px;
+  --delete-expand: 118px;
+  --delete-icon-size: 11px;
+  --delete-icon-hover-size: 40px;
+  --delete-label-size: 12px;
+}
+
+.deleteButtonIcon {
+  width: var(--delete-icon-size);
+  transition: 0.3s;
+}
+
+.deleteButtonIcon path {
+  fill: currentColor;
+}
+
+.deleteButton::before {
+  position: absolute;
+  top: -20px;
+  content: attr(data-label);
+  color: white;
+  transition: 0.3s;
+  font-size: 2px;
+}
+
+.deleteButton:hover:not(:disabled),
+.deleteButton:focus-visible:not(:disabled) {
+  width: var(--delete-expand);
+  border-radius: 9999px;
+  background-color: rgb(255, 69, 69);
+}
+
+.deleteButton:hover:not(:disabled) .deleteButtonIcon,
+.deleteButton:focus-visible:not(:disabled) .deleteButtonIcon {
+  width: var(--delete-icon-hover-size);
+  transform: translateY(60%);
+}
+
+.deleteButton:hover:not(:disabled)::before,
+.deleteButton:focus-visible:not(:disabled)::before {
+  font-size: var(--delete-label-size);
+  opacity: 1;
+  transform: translateY(30px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deleteButton,
+  .deleteButton::before,
+  .deleteButtonIcon {
+    transition: none;
+  }
+}

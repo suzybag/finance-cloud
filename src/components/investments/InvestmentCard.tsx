@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { BarChart3, Building2, Pencil, Trash2 } from "lucide-react";
+import { BarChart3, Building2, Pencil } from "lucide-react";
 import { MiniChart } from "@/components/investments/MiniChart";
+import { DeleteActionButton } from "@/components/DeleteActionButton";
 import {
   calculateInvestmentStatus,
   calculateReturn,
@@ -161,15 +162,6 @@ export function InvestmentCard({ item, deleting, editing, onEdit, onDelete }: In
           >
             <Pencil className="h-4 w-4" />
           </button>
-          <button
-            type="button"
-            className="rounded-xl border border-slate-200/20 bg-slate-800/50 p-1.5 text-slate-100 transition hover:border-rose-200/35 hover:bg-rose-400/15 disabled:opacity-60"
-            onClick={() => onDelete(item.id)}
-            disabled={deleting || editing}
-            aria-label="Excluir investimento"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
         </div>
       </div>
 
@@ -218,11 +210,18 @@ export function InvestmentCard({ item, deleting, editing, onEdit, onDelete }: In
         <MiniChart prices={item.price_history} />
       </div>
 
-      <div className="mt-3 text-[11px] text-slate-500">
+      <div className="mt-3 flex items-center justify-between gap-3 text-[11px] text-slate-500">
         <span className="inline-flex items-center gap-1.5">
           <Building2 className="h-3 w-3" />
           Categoria: {item.category} - Custos: {brl(item.costs)}
         </span>
+        <DeleteActionButton
+          onClick={() => onDelete(item.id)}
+          disabled={deleting || editing}
+          label="Excluir"
+          ariaLabel={`Excluir investimento ${item.asset_name}`}
+          size="sm"
+        />
       </div>
     </article>
   );
