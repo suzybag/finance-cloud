@@ -14,6 +14,7 @@ import {
   CalendarClock,
   CalendarCheck2,
   CreditCard,
+  Eye,
   FileText,
   HandCoins,
   Home,
@@ -28,6 +29,7 @@ import {
   TrendingUp,
   Upload,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
@@ -53,6 +55,58 @@ const mobilePrimaryHrefs = new Set(["/dashboard", "/accounts", "/cards", "/trans
 const mobilePrimaryItems = navItems.filter((item) => mobilePrimaryHrefs.has(item.href));
 const mobileSecondaryItems = navItems.filter((item) => !mobilePrimaryHrefs.has(item.href));
 const DESKTOP_NAV_COLLAPSED_KEY = "finance_desktop_nav_collapsed";
+
+type HeaderNotification = {
+  id: string;
+  title: string;
+  description: string;
+  timeLabel: string;
+  icon: LucideIcon;
+  iconWrapperClass: string;
+  iconClass: string;
+  unread?: boolean;
+};
+
+const headerNotifications: HeaderNotification[] = [
+  {
+    id: "invoice-due",
+    title: "Parcela do cartao vence em 2 dias",
+    description: "Fatura principal com vencimento proximo.",
+    timeLabel: "Agora",
+    icon: CalendarClock,
+    iconWrapperClass: "border-amber-300/35 bg-amber-500/15",
+    iconClass: "text-amber-200",
+    unread: true,
+  },
+  {
+    id: "import-success",
+    title: "Nova transacao importada",
+    description: "Dados sincronizados com sucesso na conta.",
+    timeLabel: "Hoje, 16:20",
+    icon: FileText,
+    iconWrapperClass: "border-sky-300/35 bg-sky-500/15",
+    iconClass: "text-sky-200",
+    unread: true,
+  },
+  {
+    id: "subscription-alert",
+    title: "Assinatura sera cobrada amanha",
+    description: "Servico recorrente com cobranca programada.",
+    timeLabel: "Hoje, 09:45",
+    icon: Repeat2,
+    iconWrapperClass: "border-fuchsia-300/35 bg-fuchsia-500/15",
+    iconClass: "text-fuchsia-200",
+  },
+  {
+    id: "income-registered",
+    title: "Recebimento confirmado",
+    description: "Entrada registrada automaticamente no sistema.",
+    timeLabel: "Ontem, 21:12",
+    icon: HandCoins,
+    iconWrapperClass: "border-emerald-300/35 bg-emerald-500/15",
+    iconClass: "text-emerald-200",
+  },
+];
 
 type AppShellProps = {
   title: string;
@@ -84,6 +138,10 @@ export const AppShell = ({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const displayName = profileName || user?.email?.split("@")[0] || "Usuario";
+  const unreadNotificationsCount = useMemo(
+    () => headerNotifications.filter((item) => item.unread).length,
+    [],
+  );
   const initials = useMemo(() => {
     const base = displayName.trim() || "U";
     return base
@@ -210,6 +268,53 @@ export const AppShell = ({
       <BellRing className="h-5 w-5" />
       <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-rose-400" />
     </button>
+  );
+
+  const renderNotificationsDropdown = () => (
+    <div className="absolute right-0 z-50 mt-2 w-[22rem] overflow-hidden rounded-2xl border border-violet-300/25 bg-[linear-gradient(170deg,rgba(19,15,37,0.98),rgba(8,7,20,0.98))] shadow-[0_24px_60px_rgba(5,3,16,0.65)] backdrop-blur-2xl">
+      <div className="flex items-center justify-between border-b border-violet-300/15 px-4 py-3">
+        <h3 className="text-sm font-semibold text-violet-100">Notificacoes</h3>
+        <span className="rounded-full border border-violet-300/30 bg-violet-500/20 px-2 py-0.5 text-[11px] font-semibold text-violet-100">
+          {unreadNotificationsCount} novas
+        </span>
+      </div>
+
+      <div className="max-h-72 space-y-2 overflow-y-auto px-3 py-3">
+        {headerNotifications.map((item) => {
+          const Icon = item.icon;
+          return (
+            <div
+              key={item.id}
+              className="rounded-xl border border-violet-300/12 bg-white/[0.03] px-3 py-2.5 transition hover:border-violet-200/30 hover:bg-violet-500/10"
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className={`relative mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-full border ${item.iconWrapperClass}`}
+                >
+                  <Icon className={`h-4 w-4 ${item.iconClass}`} />
+                  {item.unread ? (
+                    <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border border-[#110a1f] bg-emerald-400" />
+                  ) : null}
+                </div>
+                <div className="min-w-0">
+                  <p className="line-clamp-1 text-sm font-semibold text-violet-50">{item.title}</p>
+                  <p className="mt-0.5 text-xs text-violet-100/60">{item.description}</p>
+                  <p className="mt-1.5 text-[11px] text-violet-200/55">{item.timeLabel}</p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <button
+        type="button"
+        className="flex w-full items-center justify-center gap-2 border-t border-violet-300/15 px-4 py-2.5 text-xs font-semibold text-violet-100/80 transition hover:bg-violet-500/10"
+      >
+        <Eye className="h-3.5 w-3.5" />
+        Ver tudo
+      </button>
+    </div>
   );
 
   if (loading) {
@@ -366,26 +471,7 @@ export const AppShell = ({
                 <div className="flex items-center gap-2">
                   <div className="relative z-30" ref={notificationsRef}>
                     {renderNotificationsButton()}
-                    {notificationsOpen && (
-                      <div className="absolute right-0 z-50 mt-2 w-72 rounded-xl border border-violet-300/20 bg-violet-950/95 backdrop-blur-xl shadow-lg p-2 text-sm">
-                        <div className="px-2 py-1 text-xs font-semibold text-violet-100/80">
-                          Notificacoes recentes
-                        </div>
-                        <div className="mt-1 space-y-1">
-                          <div className="rounded-lg border border-violet-300/10 bg-violet-500/10 px-3 py-2">
-                            <p className="text-xs text-violet-100/85">Seu parcelamento vence em 2 dias.</p>
-                            <p className="mt-1 text-[11px] text-violet-100/60">Agora</p>
-                          </div>
-                          <div className="rounded-lg border border-violet-300/10 bg-violet-500/10 px-3 py-2">
-                            <p className="text-xs text-violet-100/85">Nova transacao importada com sucesso.</p>
-                            <p className="mt-1 text-[11px] text-violet-100/60">Hoje</p>
-                          </div>
-                        </div>
-                        <div className="mt-2 border-t border-violet-300/10 pt-2 text-center text-[11px] text-violet-100/70">
-                          Ver todas
-                        </div>
-                      </div>
-                    )}
+                    {notificationsOpen ? renderNotificationsDropdown() : null}
                   </div>
                   <div className="relative z-30" ref={menuRef}>
                     {renderAvatarButton()}
@@ -422,26 +508,7 @@ export const AppShell = ({
               <div className="flex items-center gap-2">
                 <div className="relative z-30" ref={notificationsRef}>
                   {renderNotificationsButton()}
-                  {notificationsOpen && (
-                    <div className="absolute right-0 z-50 mt-2 w-72 rounded-xl border border-violet-300/20 bg-violet-950/95 backdrop-blur-xl shadow-lg p-2 text-sm">
-                      <div className="px-2 py-1 text-xs font-semibold text-violet-100/80">
-                        Notificacoes recentes
-                      </div>
-                      <div className="mt-1 space-y-1">
-                        <div className="rounded-lg border border-violet-300/10 bg-violet-500/10 px-3 py-2">
-                          <p className="text-xs text-violet-100/85">Seu parcelamento vence em 2 dias.</p>
-                          <p className="mt-1 text-[11px] text-violet-100/60">Agora</p>
-                        </div>
-                        <div className="rounded-lg border border-violet-300/10 bg-violet-500/10 px-3 py-2">
-                          <p className="text-xs text-violet-100/85">Nova transacao importada com sucesso.</p>
-                          <p className="mt-1 text-[11px] text-violet-100/60">Hoje</p>
-                        </div>
-                      </div>
-                      <div className="mt-2 border-t border-violet-300/10 pt-2 text-center text-[11px] text-violet-100/70">
-                        Ver todas
-                      </div>
-                    </div>
-                  )}
+                  {notificationsOpen ? renderNotificationsDropdown() : null}
                 </div>
                 <div className="relative z-30" ref={menuRef}>
                   {renderAvatarButton()}
