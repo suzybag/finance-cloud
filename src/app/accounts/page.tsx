@@ -654,7 +654,10 @@ export default function AccountsPage() {
             </div>
 
             {!visibleAccounts.length && (
-              <div className="mt-5 text-sm text-slate-500">Nenhuma conta nesta aba.</div>
+              <div className="mt-5 text-sm text-slate-500">
+                Nenhuma conta nesta aba.
+                <span className="ml-2 text-bg-primary">Crie uma para organizar seus saldos.</span>
+              </div>
             )}
           </section>
 

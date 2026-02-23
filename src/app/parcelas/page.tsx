@@ -521,6 +521,9 @@ export default function ParcelasPage() {
                   <p className="text-sm text-cyan-100/80">
                     Nenhuma compra parcelada cadastrada ainda.
                   </p>
+                  <p className="mt-2 text-sm text-bg-soft-primary">
+                    Dica: cadastre uma compra para ver o indicador de progresso.
+                  </p>
                 </div>
               ) : (
                 enriched.map(({ row, metrics }) => {
@@ -667,7 +670,8 @@ export default function ParcelasPage() {
 
           {feedback ? (
             <div className="rounded-xl border border-cyan-300/20 bg-cyan-900/20 px-4 py-3 text-sm text-cyan-100">
-              {feedback}
+              <p className="text-bg-primary">{feedback}</p>
+              <p className="mt-1 text-[11px] text-border-primary">Status atualizado.</p>
             </div>
           ) : null}
         </div>
