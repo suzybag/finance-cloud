@@ -1280,13 +1280,19 @@ export default function NotesPage() {
                 className="min-h-[360px] rounded-2xl border border-cyan-300/15 bg-[linear-gradient(180deg,rgba(3,7,18,.72),rgba(2,6,23,.88))] p-4"
                 onClick={() => editorRef.current?.focus()}
               >
-                <textarea
-                  ref={editorRef}
-                  value={draftContent}
-                  onChange={(event) => setDraftContent(event.target.value)}
-                  placeholder="Escreva sua ideia, checklist ou observacoes..."
-                  className="h-[340px] w-full resize-none bg-transparent text-[15px] leading-7 text-slate-100 outline-none placeholder:text-slate-500"
-                />
+                <div className="textarea-floating w-full">
+                  <textarea
+                    id="note-floating-content"
+                    ref={editorRef}
+                    value={draftContent}
+                    onChange={(event) => setDraftContent(event.target.value)}
+                    placeholder="Escreva sua ideia, checklist ou observacoes..."
+                    className="textarea h-[340px] w-full resize-none bg-transparent text-[15px] leading-7 text-slate-100 outline-none placeholder:text-slate-500"
+                  />
+                  <label className="textarea-floating-label" htmlFor="note-floating-content">
+                    Sua nota
+                  </label>
+                </div>
 
                 {imageAttachments.length ? (
                   <div className="mt-4 border-t border-cyan-300/15 pt-4">
