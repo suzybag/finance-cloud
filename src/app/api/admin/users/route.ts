@@ -84,13 +84,34 @@ export async function GET(req: NextRequest) {
   const isCeoByRole = roleCandidates.some((role) => CEO_ROLE_VALUES.has(role));
   const isCeoByEmail = !!userEmail && ceoEmails.includes(userEmail);
 
-  if (!isCeoByRole && !isCeoByEmail) {
-    return NextResponse.json({ ok: false, message: "Acesso restrito ao cargo CEO." }, { status: 403 });
-  }
-
   const admin = getAdminClient();
   if (!admin) {
     return NextResponse.json({ ok: false, message: "Service role nao configurada." }, { status: 503 });
+  }
+
+  let isCeo = isCeoByRole || isCeoByEmail;
+  if (!isCeo) {
+    // Fallback de bootstrap: quando nao existe role/email de CEO configurado,
+    // o primeiro perfil criado no sistema e tratado como dono (CEO).
+    const hasExplicitCeoConfig = roleCandidates.length > 0 || ceoEmails.length > 0;
+    if (!hasExplicitCeoConfig) {
+      const { data: firstProfile, error: firstProfileError } = await admin
+        .from("profiles")
+        .select("id, created_at")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (firstProfileError) {
+        return NextResponse.json({ ok: false, message: firstProfileError.message }, { status: 500 });
+      }
+
+      isCeo = !!firstProfile?.id && firstProfile.id === user.id;
+    }
+  }
+
+  if (!isCeo) {
+    return NextResponse.json({ ok: false, message: "Acesso restrito ao cargo CEO." }, { status: 403 });
   }
 
   const perPage = 200;
@@ -137,6 +158,5 @@ export async function GET(req: NextRequest) {
       return bTime - aTime;
     });
 
-  return NextResponse.json({ ok: true, is_ceo: true, users });
+  return NextResponse.json({ ok: true, is_ceo: isCeo, users });
 }
-

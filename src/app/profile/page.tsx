@@ -246,8 +246,12 @@ export default function ProfilePage() {
 
   useEffect(() => {
     loadProfile();
-    void loadAdminUsers();
   }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+    void loadAdminUsers();
+  }, [userId]);
 
   useEffect(() => {
     const raw = localStorage.getItem(PREFERENCES_KEY);
