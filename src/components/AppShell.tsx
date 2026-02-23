@@ -77,8 +77,10 @@ export const AppShell = ({
   const [profileName, setProfileName] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [desktopNavCollapsed, setDesktopNavCollapsed] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const notificationsRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const displayName = profileName || user?.email?.split("@")[0] || "Usuario";
@@ -135,6 +137,18 @@ export const AppShell = ({
   }, [menuOpen]);
 
   useEffect(() => {
+    if (!notificationsOpen) return;
+    const onClick = (event: MouseEvent) => {
+      if (!notificationsRef.current) return;
+      if (!notificationsRef.current.contains(event.target as Node)) {
+        setNotificationsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [notificationsOpen]);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
     const saved = window.localStorage.getItem(DESKTOP_NAV_COLLAPSED_KEY);
     if (saved === "1") setDesktopNavCollapsed(true);
@@ -183,6 +197,18 @@ export const AppShell = ({
       ) : (
         <span className="text-xs font-semibold text-violet-100">{initials}</span>
       )}
+    </button>
+  );
+
+  const renderNotificationsButton = () => (
+    <button
+      type="button"
+      onClick={() => setNotificationsOpen((prev) => !prev)}
+      className="relative h-10 w-10 rounded-full border border-violet-300/20 bg-violet-950/45 flex items-center justify-center text-violet-100 transition hover:border-violet-200/35 hover:bg-violet-900/45"
+      aria-label="Notificacoes"
+    >
+      <BellRing className="h-4 w-4" />
+      <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-rose-400" />
     </button>
   );
 
@@ -331,6 +357,86 @@ export const AppShell = ({
 
               <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
                 {actions}
+                <div className="flex items-center gap-2">
+                  <div className="relative" ref={notificationsRef}>
+                    {renderNotificationsButton()}
+                    {notificationsOpen && (
+                      <div className="absolute right-0 mt-2 w-72 rounded-xl border border-violet-300/20 bg-violet-950/95 backdrop-blur-xl shadow-lg p-2 text-sm">
+                        <div className="px-2 py-1 text-xs font-semibold text-violet-100/80">
+                          Notificacoes recentes
+                        </div>
+                        <div className="mt-1 space-y-1">
+                          <div className="rounded-lg border border-violet-300/10 bg-violet-500/10 px-3 py-2">
+                            <p className="text-xs text-violet-100/85">Seu parcelamento vence em 2 dias.</p>
+                            <p className="mt-1 text-[11px] text-violet-100/60">Agora</p>
+                          </div>
+                          <div className="rounded-lg border border-violet-300/10 bg-violet-500/10 px-3 py-2">
+                            <p className="text-xs text-violet-100/85">Nova transacao importada com sucesso.</p>
+                            <p className="mt-1 text-[11px] text-violet-100/60">Hoje</p>
+                          </div>
+                        </div>
+                        <div className="mt-2 border-t border-violet-300/10 pt-2 text-center text-[11px] text-violet-100/70">
+                          Ver todas
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="relative" ref={menuRef}>
+                    {renderAvatarButton()}
+                    {menuOpen && (
+                      <div className="absolute right-0 mt-2 w-44 rounded-xl border border-violet-300/20 bg-violet-950/95 backdrop-blur-xl shadow-lg p-2 text-sm">
+                        <Link
+                          href="/profile"
+                          className="block rounded-lg px-3 py-2 text-violet-100 hover:bg-violet-500/15"
+                        >
+                          Perfil
+                        </Link>
+                        <button
+                          type="button"
+                          className="w-full text-left rounded-lg px-3 py-2 text-violet-100 hover:bg-violet-500/15"
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          Trocar foto
+                        </button>
+                        <button
+                          type="button"
+                          className="w-full text-left rounded-lg px-3 py-2 text-violet-100 hover:bg-violet-500/15"
+                          onClick={() => supabase.auth.signOut()}
+                        >
+                          Sair
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </header>
+          ) : (
+            <div className="flex items-center justify-end">
+              <div className="flex items-center gap-2">
+                <div className="relative" ref={notificationsRef}>
+                  {renderNotificationsButton()}
+                  {notificationsOpen && (
+                    <div className="absolute right-0 mt-2 w-72 rounded-xl border border-violet-300/20 bg-violet-950/95 backdrop-blur-xl shadow-lg p-2 text-sm">
+                      <div className="px-2 py-1 text-xs font-semibold text-violet-100/80">
+                        Notificacoes recentes
+                      </div>
+                      <div className="mt-1 space-y-1">
+                        <div className="rounded-lg border border-violet-300/10 bg-violet-500/10 px-3 py-2">
+                          <p className="text-xs text-violet-100/85">Seu parcelamento vence em 2 dias.</p>
+                          <p className="mt-1 text-[11px] text-violet-100/60">Agora</p>
+                        </div>
+                        <div className="rounded-lg border border-violet-300/10 bg-violet-500/10 px-3 py-2">
+                          <p className="text-xs text-violet-100/85">Nova transacao importada com sucesso.</p>
+                          <p className="mt-1 text-[11px] text-violet-100/60">Hoje</p>
+                        </div>
+                      </div>
+                      <div className="mt-2 border-t border-violet-300/10 pt-2 text-center text-[11px] text-violet-100/70">
+                        Ver todas
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <div className="relative" ref={menuRef}>
                   {renderAvatarButton()}
                   {menuOpen && (
@@ -358,36 +464,6 @@ export const AppShell = ({
                     </div>
                   )}
                 </div>
-              </div>
-            </header>
-          ) : (
-            <div className="flex items-center justify-end">
-              <div className="relative" ref={menuRef}>
-                {renderAvatarButton()}
-                {menuOpen && (
-                  <div className="absolute right-0 mt-2 w-44 rounded-xl border border-violet-300/20 bg-violet-950/95 backdrop-blur-xl shadow-lg p-2 text-sm">
-                    <Link
-                      href="/profile"
-                      className="block rounded-lg px-3 py-2 text-violet-100 hover:bg-violet-500/15"
-                    >
-                      Perfil
-                    </Link>
-                    <button
-                      type="button"
-                      className="w-full text-left rounded-lg px-3 py-2 text-violet-100 hover:bg-violet-500/15"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      Trocar foto
-                    </button>
-                    <button
-                      type="button"
-                      className="w-full text-left rounded-lg px-3 py-2 text-violet-100 hover:bg-violet-500/15"
-                      onClick={() => supabase.auth.signOut()}
-                    >
-                      Sair
-                    </button>
-                  </div>
-                )}
               </div>
             </div>
           )}
