@@ -1190,7 +1190,7 @@ export default function NotesPage() {
                             <Clock3 className="h-3 w-3" />
                             {formatDateTime(note.updated_at)}
                           </span>
-                          <span className="inline-flex items-center gap-1 rounded-full border border-slate-600/55 bg-slate-900/65 px-2 py-0.5 text-[11px] text-slate-300">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-violet-300/35 bg-violet-500/15 px-2 py-0.5 text-[11px] text-violet-100">
                             <Paperclip className="h-3 w-3" />
                             {getAttachmentCountLabel(attachmentCount)}
                           </span>
@@ -1230,8 +1230,8 @@ export default function NotesPage() {
                     </DrawOutlineButton>
                     <DrawOutlineButton
                       type="button"
-                      lineClassName="bg-cyan-200"
-                      className="inline-flex items-center gap-2 rounded-xl border border-cyan-300/35 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/20 disabled:opacity-60"
+                      lineClassName="bg-violet-200"
+                      className="inline-flex items-center gap-2 rounded-xl border border-violet-300/35 bg-violet-500/15 px-3 py-1.5 text-xs font-semibold text-violet-100 hover:bg-violet-500/25 disabled:opacity-60"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={!selectedNoteId || uploadingFiles}
                     >
@@ -1349,10 +1349,10 @@ export default function NotesPage() {
                 ) : null}
               </div>
 
-              <div className="mt-4 rounded-2xl border border-cyan-300/15 bg-slate-950/45 p-3">
+              <div className="mt-4 rounded-2xl border border-violet-300/20 bg-slate-950/45 p-3">
                 <div className="mb-2 flex items-center justify-between">
                   <h3 className="inline-flex items-center gap-2 text-sm font-semibold text-slate-100">
-                    <FileText className="h-4 w-4 text-cyan-300" />
+                    <FileText className="h-4 w-4 text-violet-300" />
                     Arquivos anexados
                   </h3>
                   {loadingAttachments ? <Loader2 className="h-4 w-4 animate-spin text-slate-400" /> : null}
@@ -1368,17 +1368,17 @@ export default function NotesPage() {
                       return (
                         <div
                           key={attachment.id}
-                          className="flex items-center justify-between gap-3 rounded-xl border border-cyan-300/15 bg-black/30 px-3 py-2"
+                          className="flex items-center justify-between gap-3 rounded-xl border border-violet-300/20 bg-black/30 px-3 py-2"
                         >
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
-                              <FileIcon className="h-4 w-4 text-cyan-200" />
+                              <FileIcon className="h-4 w-4 text-violet-200" />
                               {attachment.signedUrl ? (
                                 <a
                                   href={attachment.signedUrl}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="truncate text-xs font-medium text-cyan-100 hover:underline"
+                                  className="truncate text-xs font-medium text-violet-100 hover:underline"
                                 >
                                   {attachment.file_name}
                                 </a>
