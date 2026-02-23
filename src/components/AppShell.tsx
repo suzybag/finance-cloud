@@ -19,6 +19,9 @@ import {
   Home,
   Landmark,
   Layers,
+  LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
   Repeat2,
   Receipt,
   Settings,
@@ -49,6 +52,7 @@ const navItems = [
 const mobilePrimaryHrefs = new Set(["/dashboard", "/accounts", "/cards", "/transactions", "/ai"]);
 const mobilePrimaryItems = navItems.filter((item) => mobilePrimaryHrefs.has(item.href));
 const mobileSecondaryItems = navItems.filter((item) => !mobilePrimaryHrefs.has(item.href));
+const DESKTOP_NAV_COLLAPSED_KEY = "finance_desktop_nav_collapsed";
 
 type AppShellProps = {
   title: string;
@@ -73,6 +77,7 @@ export const AppShell = ({
   const [profileName, setProfileName] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [desktopNavCollapsed, setDesktopNavCollapsed] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -129,6 +134,18 @@ export const AppShell = ({
     return () => document.removeEventListener("mousedown", onClick);
   }, [menuOpen]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem(DESKTOP_NAV_COLLAPSED_KEY);
+    if (saved === "1") setDesktopNavCollapsed(true);
+    if (saved === "0") setDesktopNavCollapsed(false);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(DESKTOP_NAV_COLLAPSED_KEY, desktopNavCollapsed ? "1" : "0");
+  }, [desktopNavCollapsed]);
+
   const handleAvatarFile = async (file: File | null) => {
     if (!file) return;
     const { data: sessionData } = await supabase.auth.getSession();
@@ -180,25 +197,52 @@ export const AppShell = ({
   return (
     <div className="min-h-screen text-slate-100">
       <div className="flex min-h-screen">
-        <aside className="w-64 hidden lg:flex flex-col gap-6 border-r border-violet-300/20 bg-[linear-gradient(180deg,rgba(20,12,42,0.94),rgba(11,9,29,0.94))] p-6 backdrop-blur-2xl">
-          <div className="flex items-center gap-3">
-            <div className="h-11 w-11 overflow-hidden rounded-xl border border-violet-300/20 bg-violet-950/45 shadow-[0_12px_28px_rgba(109,40,217,0.4)]">
-              {avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={avatarUrl} alt="Foto de perfil" className="h-full w-full object-cover" />
-              ) : (
-                <div className="grid h-full w-full place-items-center text-sm font-bold text-violet-100">
-                  {initials}
+        <aside className={`hidden border-r border-violet-300/20 bg-[linear-gradient(180deg,rgba(20,12,42,0.94),rgba(11,9,29,0.94))] backdrop-blur-2xl transition-all duration-300 lg:flex lg:flex-col ${desktopNavCollapsed ? "w-[92px] gap-4 px-3 py-4" : "w-64 gap-6 p-6"}`}>
+          <div className={`flex items-center ${desktopNavCollapsed ? "justify-center" : "justify-between"} gap-3`}>
+            <div className="flex items-center gap-3">
+              <div className="h-11 w-11 overflow-hidden rounded-xl border border-violet-300/20 bg-violet-950/45 shadow-[0_12px_28px_rgba(109,40,217,0.4)]">
+                {avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={avatarUrl} alt="Foto de perfil" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="grid h-full w-full place-items-center text-sm font-bold text-violet-100">
+                    {initials}
+                  </div>
+                )}
+              </div>
+              {!desktopNavCollapsed ? (
+                <div>
+                  <div className="text-sm text-violet-100/80">Finance Cloud</div>
+                  <div className="text-sm font-semibold">{displayName}</div>
                 </div>
-              )}
+              ) : null}
             </div>
-            <div>
-              <div className="text-sm text-violet-100/80">Finance Cloud</div>
-              <div className="text-sm font-semibold">{displayName}</div>
-            </div>
+            {!desktopNavCollapsed ? (
+              <button
+                type="button"
+                className="rounded-xl border border-violet-300/20 bg-violet-950/40 p-2 text-violet-100 transition hover:border-violet-200/35 hover:bg-violet-900/45"
+                onClick={() => setDesktopNavCollapsed(true)}
+                aria-label="Recolher menu lateral"
+                title="Recolher menu"
+              >
+                <PanelLeftClose className="h-4 w-4" />
+              </button>
+            ) : null}
           </div>
 
-          <nav className="flex flex-col gap-2">
+          {desktopNavCollapsed ? (
+            <button
+              type="button"
+              className="mx-auto rounded-xl border border-violet-300/20 bg-violet-950/40 p-2 text-violet-100 transition hover:border-violet-200/35 hover:bg-violet-900/45"
+              onClick={() => setDesktopNavCollapsed(false)}
+              aria-label="Expandir menu lateral"
+              title="Expandir menu"
+            >
+              <PanelLeftOpen className="h-4 w-4" />
+            </button>
+          ) : null}
+
+          <nav className={`flex flex-col ${desktopNavCollapsed ? "gap-1.5" : "gap-2"}`}>
             {navItems.map((item) => {
               const active = pathname === item.href;
               const Icon = item.icon;
@@ -206,34 +250,49 @@ export const AppShell = ({
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
+                  title={desktopNavCollapsed ? item.label : undefined}
+                  className={`rounded-xl text-sm font-medium transition ${
                     active
                       ? "border border-violet-300/40 bg-violet-500/25 text-violet-50"
                       : "text-violet-100/85 hover:bg-violet-500/12"
+                  } ${
+                    desktopNavCollapsed
+                      ? "flex h-11 w-full items-center justify-center px-0 py-0"
+                      : "px-3 py-2"
                   }`}
                 >
-                  <span className="inline-flex items-center gap-3">
-                    <Icon className="h-4 w-4" />
-                    {item.label}
+                  <span className={`inline-flex items-center ${desktopNavCollapsed ? "gap-0" : "gap-3"}`}>
+                    <Icon className={`${desktopNavCollapsed ? "h-5 w-5" : "h-4 w-4"}`} />
+                    {!desktopNavCollapsed ? item.label : null}
                   </span>
                 </Link>
               );
             })}
           </nav>
 
-          <div className="mt-auto rounded-2xl border border-violet-300/20 bg-violet-950/35 p-4 text-sm text-violet-100/85 backdrop-blur-lg">
-            <div className="font-semibold text-white">Alertas prontos</div>
-            <p className="mt-1 text-xs text-violet-100/60">
-              Jobs/cron podem ser ligados depois. Hoje os alertas sao gerados no
-              login.
-            </p>
-          </div>
+          {!desktopNavCollapsed ? (
+            <div className="mt-auto rounded-2xl border border-violet-300/20 bg-violet-950/35 p-4 text-sm text-violet-100/85 backdrop-blur-lg">
+              <div className="font-semibold text-white">Alertas prontos</div>
+              <p className="mt-1 text-xs text-violet-100/60">
+                Jobs/cron podem ser ligados depois. Hoje os alertas sao gerados no
+                login.
+              </p>
+            </div>
+          ) : (
+            <div className="mt-auto" />
+          )}
 
           <button
-            className="mt-2 w-full rounded-xl border border-violet-300/20 bg-violet-950/35 px-3 py-2 text-sm text-violet-100 hover:border-violet-200/35"
+            className={`mt-2 rounded-xl border border-violet-300/20 bg-violet-950/35 text-violet-100 hover:border-violet-200/35 ${
+              desktopNavCollapsed
+                ? "mx-auto inline-flex h-10 w-10 items-center justify-center px-0 py-0"
+                : "w-full px-3 py-2 text-sm"
+            }`}
             onClick={() => supabase.auth.signOut()}
+            title={desktopNavCollapsed ? "Sair" : undefined}
+            aria-label="Sair"
           >
-            Sair
+            {desktopNavCollapsed ? <LogOut className="h-4 w-4" /> : "Sair"}
           </button>
         </aside>
 
