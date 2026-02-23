@@ -581,26 +581,28 @@ export default function ParcelasPage() {
                       </div>
 
                       <div className="mt-4">
-                        <div className="indicator w-full">
-                          <span className="indicator-item indicator-top indicator-start badge badge-primary">
-                            {metrics.paidInstallments}/{metrics.installmentCount} parcelas
-                          </span>
-                          <span className="indicator-item indicator-top indicator-end badge badge-info">
-                            {metrics.percentagePaid.toFixed(1).replace(".", ",")}% pago
-                          </span>
-                          <div className="mt-3 rounded-xl border border-blue-300/25 bg-blue-950/40 p-3">
-                            <div className="relative h-2.5 overflow-hidden rounded-full border border-blue-300/25 bg-blue-950/45">
-                              <div
-                                className="parcelas-progress-fill h-full rounded-full bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 transition-[width] duration-700"
-                                style={{ width: progressWidth }}
-                              >
-                                <span className="parcelas-progress-shine" />
-                              </div>
+                        <div className="rounded-xl border border-blue-300/25 bg-blue-950/40 p-3">
+                          <div className="mb-2 flex items-center justify-between gap-2">
+                            <span className="badge badge-primary gap-1 px-2.5 py-2 text-xs font-semibold">
+                              <CreditCard className="h-3.5 w-3.5" />
+                              {metrics.paidInstallments}/{metrics.installmentCount} parcelas
+                            </span>
+                            <span className="badge badge-info gap-1 px-2.5 py-2 text-xs font-semibold">
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              {metrics.percentagePaid.toFixed(1).replace(".", ",")}% pago
+                            </span>
+                          </div>
+                          <div className="relative h-2.5 overflow-hidden rounded-full border border-blue-300/25 bg-blue-950/45">
+                            <div
+                              className="parcelas-progress-fill h-full rounded-full bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 transition-[width] duration-700"
+                              style={{ width: progressWidth }}
+                            >
+                              <span className="parcelas-progress-shine" />
                             </div>
-                            <div className="mt-1.5 flex items-center justify-between text-[11px] text-blue-100/80">
-                              <span>Pago: {brl(metrics.paidValue)}</span>
-                              <span>Falta: {brl(metrics.remainingValue)}</span>
-                            </div>
+                          </div>
+                          <div className="mt-1.5 flex items-center justify-between text-[11px] text-blue-100/80">
+                            <span>Pago: {brl(metrics.paidValue)}</span>
+                            <span>Falta: {brl(metrics.remainingValue)}</span>
                           </div>
                         </div>
                       </div>
