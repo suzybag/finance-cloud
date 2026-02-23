@@ -251,35 +251,6 @@ export default function ParcelasPage() {
     ],
   );
 
-  const explainCard = useMemo(() => {
-    const firstActive = summary.active[0];
-    if (firstActive) {
-      return {
-        title: firstActive.row.name,
-        paid: firstActive.metrics.paidInstallments,
-        total: firstActive.metrics.installmentCount,
-        installmentValue: firstActive.metrics.installmentValue,
-        paidValue: firstActive.metrics.paidValue,
-        remainingValue: firstActive.metrics.remainingValue,
-        progress: firstActive.metrics.percentagePaid,
-      };
-    }
-    const paid = 5;
-    const total = 12;
-    const installmentValue = 499;
-    const paidValue = round2(paid * installmentValue);
-    const remainingValue = round2((total - paid) * installmentValue);
-    return {
-      title: "iPhone 15",
-      paid,
-      total,
-      installmentValue,
-      paidValue,
-      remainingValue,
-      progress: (paid / total) * 100,
-    };
-  }, [summary.active]);
-
   const handleCreateInstallment = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!userId) return;
@@ -439,55 +410,6 @@ export default function ParcelasPage() {
                 </article>
               );
             })}
-          </section>
-
-          <section className="parcelas-explain-card">
-            <div className="flex items-start gap-3">
-              <div className="parcelas-explain-icon">
-                {(() => {
-                  const Icon = getCategoryIconVisual(undefined, explainCard.title).icon;
-                  return <Icon className="h-4 w-4" />;
-                })()}
-              </div>
-              <div className="min-w-0">
-                <p className="text-2xl font-semibold tracking-tight text-white">Parcelas</p>
-                <p className="text-xs text-violet-200/80">Gerencie compras parceladas com progresso visual</p>
-              </div>
-            </div>
-
-            <div className="parcelas-explain-item">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <div>
-                  <p className="line-clamp-1 text-base font-semibold text-white">{explainCard.title}</p>
-                  <p className="text-xs text-slate-300/80">{explainCard.paid}/{explainCard.total} parcelas</p>
-                </div>
-                <p className="text-2xl font-bold tracking-tight text-white">{brl(explainCard.installmentValue)}</p>
-              </div>
-              <div className="mb-2 grid gap-2 text-[11px] text-cyan-100/80 sm:grid-cols-2">
-                <div className="rounded-md border border-blue-300/25 bg-blue-500/10 px-2.5 py-1.5">
-                  <p className="text-blue-100/80">Pago ate agora</p>
-                  <p className="font-semibold text-blue-50">{brl(explainCard.paidValue)}</p>
-                </div>
-                <div className="rounded-md border border-cyan-300/25 bg-cyan-500/10 px-2.5 py-1.5">
-                  <p className="text-cyan-100/80">Falta pagar</p>
-                  <p className="font-semibold text-cyan-50">{brl(explainCard.remainingValue)}</p>
-                </div>
-              </div>
-              <div className="parcelas-explain-track">
-                <div
-                  className="parcelas-explain-fill"
-                  style={{
-                    width: getProgressWidth(explainCard.progress, 5),
-                    background: "linear-gradient(90deg, #38bdf8 0%, #3b82f6 48%, #1d4ed8 100%)",
-                    boxShadow: "0 0 18px rgba(37, 99, 235, 0.45)",
-                  }}
-                />
-              </div>
-              <div className="mt-1.5 flex items-center justify-between text-[11px] text-blue-100/80">
-                <span>Ja pago: {clampPercent(explainCard.progress).toFixed(1).replace(".", ",")}%</span>
-                <span>Restante: {(100 - clampPercent(explainCard.progress)).toFixed(1).replace(".", ",")}%</span>
-              </div>
-            </div>
           </section>
 
           <div className="grid gap-4 xl:grid-cols-[380px_1fr]">
@@ -659,21 +581,27 @@ export default function ParcelasPage() {
                       </div>
 
                       <div className="mt-4">
-                        <div className="mb-2 flex items-center justify-between text-xs text-cyan-100/75">
-                          <span>{metrics.paidInstallments}/{metrics.installmentCount} parcelas</span>
-                          <span>{metrics.percentagePaid.toFixed(1).replace(".", ",")}% pago</span>
-                        </div>
-                        <div className="relative h-2.5 overflow-hidden rounded-full border border-blue-300/25 bg-blue-950/45">
-                          <div
-                            className="parcelas-progress-fill h-full rounded-full bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 transition-[width] duration-700"
-                            style={{ width: progressWidth }}
-                          >
-                            <span className="parcelas-progress-shine" />
+                        <div className="indicator w-full">
+                          <span className="indicator-item indicator-top indicator-start badge badge-primary">
+                            {metrics.paidInstallments}/{metrics.installmentCount} parcelas
+                          </span>
+                          <span className="indicator-item indicator-top indicator-end badge badge-info">
+                            {metrics.percentagePaid.toFixed(1).replace(".", ",")}% pago
+                          </span>
+                          <div className="mt-3 rounded-xl border border-blue-300/25 bg-blue-950/40 p-3">
+                            <div className="relative h-2.5 overflow-hidden rounded-full border border-blue-300/25 bg-blue-950/45">
+                              <div
+                                className="parcelas-progress-fill h-full rounded-full bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 transition-[width] duration-700"
+                                style={{ width: progressWidth }}
+                              >
+                                <span className="parcelas-progress-shine" />
+                              </div>
+                            </div>
+                            <div className="mt-1.5 flex items-center justify-between text-[11px] text-blue-100/80">
+                              <span>Pago: {brl(metrics.paidValue)}</span>
+                              <span>Falta: {brl(metrics.remainingValue)}</span>
+                            </div>
                           </div>
-                        </div>
-                        <div className="mt-1.5 flex items-center justify-between text-[11px] text-blue-100/80">
-                          <span>Pago: {brl(metrics.paidValue)}</span>
-                          <span>Falta: {brl(metrics.remainingValue)}</span>
                         </div>
                       </div>
 
