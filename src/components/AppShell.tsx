@@ -199,10 +199,76 @@ export const AppShell = ({
   const [headerNotifications, setHeaderNotifications] = useState<HeaderNotification[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationsError, setNotificationsError] = useState<string | null>(null);
+  const [notificationBellBlink, setNotificationBellBlink] = useState(false);
   const [desktopNavCollapsed, setDesktopNavCollapsed] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const notificationsRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const knownNotificationIdsRef = useRef<Set<string>>(new Set());
+  const hasLoadedNotificationsRef = useRef(false);
+  const bellBlinkIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const playNotificationTone = useCallback(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const AudioContextCtor = window.AudioContext
+        || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextCtor) return;
+
+      const context = new AudioContextCtor();
+      if (context.state === "suspended") {
+        void context.resume();
+      }
+
+      const now = context.currentTime;
+      const frequencies = [880, 1174];
+      frequencies.forEach((frequency, index) => {
+        const start = now + index * 0.13;
+        const osc = context.createOscillator();
+        const gain = context.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(frequency, start);
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.05, start + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.11);
+        osc.connect(gain);
+        gain.connect(context.destination);
+        osc.start(start);
+        osc.stop(start + 0.12);
+      });
+
+      window.setTimeout(() => {
+        void context.close();
+      }, 500);
+    } catch {
+      // best effort: if browser blocks autoplay audio, silently ignore
+    }
+  }, []);
+
+  const startBellBlink = useCallback(() => {
+    if (bellBlinkIntervalRef.current) {
+      clearInterval(bellBlinkIntervalRef.current);
+      bellBlinkIntervalRef.current = null;
+    }
+
+    let completedFlashes = 0;
+    setNotificationBellBlink(true);
+
+    bellBlinkIntervalRef.current = setInterval(() => {
+      setNotificationBellBlink((prev) => {
+        const next = !prev;
+        if (!next) completedFlashes += 1;
+        if (completedFlashes >= 3) {
+          if (bellBlinkIntervalRef.current) {
+            clearInterval(bellBlinkIntervalRef.current);
+            bellBlinkIntervalRef.current = null;
+          }
+          return false;
+        }
+        return next;
+      });
+    }, 180);
+  }, []);
 
   const displayName = profileName || user?.email?.split("@")[0] || "Usuario";
   const unreadNotificationsCount = useMemo(
@@ -259,9 +325,20 @@ export const AppShell = ({
     }
 
     const mapped = ((data || []) as AlertNotificationRow[]).map(toHeaderNotification);
+    const nextIds = new Set(mapped.map((item) => item.id));
+    const hasNewNotification = hasLoadedNotificationsRef.current
+      && mapped.some((item) => !knownNotificationIdsRef.current.has(item.id));
+
+    if (hasNewNotification) {
+      startBellBlink();
+      playNotificationTone();
+    }
+
+    knownNotificationIdsRef.current = nextIds;
+    hasLoadedNotificationsRef.current = true;
     setHeaderNotifications(mapped);
     setNotificationsLoading(false);
-  }, [user]);
+  }, [playNotificationTone, startBellBlink, user]);
 
   const markAllNotificationsRead = useCallback(async () => {
     if (!user?.id || !unreadNotificationsCount) return;
@@ -272,6 +349,11 @@ export const AppShell = ({
       .eq("is_read", false);
     await loadNotifications();
   }, [loadNotifications, unreadNotificationsCount, user]);
+
+  useEffect(() => {
+    knownNotificationIdsRef.current = new Set();
+    hasLoadedNotificationsRef.current = false;
+  }, [user?.id]);
 
   useEffect(() => {
     loadProfile();
@@ -355,6 +437,14 @@ export const AppShell = ({
     window.localStorage.setItem(DESKTOP_NAV_COLLAPSED_KEY, desktopNavCollapsed ? "1" : "0");
   }, [desktopNavCollapsed]);
 
+  useEffect(() => {
+    return () => {
+      if (!bellBlinkIntervalRef.current) return;
+      clearInterval(bellBlinkIntervalRef.current);
+      bellBlinkIntervalRef.current = null;
+    };
+  }, []);
+
   const handleAvatarFile = async (file: File | null) => {
     if (!file) return;
     const { data: sessionData } = await supabase.auth.getSession();
@@ -399,7 +489,11 @@ export const AppShell = ({
     <button
       type="button"
       onClick={() => setNotificationsOpen((prev) => !prev)}
-      className="relative h-11 w-11 rounded-full border border-violet-300/20 bg-violet-950/45 flex items-center justify-center text-violet-100 transition hover:border-violet-200/35 hover:bg-violet-900/45"
+      className={`relative h-11 w-11 rounded-full border flex items-center justify-center transition ${
+        notificationBellBlink
+          ? "border-cyan-300/85 bg-cyan-500/20 text-cyan-100 shadow-[0_0_16px_rgba(34,211,238,0.6)]"
+          : "border-violet-300/20 bg-violet-950/45 text-violet-100 hover:border-violet-200/35 hover:bg-violet-900/45"
+      }`}
       aria-label="Notificacoes"
     >
       <BellRing className="h-5 w-5" />
