@@ -42,6 +42,8 @@ type AdminUserRow = {
   id: string;
   name: string;
   email: string;
+  role: string;
+  is_ceo: boolean;
   status: string;
   status_tone: "success" | "warning" | "error" | "neutral";
   created_at: string | null;
@@ -202,6 +204,8 @@ export default function ProfilePage() {
   const [loadingAdminUsers, setLoadingAdminUsers] = useState(false);
   const [adminUsers, setAdminUsers] = useState<AdminUserRow[]>([]);
   const [adminUsersMessage, setAdminUsersMessage] = useState<string | null>(null);
+  const [adminUsersMessageTone, setAdminUsersMessageTone] = useState<"error" | "success">("error");
+  const [adminActionUserId, setAdminActionUserId] = useState<string | null>(null);
 
   const loadProfile = async () => {
     const { data: userData } = await supabase.auth.getUser();
@@ -240,6 +244,7 @@ export default function ProfilePage() {
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData.session?.access_token;
     if (!token) {
+      setAdminUsersMessageTone("error");
       setAdminUsersMessage("Sessao nao encontrada para carregar o painel CEO.");
       setLoadingAdminUsers(false);
       return;
@@ -253,6 +258,7 @@ export default function ProfilePage() {
 
     if (response.status === 403) {
       setAdminUsers([]);
+      setAdminUsersMessageTone("error");
       setAdminUsersMessage(payload.message || "Acesso restrito ao cargo CEO.");
       setLoadingAdminUsers(false);
       return;
@@ -260,6 +266,7 @@ export default function ProfilePage() {
 
     if (!response.ok) {
       setAdminUsers([]);
+      setAdminUsersMessageTone("error");
       setAdminUsersMessage(payload.message || "Falha ao carregar usuarios registrados.");
       setLoadingAdminUsers(false);
       return;
@@ -269,6 +276,109 @@ export default function ProfilePage() {
     setAdminUsers(Array.isArray(payload.users) ? (payload.users as AdminUserRow[]) : []);
     setAdminUsersMessage(null);
     setLoadingAdminUsers(false);
+  };
+
+  const runAdminUserAction = async ({
+    userId,
+    method,
+    body,
+  }: {
+    userId: string;
+    method: "PATCH" | "DELETE";
+    body?: Record<string, unknown>;
+  }) => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) {
+      setAdminUsersMessageTone("error");
+      setAdminUsersMessage("Sessao nao encontrada para executar acao administrativa.");
+      return false;
+    }
+
+    setAdminActionUserId(userId);
+    setAdminUsersMessage(null);
+
+    const endpoint = method === "DELETE"
+      ? `/api/admin/users?userId=${encodeURIComponent(userId)}`
+      : "/api/admin/users";
+
+    const response = await fetch(endpoint, {
+      method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: method === "PATCH" ? JSON.stringify({ userId, ...(body || {}) }) : undefined,
+    });
+
+    const payload = await response.json().catch(() => ({} as { message?: string }));
+    setAdminActionUserId(null);
+
+    if (!response.ok) {
+      setAdminUsersMessageTone("error");
+      setAdminUsersMessage(payload.message || "Falha ao executar acao administrativa.");
+      return false;
+    }
+
+    await loadAdminUsers();
+    setAdminUsersMessageTone("success");
+    setAdminUsersMessage(payload.message || "Acao executada com sucesso.");
+    return true;
+  };
+
+  const handleSetUserRole = async (row: AdminUserRow) => {
+    const currentRole = (row.role || (row.is_ceo ? "ceo" : "usuario")).trim().toLowerCase();
+    const nextRoleRaw = window.prompt("Digite o cargo do usuario (ex: ceo, gerente, analista):", currentRole);
+    if (nextRoleRaw === null) return;
+
+    const nextRole = nextRoleRaw.trim().toLowerCase();
+    if (!nextRole) {
+      setAdminUsersMessageTone("error");
+      setAdminUsersMessage("Informe um cargo valido.");
+      return;
+    }
+
+    await runAdminUserAction({
+      userId: row.id,
+      method: "PATCH",
+      body: { action: "set_role", role: nextRole },
+    });
+  };
+
+  const handleToggleCeoRole = async (row: AdminUserRow) => {
+    const isRemoving = row.is_ceo;
+    const confirmed = await confirmDialog({
+      title: isRemoving ? "Remover cargo CEO?" : "Conceder cargo CEO?",
+      description: isRemoving
+        ? `O usuario ${row.email} perdera permissao total de CEO.`
+        : `O usuario ${row.email} tera permissao total de CEO.`,
+      confirmLabel: isRemoving ? "Remover CEO" : "Conceder CEO",
+      cancelLabel: "Cancelar",
+      tone: isRemoving ? "danger" : "default",
+    });
+    if (!confirmed) return;
+
+    await runAdminUserAction({
+      userId: row.id,
+      method: "PATCH",
+      body: { action: isRemoving ? "remove_ceo" : "set_ceo" },
+    });
+  };
+
+  const handleDeleteAdminUser = async (row: AdminUserRow) => {
+    const confirmed = await confirmDialog({
+      title: "Excluir usuario?",
+      description: `Esta acao remove a conta ${row.email} permanentemente.`,
+      confirmLabel: "Excluir usuario",
+      cancelLabel: "Cancelar",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+
+    await runAdminUserAction({
+      userId: row.id,
+      method: "DELETE",
+    });
   };
 
   useEffect(() => {
@@ -1229,6 +1339,7 @@ export default function ProfilePage() {
                     <th>Nome</th>
                     <th>Email</th>
                     <th>Status</th>
+                    <th>Cargo</th>
                     <th>Data</th>
                     <th>Acoes</th>
                   </tr>
@@ -1236,7 +1347,7 @@ export default function ProfilePage() {
                 <tbody>
                   {loadingAdminUsers ? (
                     <tr>
-                      <td colSpan={5} className="text-sm text-slate-300/80">
+                      <td colSpan={6} className="text-sm text-slate-300/80">
                         Carregando usuarios...
                       </td>
                     </tr>
@@ -1250,15 +1361,47 @@ export default function ProfilePage() {
                             {row.status}
                           </span>
                         </td>
+                        <td>
+                          <span className={`badge badge-soft text-xs ${row.is_ceo ? "badge-info" : "badge-neutral"}`}>
+                            {row.is_ceo ? "CEO" : row.role || "usuario"}
+                          </span>
+                        </td>
                         <td>{formatUserDate(row.created_at)}</td>
                         <td>
-                          <button type="button" className="btn btn-circle btn-text btn-sm" aria-label="Editar" title="Em breve">
+                          <button
+                            type="button"
+                            className="btn btn-circle btn-text btn-sm"
+                            aria-label="Editar cargo"
+                            title="Editar cargo"
+                            disabled={adminActionUserId === row.id}
+                            onClick={() => {
+                              void handleSetUserRole(row);
+                            }}
+                          >
                             <Pencil className="h-4 w-4" />
                           </button>
-                          <button type="button" className="btn btn-circle btn-text btn-sm" aria-label="Excluir" title="Em breve">
+                          <button
+                            type="button"
+                            className="btn btn-circle btn-text btn-sm"
+                            aria-label="Excluir usuario"
+                            title={row.id === userId ? "Nao e permitido excluir sua propria conta aqui" : "Excluir usuario"}
+                            disabled={adminActionUserId === row.id || row.id === userId}
+                            onClick={() => {
+                              void handleDeleteAdminUser(row);
+                            }}
+                          >
                             <Trash2 className="h-4 w-4" />
                           </button>
-                          <button type="button" className="btn btn-circle btn-text btn-sm" aria-label="Mais opcoes" title="Em breve">
+                          <button
+                            type="button"
+                            className="btn btn-circle btn-text btn-sm"
+                            aria-label={row.is_ceo ? "Remover cargo CEO" : "Conceder cargo CEO"}
+                            title={row.is_ceo ? "Remover cargo CEO" : "Conceder cargo CEO"}
+                            disabled={adminActionUserId === row.id}
+                            onClick={() => {
+                              void handleToggleCeoRole(row);
+                            }}
+                          >
                             <MoreVertical className="h-4 w-4" />
                           </button>
                         </td>
@@ -1266,7 +1409,7 @@ export default function ProfilePage() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={5} className="text-sm text-slate-300/80">
+                      <td colSpan={6} className="text-sm text-slate-300/80">
                         Nenhum usuario encontrado.
                       </td>
                     </tr>
@@ -1276,7 +1419,11 @@ export default function ProfilePage() {
             </div>
 
             {adminUsersMessage ? (
-              <div className="mt-4 rounded-xl border border-rose-500/40 bg-rose-950/40 px-4 py-3 text-sm text-rose-200">
+              <div className={`mt-4 rounded-xl border px-4 py-3 text-sm ${
+                adminUsersMessageTone === "success"
+                  ? "border-emerald-500/40 bg-emerald-950/40 text-emerald-200"
+                  : "border-rose-500/40 bg-rose-950/40 text-rose-200"
+              }`}>
                 {adminUsersMessage}
               </div>
             ) : null}

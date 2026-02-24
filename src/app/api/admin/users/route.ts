@@ -3,7 +3,13 @@ import { getAdminClient, getUserFromRequest } from "@/lib/apiAuth";
 
 type ProfileLike = Record<string, unknown> | null;
 
-const CEO_ROLE_VALUES = new Set(["ceo", "owner", "dono", "fundador", "chief executive officer"]);
+const CEO_ROLE_VALUES = new Set([
+  "ceo",
+  "chief executive officer",
+  "owner",
+  "dono",
+  "fundador",
+]);
 
 const parseCsv = (value: string | undefined) =>
   (value || "")
@@ -12,6 +18,14 @@ const parseCsv = (value: string | undefined) =>
     .filter(Boolean);
 
 const coerceString = (value: unknown) => (typeof value === "string" ? value.trim() : "");
+
+const sanitizeRole = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/[^a-z0-9 _-]/g, "")
+    .trim()
+    .slice(0, 40);
 
 const pickRoleCandidates = (profile: ProfileLike, user: { app_metadata?: unknown; user_metadata?: unknown }) => {
   const appMetadata = (user.app_metadata || {}) as Record<string, unknown>;
@@ -27,8 +41,22 @@ const pickRoleCandidates = (profile: ProfileLike, user: { app_metadata?: unknown
     coerceString(userMetadata.role),
     coerceString(userMetadata.cargo),
   ]
-    .map((value) => value.toLowerCase())
+    .map((value) => sanitizeRole(value))
     .filter(Boolean);
+};
+
+const pickPrimaryRole = (user: { app_metadata?: unknown; user_metadata?: unknown }) => {
+  const appMetadata = (user.app_metadata || {}) as Record<string, unknown>;
+  const userMetadata = (user.user_metadata || {}) as Record<string, unknown>;
+  const first = [
+    coerceString(appMetadata.role),
+    coerceString(appMetadata.cargo),
+    coerceString(userMetadata.role),
+    coerceString(userMetadata.cargo),
+  ]
+    .map((value) => sanitizeRole(value))
+    .find(Boolean);
+  return first || "usuario";
 };
 
 const pickName = (row: {
@@ -62,40 +90,45 @@ const pickStatus = (row: { email?: string | null; email_confirmed_at?: string | 
   return { label: "Pendente", tone: "warning" as const };
 };
 
-export async function GET(req: NextRequest) {
-  const { user, error, client } = await getUserFromRequest(req);
-  if (!user || error || !client) {
-    return NextResponse.json({ ok: false, message: error || "Nao autenticado." }, { status: 401 });
+const resolveCeoContext = async (req: NextRequest) => {
+  const auth = await getUserFromRequest(req);
+  if (!auth.user || auth.error || !auth.client) {
+    return {
+      ok: false as const,
+      response: NextResponse.json({ ok: false, message: auth.error || "Nao autenticado." }, { status: 401 }),
+    };
   }
 
   const admin = getAdminClient();
   if (!admin) {
-    return NextResponse.json({ ok: false, message: "Service role nao configurada." }, { status: 503 });
+    return {
+      ok: false as const,
+      response: NextResponse.json({ ok: false, message: "Service role nao configurada." }, { status: 503 }),
+    };
   }
 
   const ceoEmails = parseCsv(process.env.CEO_EMAILS || process.env.ADMIN_CEO_EMAILS);
 
-  const { data: profileData } = await client
+  const { data: profileData } = await auth.client
     .from("profiles")
     .select("*")
-    .eq("id", user.id)
+    .eq("id", auth.user.id)
     .maybeSingle();
 
-  const authUserRes = await admin.auth.admin.getUserById(user.id);
-  const authUser = authUserRes.data?.user || user;
+  const authUserRes = await admin.auth.admin.getUserById(auth.user.id);
+  const actorAuthUser = authUserRes.data?.user || auth.user;
 
   const roleCandidates = pickRoleCandidates(profileData as ProfileLike, {
-    app_metadata: authUser.app_metadata as unknown,
-    user_metadata: authUser.user_metadata as unknown,
+    app_metadata: actorAuthUser.app_metadata as unknown,
+    user_metadata: actorAuthUser.user_metadata as unknown,
   });
-  const userEmail = coerceString(authUser.email || user.email).toLowerCase();
+  const actorEmail = coerceString(actorAuthUser.email || auth.user.email).toLowerCase();
   const isCeoByRole = roleCandidates.some((role) => CEO_ROLE_VALUES.has(role));
-  const isCeoByEmail = !!userEmail && ceoEmails.includes(userEmail);
+  const isCeoByEmail = !!actorEmail && ceoEmails.includes(actorEmail);
 
   let isCeo = isCeoByRole || isCeoByEmail;
   if (!isCeo) {
-    // Fallback de bootstrap: quando nao existe role/email de CEO configurado,
-    // o primeiro perfil criado no sistema e tratado como dono (CEO).
+    // Bootstrap fallback: se nao existe nenhum CEO configurado, o primeiro perfil vira dono.
     const hasExplicitCeoConfig = roleCandidates.length > 0 || ceoEmails.length > 0;
     if (!hasExplicitCeoConfig) {
       const { data: firstProfile, error: firstProfileError } = await admin
@@ -106,17 +139,35 @@ export async function GET(req: NextRequest) {
         .maybeSingle();
 
       if (firstProfileError) {
-        return NextResponse.json({ ok: false, message: firstProfileError.message }, { status: 500 });
+        return {
+          ok: false as const,
+          response: NextResponse.json({ ok: false, message: firstProfileError.message }, { status: 500 }),
+        };
       }
-
-      isCeo = !!firstProfile?.id && firstProfile.id === user.id;
+      isCeo = !!firstProfile?.id && firstProfile.id === auth.user.id;
     }
   }
 
   if (!isCeo) {
-    return NextResponse.json({ ok: false, message: "Acesso restrito ao cargo CEO." }, { status: 403 });
+    return {
+      ok: false as const,
+      response: NextResponse.json({ ok: false, message: "Acesso restrito ao cargo CEO." }, { status: 403 }),
+    };
   }
 
+  return {
+    ok: true as const,
+    admin,
+    actorUserId: auth.user.id,
+    ceoEmails,
+  };
+};
+
+export async function GET(req: NextRequest) {
+  const ctx = await resolveCeoContext(req);
+  if (!ctx.ok) return ctx.response;
+
+  const { admin, ceoEmails } = ctx;
   const perPage = 200;
   const maxPages = 10;
   const allUsers: Array<{
@@ -145,10 +196,16 @@ export async function GET(req: NextRequest) {
   const users = allUsers
     .map((row) => {
       const status = pickStatus(row);
+      const email = coerceString(row.email).toLowerCase();
+      const role = pickPrimaryRole(row);
+      const isCeo = CEO_ROLE_VALUES.has(role) || (!!email && ceoEmails.includes(email));
+
       return {
         id: row.id,
         name: pickName(row),
         email: coerceString(row.email) || "Sem email",
+        role: isCeo ? "ceo" : role,
+        is_ceo: isCeo,
         status: status.label,
         status_tone: status.tone,
         created_at: row.created_at || null,
@@ -161,5 +218,95 @@ export async function GET(req: NextRequest) {
       return bTime - aTime;
     });
 
-  return NextResponse.json({ ok: true, is_ceo: isCeo, users });
+  return NextResponse.json({ ok: true, users });
+}
+
+type AdminPatchBody = {
+  userId?: string;
+  action?: "set_role" | "set_ceo" | "remove_ceo";
+  role?: string;
+};
+
+export async function PATCH(req: NextRequest) {
+  const ctx = await resolveCeoContext(req);
+  if (!ctx.ok) return ctx.response;
+
+  const payload = (await req.json().catch(() => ({}))) as AdminPatchBody;
+  const targetUserId = coerceString(payload.userId);
+  if (!targetUserId) {
+    return NextResponse.json({ ok: false, message: "Informe o usuario alvo." }, { status: 400 });
+  }
+
+  const action = payload.action || "set_role";
+  let nextRole = "";
+  if (action === "set_ceo") nextRole = "ceo";
+  if (action === "remove_ceo") nextRole = "usuario";
+  if (action === "set_role") {
+    nextRole = sanitizeRole(coerceString(payload.role));
+    if (!nextRole) {
+      return NextResponse.json({ ok: false, message: "Informe um cargo valido." }, { status: 400 });
+    }
+  }
+
+  if (action === "remove_ceo" && targetUserId === ctx.actorUserId) {
+    return NextResponse.json({ ok: false, message: "Nao e permitido remover o proprio cargo CEO." }, { status: 400 });
+  }
+
+  const targetRes = await ctx.admin.auth.admin.getUserById(targetUserId);
+  if (targetRes.error || !targetRes.data?.user) {
+    return NextResponse.json({ ok: false, message: targetRes.error?.message || "Usuario nao encontrado." }, { status: 404 });
+  }
+
+  const targetUser = targetRes.data.user;
+  const nextAppMetadata = {
+    ...((targetUser.app_metadata || {}) as Record<string, unknown>),
+    role: nextRole,
+    cargo: nextRole,
+  };
+  const nextUserMetadata = {
+    ...((targetUser.user_metadata || {}) as Record<string, unknown>),
+    role: nextRole,
+    cargo: nextRole,
+  };
+
+  const updateRes = await ctx.admin.auth.admin.updateUserById(targetUserId, {
+    app_metadata: nextAppMetadata,
+    user_metadata: nextUserMetadata,
+  });
+  if (updateRes.error) {
+    return NextResponse.json({ ok: false, message: updateRes.error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    message: action === "set_ceo"
+      ? "Cargo CEO concedido com sucesso."
+      : action === "remove_ceo"
+        ? "Cargo CEO removido com sucesso."
+        : `Cargo atualizado para "${nextRole}".`,
+  });
+}
+
+export async function DELETE(req: NextRequest) {
+  const ctx = await resolveCeoContext(req);
+  if (!ctx.ok) return ctx.response;
+
+  const userIdFromQuery = coerceString(req.nextUrl.searchParams.get("userId"));
+  const body = (await req.json().catch(() => ({}))) as { userId?: string };
+  const targetUserId = userIdFromQuery || coerceString(body.userId);
+
+  if (!targetUserId) {
+    return NextResponse.json({ ok: false, message: "Informe o usuario alvo." }, { status: 400 });
+  }
+
+  if (targetUserId === ctx.actorUserId) {
+    return NextResponse.json({ ok: false, message: "Nao e permitido excluir a propria conta por este painel." }, { status: 400 });
+  }
+
+  const deleteRes = await ctx.admin.auth.admin.deleteUser(targetUserId);
+  if (deleteRes.error) {
+    return NextResponse.json({ ok: false, message: deleteRes.error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true, message: "Usuario excluido com sucesso." });
 }
