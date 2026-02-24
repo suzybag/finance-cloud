@@ -175,9 +175,15 @@ const mergeNotesByMostRecent = (storageNotes: NoteRow[], databaseNotes: NoteRow[
       continue;
     }
 
-    if (toSafeTimestamp(note.updated_at) >= toSafeTimestamp(previous.updated_at)) {
-      map.set(note.id, note);
-    }
+    const noteIsNewest = toSafeTimestamp(note.updated_at) >= toSafeTimestamp(previous.updated_at);
+    const newest = noteIsNewest ? note : previous;
+    const oldest = noteIsNewest ? previous : note;
+
+    map.set(note.id, {
+      ...newest,
+      // Notes from DB intentionally do not carry attachments. Keep union from both sources.
+      attachments: mergeAttachments(newest.attachments, oldest.attachments),
+    });
   }
   return ensureSorted(Array.from(map.values()));
 };
