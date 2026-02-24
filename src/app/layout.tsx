@@ -6,6 +6,44 @@ import { ConfirmDialogProvider } from "@/context/ConfirmDialogContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import "./globals.css";
 
+const PRELOAD_SW_CLEANUP_SCRIPT = `
+(() => {
+  try {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
+    const userAgent = navigator.userAgent || "";
+    const inAppBrowser = /WhatsApp|FBAN|FBAV|Instagram/i.test(userAgent);
+
+    navigator.serviceWorker.getRegistrations()
+      .then((registrations) => {
+        registrations.forEach((registration) => {
+          const scriptUrl = registration.active?.scriptURL
+            || registration.waiting?.scriptURL
+            || registration.installing?.scriptURL
+            || "";
+          if (inAppBrowser || scriptUrl.includes("/sw.js")) {
+            void registration.unregister();
+          }
+        });
+      })
+      .catch(() => null);
+
+    if ("caches" in window) {
+      caches.keys()
+        .then((keys) =>
+          Promise.all(
+            keys
+              .filter((key) => key.startsWith("finance-cloud"))
+              .map((key) => caches.delete(key)),
+          ),
+        )
+        .catch(() => null);
+    }
+  } catch {
+    // best effort cleanup
+  }
+})();
+`;
+
 const fontSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
@@ -46,6 +84,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
+      <head>
+        <script
+          id="sw-pre-cleanup"
+          dangerouslySetInnerHTML={{ __html: PRELOAD_SW_CLEANUP_SCRIPT }}
+        />
+      </head>
       <body className={`${fontSans.variable} antialiased`}>
         <ThemeProvider>
           <ConfirmDialogProvider>{children}</ConfirmDialogProvider>
