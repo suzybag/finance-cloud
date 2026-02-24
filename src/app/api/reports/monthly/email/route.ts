@@ -16,6 +16,9 @@ const formatCurrency = (value: number) =>
 
 const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
+const isMissingMonthlyHistoryTable = (message?: string | null) =>
+  /relation .*monthly_report_deliveries/i.test(message || "");
+
 export async function POST(req: NextRequest) {
   const { user, client, error } = await getUserFromRequest(req);
   if (!user || !client || error) {
@@ -38,6 +41,32 @@ export async function POST(req: NextRequest) {
     });
     const workbookBuffer = createMonthlyWorkbookBuffer(report);
     const attachmentName = `relatorio-gastos-${report.summary.month}.xlsx`;
+    const monthRefDate = `${report.summary.month}-01`;
+
+    const saveDelivery = async (payload: {
+      status: "sent" | "error" | "skipped";
+      details: string | null;
+      sentAt?: string | null;
+    }) => {
+      const { error: saveError } = await client
+        .from("monthly_report_deliveries")
+        .upsert(
+          {
+            user_id: user.id,
+            reference_month: monthRefDate,
+            recipient_email: to,
+            total_amount: report.summary.total,
+            status: payload.status,
+            details: payload.details,
+            sent_at: payload.sentAt ?? null,
+          },
+          { onConflict: "user_id,reference_month" },
+        );
+
+      if (saveError && !isMissingMonthlyHistoryTable(saveError.message)) {
+        throw new Error(saveError.message || "Falha ao salvar historico de envio.");
+      }
+    };
 
     const topCategory = report.summary.topCategory || "Sem categoria";
     const deltaPercent = report.summary.deltaPercent;
@@ -85,11 +114,22 @@ export async function POST(req: NextRequest) {
     });
 
     if (!sendResult.ok) {
+      await saveDelivery({
+        status: "error",
+        details: sendResult.error || "Falha ao enviar email.",
+        sentAt: null,
+      });
       return NextResponse.json(
         { ok: false, message: sendResult.error || "Falha ao enviar email." },
         { status: 502 },
       );
     }
+
+    await saveDelivery({
+      status: "sent",
+      details: sendResult.provider || null,
+      sentAt: new Date().toISOString(),
+    });
 
     return NextResponse.json({
       ok: true,

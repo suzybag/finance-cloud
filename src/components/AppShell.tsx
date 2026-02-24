@@ -26,6 +26,7 @@ import {
   Repeat2,
   Receipt,
   Settings,
+  TriangleAlert,
   TrendingUp,
   Upload,
 } from "lucide-react";
@@ -67,46 +68,109 @@ type HeaderNotification = {
   unread?: boolean;
 };
 
-const headerNotifications: HeaderNotification[] = [
-  {
-    id: "invoice-due",
-    title: "Parcela do cartao vence em 2 dias",
-    description: "Fatura principal com vencimento proximo.",
-    timeLabel: "Agora",
-    icon: CalendarClock,
-    iconWrapperClass: "border-amber-300/35 bg-amber-500/15",
-    iconClass: "text-amber-200",
-    unread: true,
-  },
-  {
-    id: "import-success",
-    title: "Nova transacao importada",
-    description: "Dados sincronizados com sucesso na conta.",
-    timeLabel: "Hoje, 16:20",
-    icon: FileText,
-    iconWrapperClass: "border-sky-300/35 bg-sky-500/15",
-    iconClass: "text-sky-200",
-    unread: true,
-  },
-  {
-    id: "subscription-alert",
-    title: "Assinatura sera cobrada amanha",
-    description: "Servico recorrente com cobranca programada.",
-    timeLabel: "Hoje, 09:45",
-    icon: Repeat2,
-    iconWrapperClass: "border-fuchsia-300/35 bg-fuchsia-500/15",
-    iconClass: "text-fuchsia-200",
-  },
-  {
-    id: "income-registered",
-    title: "Recebimento confirmado",
-    description: "Entrada registrada automaticamente no sistema.",
-    timeLabel: "Ontem, 21:12",
-    icon: HandCoins,
-    iconWrapperClass: "border-emerald-300/35 bg-emerald-500/15",
-    iconClass: "text-emerald-200",
-  },
-];
+type AlertNotificationRow = {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  is_read: boolean;
+  created_at: string;
+};
+
+const isAlertsTableMissing = (message?: string | null) =>
+  /relation .*alerts/i.test(message || "");
+
+const formatNotificationDate = (value: string) => {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "Agora";
+
+  const now = new Date();
+  const isToday = parsed.toDateString() === now.toDateString();
+  if (isToday) {
+    return `Hoje, ${parsed.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+  }
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (parsed.toDateString() === yesterday.toDateString()) {
+    return `Ontem, ${parsed.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+  }
+
+  return parsed.toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const toHeaderNotification = (row: AlertNotificationRow): HeaderNotification => {
+  const base = {
+    id: row.id,
+    title: row.title || "Alerta",
+    description: row.body || "",
+    timeLabel: formatNotificationDate(row.created_at),
+    unread: !row.is_read,
+  };
+
+  if (row.type === "card_due_soon" || row.type === "card_closing_soon") {
+    return {
+      ...base,
+      icon: CalendarClock,
+      iconWrapperClass: "border-amber-300/35 bg-amber-500/15",
+      iconClass: "text-amber-200",
+    };
+  }
+
+  if (row.type === "subscription_due_soon" || row.type === "subscription_due_today" || row.type === "subscription_unused") {
+    return {
+      ...base,
+      icon: Repeat2,
+      iconWrapperClass: "border-fuchsia-300/35 bg-fuchsia-500/15",
+      iconClass: "text-fuchsia-200",
+    };
+  }
+
+  if (row.type === "investment_drop") {
+    return {
+      ...base,
+      icon: TrendingUp,
+      iconWrapperClass: "border-rose-300/35 bg-rose-500/15",
+      iconClass: "text-rose-200",
+    };
+  }
+
+  if (row.type === "dollar_threshold") {
+    return {
+      ...base,
+      icon: Landmark,
+      iconWrapperClass: "border-cyan-300/35 bg-cyan-500/15",
+      iconClass: "text-cyan-200",
+    };
+  }
+
+  if (
+    row.type === "spending_spike"
+    || row.type === "forecast_warning"
+    || row.type === "relationship_delay_risk"
+    || row.type === "relationship_score_drop"
+    || row.type === "relationship_spending_spike"
+  ) {
+    return {
+      ...base,
+      icon: TriangleAlert,
+      iconWrapperClass: "border-rose-300/35 bg-rose-500/15",
+      iconClass: "text-rose-200",
+    };
+  }
+
+  return {
+    ...base,
+    icon: BellRing,
+    iconWrapperClass: "border-violet-300/35 bg-violet-500/15",
+    iconClass: "text-violet-200",
+  };
+};
 
 type AppShellProps = {
   title: string;
@@ -132,6 +196,9 @@ export const AppShell = ({
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [headerNotifications, setHeaderNotifications] = useState<HeaderNotification[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsError, setNotificationsError] = useState<string | null>(null);
   const [desktopNavCollapsed, setDesktopNavCollapsed] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const notificationsRef = useRef<HTMLDivElement | null>(null);
@@ -140,7 +207,7 @@ export const AppShell = ({
   const displayName = profileName || user?.email?.split("@")[0] || "Usuario";
   const unreadNotificationsCount = useMemo(
     () => headerNotifications.filter((item) => item.unread).length,
-    [],
+    [headerNotifications],
   );
   const initials = useMemo(() => {
     const base = displayName.trim() || "U";
@@ -163,9 +230,79 @@ export const AppShell = ({
     setAvatarUrl(data?.avatar_url ?? null);
   }, [user]);
 
+  const loadNotifications = useCallback(async () => {
+    if (!user?.id) {
+      setHeaderNotifications([]);
+      setNotificationsError(null);
+      return;
+    }
+
+    setNotificationsLoading(true);
+    setNotificationsError(null);
+
+    const { data, error } = await supabase
+      .from("alerts")
+      .select("id, type, title, body, is_read, created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    if (error) {
+      if (isAlertsTableMissing(error.message)) {
+        setHeaderNotifications([]);
+        setNotificationsError("Tabela alerts nao encontrada. Rode o supabase.sql atualizado.");
+      } else {
+        setNotificationsError(`Falha ao carregar notificacoes: ${error.message}`);
+      }
+      setNotificationsLoading(false);
+      return;
+    }
+
+    const mapped = ((data || []) as AlertNotificationRow[]).map(toHeaderNotification);
+    setHeaderNotifications(mapped);
+    setNotificationsLoading(false);
+  }, [user]);
+
+  const markAllNotificationsRead = useCallback(async () => {
+    if (!user?.id || !unreadNotificationsCount) return;
+    await supabase
+      .from("alerts")
+      .update({ is_read: true })
+      .eq("user_id", user.id)
+      .eq("is_read", false);
+    await loadNotifications();
+  }, [loadNotifications, unreadNotificationsCount, user]);
+
   useEffect(() => {
     loadProfile();
   }, [loadProfile]);
+
+  useEffect(() => {
+    void loadNotifications();
+  }, [loadNotifications]);
+
+  useEffect(() => {
+    if (!user?.id) return undefined;
+    const channel = supabase
+      .channel(`alerts-feed-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "alerts",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          void loadNotifications();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [loadNotifications, user?.id]);
 
   useEffect(() => {
     const handler = (event: Event) => {
@@ -266,7 +403,9 @@ export const AppShell = ({
       aria-label="Notificacoes"
     >
       <BellRing className="h-5 w-5" />
-      <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-rose-400" />
+      {unreadNotificationsCount > 0 ? (
+        <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-rose-400" />
+      ) : null}
     </button>
   );
 
@@ -274,46 +413,74 @@ export const AppShell = ({
     <div className="absolute right-0 z-50 mt-2 w-[22rem] overflow-hidden rounded-2xl border border-violet-300/25 bg-[linear-gradient(170deg,rgba(19,15,37,0.98),rgba(8,7,20,0.98))] shadow-[0_24px_60px_rgba(5,3,16,0.65)] backdrop-blur-2xl">
       <div className="flex items-center justify-between border-b border-violet-300/15 px-4 py-3">
         <h3 className="text-sm font-semibold text-violet-100">Notificacoes</h3>
-        <span className="rounded-full border border-violet-300/30 bg-violet-500/20 px-2 py-0.5 text-[11px] font-semibold text-violet-100">
-          {unreadNotificationsCount} novas
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="rounded-full border border-violet-300/30 bg-violet-500/20 px-2 py-0.5 text-[11px] font-semibold text-violet-100">
+            {unreadNotificationsCount} novas
+          </span>
+          {unreadNotificationsCount > 0 ? (
+            <button
+              type="button"
+              onClick={() => {
+                void markAllNotificationsRead();
+              }}
+              className="rounded-lg border border-violet-300/30 px-2 py-0.5 text-[10px] font-semibold text-violet-100/90 transition hover:bg-violet-500/20"
+            >
+              Marcar lidas
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="max-h-72 space-y-2 overflow-y-auto px-3 py-3">
-        {headerNotifications.map((item) => {
-          const Icon = item.icon;
-          return (
-            <div
-              key={item.id}
-              className="rounded-xl border border-violet-300/12 bg-white/[0.03] px-3 py-2.5 transition hover:border-violet-200/30 hover:bg-violet-500/10"
-            >
-              <div className="flex items-start gap-3">
-                <div
-                  className={`relative mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-full border ${item.iconWrapperClass}`}
-                >
-                  <Icon className={`h-4 w-4 ${item.iconClass}`} />
-                  {item.unread ? (
-                    <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border border-[#110a1f] bg-emerald-400" />
-                  ) : null}
-                </div>
-                <div className="min-w-0">
-                  <p className="line-clamp-1 text-sm font-semibold text-violet-50">{item.title}</p>
-                  <p className="mt-0.5 text-xs text-violet-100/60">{item.description}</p>
-                  <p className="mt-1.5 text-[11px] text-violet-200/55">{item.timeLabel}</p>
+        {notificationsLoading ? (
+          <div className="rounded-xl border border-violet-300/12 bg-white/[0.03] px-3 py-3 text-xs text-violet-100/70">
+            Carregando notificacoes...
+          </div>
+        ) : notificationsError ? (
+          <div className="rounded-xl border border-rose-300/25 bg-rose-500/10 px-3 py-3 text-xs text-rose-100">
+            {notificationsError}
+          </div>
+        ) : headerNotifications.length ? (
+          headerNotifications.map((item) => {
+            const Icon = item.icon;
+            return (
+              <div
+                key={item.id}
+                className="rounded-xl border border-violet-300/12 bg-white/[0.03] px-3 py-2.5 transition hover:border-violet-200/30 hover:bg-violet-500/10"
+              >
+                <div className="flex items-start gap-3">
+                  <div
+                    className={`relative mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-full border ${item.iconWrapperClass}`}
+                  >
+                    <Icon className={`h-4 w-4 ${item.iconClass}`} />
+                    {item.unread ? (
+                      <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border border-[#110a1f] bg-emerald-400" />
+                    ) : null}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="line-clamp-1 text-sm font-semibold text-violet-50">{item.title}</p>
+                    <p className="mt-0.5 text-xs text-violet-100/60">{item.description}</p>
+                    <p className="mt-1.5 text-[11px] text-violet-200/55">{item.timeLabel}</p>
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        ) : (
+          <div className="rounded-xl border border-violet-300/12 bg-white/[0.03] px-3 py-3 text-xs text-violet-100/70">
+            Sem notificacoes reais no momento.
+          </div>
+        )}
       </div>
 
-      <button
-        type="button"
+      <Link
+        href="/alerts"
+        onClick={() => setNotificationsOpen(false)}
         className="flex w-full items-center justify-center gap-2 border-t border-violet-300/15 px-4 py-2.5 text-xs font-semibold text-violet-100/80 transition hover:bg-violet-500/10"
       >
         <Eye className="h-3.5 w-3.5" />
         Ver tudo
-      </button>
+      </Link>
     </div>
   );
 
@@ -405,8 +572,8 @@ export const AppShell = ({
             <div className="mt-auto rounded-2xl border border-violet-300/20 bg-violet-950/35 p-4 text-sm text-violet-100/85 backdrop-blur-lg">
               <div className="font-semibold text-white">Alertas prontos</div>
               <p className="mt-1 text-xs text-violet-100/60">
-                Jobs/cron podem ser ligados depois. Hoje os alertas sao gerados no
-                login.
+                Alertas sao gerados pela automacao diaria e tambem na execucao manual
+                em Alertas Inteligentes.
               </p>
             </div>
           ) : (

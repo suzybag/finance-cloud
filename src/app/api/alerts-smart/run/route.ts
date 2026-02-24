@@ -324,7 +324,7 @@ async function runSmartAlerts(req: NextRequest) {
           matched = true;
           triggered += 1;
 
-          const title = `⚠️ Seu cartão ${card.name} vence em 3 dias`;
+          const title = `Alerta de cartao: ${card.name} vence em 3 dias`;
           const message = `Valor atual da fatura aberta: ${brl(summary.currentTotal)}. Vencimento: ${summary.dueDate.toLocaleDateString("pt-BR")}.`;
           const ruleDescription = "Cartão com fatura aberta e vencimento em 3 dias.";
 
@@ -379,7 +379,7 @@ async function runSmartAlerts(req: NextRequest) {
         const pctText = `${Math.abs(first.metrics.pct).toFixed(2).replace(".", ",")}%`;
         const valueText = brl(first.metrics.lossAbs);
 
-        const title = `📉 Seu investimento ${assetLabel} caiu hoje`;
+        const title = `Alerta de investimento: ${assetLabel} caiu hoje`;
         const message =
           status === "queda_valor"
             ? `${assetLabel} teve queda de ${valueText} no dia (${pctText}).`
@@ -434,7 +434,7 @@ async function runSmartAlerts(req: NextRequest) {
         }
 
         triggered += 1;
-        const title = `💵 Dólar atingiu ${brl(dollarBid)}`;
+        const title = `Alerta de dolar: cotacao em ${brl(dollarBid)}`;
         const message = `USD/BRL atual: ${brl(dollarBid)}. Limite configurado: ${brl(target)} (${direction}).`;
         const ruleDescription =
           direction === "acima"
