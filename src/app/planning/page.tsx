@@ -161,12 +161,12 @@ const isMissingPlanningTableError = (message?: string | null) =>
 const ProgressBar = ({ percentual, done }: { percentual: number; done: boolean }) => {
   const width = Math.max(0, Math.min(100, percentual));
   return (
-    <div className="h-3 overflow-hidden rounded-full border border-violet-300/20 bg-black/40">
+    <div className="h-3 overflow-hidden rounded-full border border-cyan-300/25 bg-black/40">
       <div
         className={`h-full rounded-full transition-[width] duration-700 ${
           done
             ? "animate-pulse bg-gradient-to-r from-emerald-400 via-emerald-300 to-lime-300"
-            : "bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-400"
+            : "bg-gradient-to-r from-sky-500 via-cyan-400 to-blue-500"
         }`}
         style={{ width: `${width}%` }}
       />
