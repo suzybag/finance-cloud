@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { getStorageItem, removeStorageItem, setStorageItem } from "./safeStorage";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -12,37 +13,30 @@ type AuthStorageMode = "local" | "session";
 
 const getAuthStorageModeInternal = (): AuthStorageMode => {
   if (!isBrowser()) return "local";
-  const raw = window.localStorage.getItem(AUTH_STORAGE_MODE_KEY);
+  const raw = getStorageItem(AUTH_STORAGE_MODE_KEY, "local");
   return raw === "session" ? "session" : "local";
 };
+
+const getAuthStorageKind = () => (getAuthStorageModeInternal() === "session" ? "session" : "local");
 
 const authStorage = {
   getItem: (key: string) => {
     if (!isBrowser()) return null;
-    const storage = getAuthStorageModeInternal() === "session"
-      ? window.sessionStorage
-      : window.localStorage;
-    return storage.getItem(key);
+    return getStorageItem(key, getAuthStorageKind());
   },
   setItem: (key: string, value: string) => {
     if (!isBrowser()) return;
-    const storage = getAuthStorageModeInternal() === "session"
-      ? window.sessionStorage
-      : window.localStorage;
-    storage.setItem(key, value);
+    setStorageItem(key, value, getAuthStorageKind());
   },
   removeItem: (key: string) => {
     if (!isBrowser()) return;
-    const storage = getAuthStorageModeInternal() === "session"
-      ? window.sessionStorage
-      : window.localStorage;
-    storage.removeItem(key);
+    removeStorageItem(key, getAuthStorageKind());
   },
 };
 
 export const setAuthStorageMode = (rememberLogin: boolean) => {
   if (!isBrowser()) return;
-  window.localStorage.setItem(AUTH_STORAGE_MODE_KEY, rememberLogin ? "local" : "session");
+  setStorageItem(AUTH_STORAGE_MODE_KEY, rememberLogin ? "local" : "session", "local");
 };
 
 export const getAuthStorageMode = (): AuthStorageMode => getAuthStorageModeInternal();

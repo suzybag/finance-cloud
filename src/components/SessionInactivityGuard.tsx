@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { setStorageItem } from "@/lib/safeStorage";
 
 const ACTIVITY_EVENTS: Array<keyof WindowEventMap> = [
   "mousemove",
@@ -52,7 +53,7 @@ export const SessionInactivityGuard = () => {
 
     const markActivity = () => {
       if (document.visibilityState === "hidden") return;
-      window.localStorage.setItem(LAST_ACTIVITY_KEY, String(Date.now()));
+      setStorageItem(LAST_ACTIVITY_KEY, String(Date.now()), "local");
       void schedule();
     };
 

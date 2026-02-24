@@ -13,6 +13,7 @@ const MAX_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 15;
 const OTP_TTL_MINUTES = 10;
 const GENERIC_LOGIN_ERROR = "Email ou senha invalidos.";
+const OTP_FAIL_OPEN = (process.env.AUTH_OTP_FAIL_OPEN || "true").trim().toLowerCase() !== "false";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -147,6 +148,8 @@ export async function POST(req: NextRequest) {
       ok: true,
       requires_otp: false,
       security_mode: "degraded",
+      security_reason: !encryptionReady ? "missing_encryption_key" : "missing_service_role",
+      message: "Login concluido sem OTP por configuracao incompleta de seguranca.",
       session: {
         access_token: loginData.session.access_token,
         refresh_token: loginData.session.refresh_token,
@@ -307,13 +310,41 @@ export async function POST(req: NextRequest) {
 
   if (!emailResult.ok) {
     await admin.from("auth_otp_challenges").delete().eq("id", challengeId);
+    const otpDeliveryError = emailResult.error || "Falha ao enviar OTP por email.";
     await logSecurityEvent({
       req,
       eventType: "auth_otp_delivery_failed",
       severity: "critical",
-      message: emailResult.error || "Falha ao enviar OTP por email.",
+      message: otpDeliveryError,
       userId: loginData.user.id,
     });
+
+    if (OTP_FAIL_OPEN) {
+      await logSecurityEvent({
+        req,
+        eventType: "auth_login_without_otp_fallback",
+        severity: "warning",
+        message: "Login concluido sem OTP por falha no envio do codigo.",
+        userId: loginData.user.id,
+        metadata: {
+          reason: "otp_delivery_failed",
+          provider: emailResult.provider,
+        },
+      });
+
+      return NextResponse.json({
+        ok: true,
+        requires_otp: false,
+        security_mode: "degraded",
+        security_reason: "otp_delivery_failed",
+        message: "Login concluido sem OTP porque nao foi possivel enviar o codigo no momento.",
+        session: {
+          access_token: loginData.session.access_token,
+          refresh_token: loginData.session.refresh_token,
+        },
+      });
+    }
+
     return NextResponse.json(
       { ok: false, message: "Nao foi possivel enviar o codigo OTP. Tente novamente." },
       { status: 503 },

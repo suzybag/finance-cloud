@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import DotGrid from "@/components/DotGrid";
 import SystemIntro from "@/components/SystemIntro";
+import { getStorageItem, removeStorageItem, setStorageItem } from "@/lib/safeStorage";
 import { getAuthStorageMode, setAuthStorageMode, supabase } from "@/lib/supabaseClient";
 import { sanitizeEmail, sanitizeOtpCode, validateStrongPassword } from "@/lib/security/input";
 
@@ -23,13 +24,13 @@ const PRIVACY_VERSION = process.env.NEXT_PUBLIC_PRIVACY_VERSION || "2026-02-19";
 
 const getInitialRememberLogin = () => {
   if (typeof window === "undefined") return true;
-  const savedFlag = window.localStorage.getItem(REMEMBER_LOGIN_KEY);
+  const savedFlag = getStorageItem(REMEMBER_LOGIN_KEY, "local");
   return savedFlag !== null ? savedFlag !== "0" : getAuthStorageMode() === "local";
 };
 
 const getInitialRememberedEmail = () => {
   if (typeof window === "undefined") return "";
-  return window.localStorage.getItem(REMEMBER_EMAIL_KEY) ?? "";
+  return getStorageItem(REMEMBER_EMAIL_KEY, "local") ?? "";
 };
 
 const parseLockUntil = (value: unknown) => {
@@ -147,11 +148,11 @@ export default function LoginPage() {
 
   const persistRememberChoice = (sanitizedEmail: string) => {
     setAuthStorageMode(rememberLogin);
-    window.localStorage.setItem(REMEMBER_LOGIN_KEY, rememberLogin ? "1" : "0");
+    setStorageItem(REMEMBER_LOGIN_KEY, rememberLogin ? "1" : "0", "local");
     if (rememberLogin) {
-      window.localStorage.setItem(REMEMBER_EMAIL_KEY, sanitizedEmail);
+      setStorageItem(REMEMBER_EMAIL_KEY, sanitizedEmail, "local");
     } else {
-      window.localStorage.removeItem(REMEMBER_EMAIL_KEY);
+      removeStorageItem(REMEMBER_EMAIL_KEY, "local");
     }
   };
 
@@ -230,10 +231,11 @@ export default function LoginPage() {
       );
       if (!completed) return false;
 
+      const loginMessage = String(data?.message || "").trim();
       if (data?.security_mode === "degraded") {
-        setMessage("Login concluido em modo degradado. Configure APP_ENCRYPTION_KEY e SUPABASE_SERVICE_ROLE_KEY para reativar OTP.");
+        setMessage(loginMessage || "Login concluido em modo degradado.");
       } else {
-        setMessage("Login concluido.");
+        setMessage(loginMessage || "Login concluido.");
       }
       return true;
     }

@@ -146,9 +146,16 @@ export default function DotGrid({
 
   useEffect(() => {
     buildGrid();
-    const observer = new ResizeObserver(buildGrid);
-    if (wrapperRef.current) observer.observe(wrapperRef.current);
-    return () => observer.disconnect();
+    const handleWindowResize = throttle(() => buildGrid(), 100);
+
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(buildGrid);
+      if (wrapperRef.current) observer.observe(wrapperRef.current);
+      return () => observer.disconnect();
+    }
+
+    window.addEventListener("resize", handleWindowResize, { passive: true });
+    return () => window.removeEventListener("resize", handleWindowResize);
   }, [buildGrid]);
 
   useEffect(() => {

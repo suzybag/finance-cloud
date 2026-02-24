@@ -3,6 +3,7 @@
 import { AnimatePresence, motion, useAnimate, usePresence } from "framer-motion";
 import { useEffect, useState } from "react";
 import { FiClock, FiPlus, FiTrash2 } from "react-icons/fi";
+import { getStorageItem, setStorageItem } from "@/lib/safeStorage";
 
 type TimeUnit = "mins" | "hrs";
 
@@ -38,7 +39,7 @@ export const VanishList = () => {
 
   useEffect(() => {
     try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
+      const raw = getStorageItem(STORAGE_KEY, "local");
       if (!raw) return;
       const parsed = JSON.parse(raw) as DailyTodo[];
       if (Array.isArray(parsed)) {
@@ -53,7 +54,7 @@ export const VanishList = () => {
 
   useEffect(() => {
     if (!hydrated) return;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+    setStorageItem(STORAGE_KEY, JSON.stringify(todos), "local");
   }, [hydrated, todos]);
 
   const handleCheck = (id: string) => {

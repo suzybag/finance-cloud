@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRequireAuth } from "@/lib/useAuth";
 import { supabase } from "@/lib/supabaseClient";
+import { getStorageItem, setStorageItem } from "@/lib/safeStorage";
 import {
   ArrowLeftRight,
   BarChart3,
@@ -433,14 +434,14 @@ export const AppShell = ({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const saved = window.localStorage.getItem(DESKTOP_NAV_COLLAPSED_KEY);
+    const saved = getStorageItem(DESKTOP_NAV_COLLAPSED_KEY, "local");
     if (saved === "1") setDesktopNavCollapsed(true);
     if (saved === "0") setDesktopNavCollapsed(false);
   }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    window.localStorage.setItem(DESKTOP_NAV_COLLAPSED_KEY, desktopNavCollapsed ? "1" : "0");
+    setStorageItem(DESKTOP_NAV_COLLAPSED_KEY, desktopNavCollapsed ? "1" : "0", "local");
   }, [desktopNavCollapsed]);
 
   useEffect(() => {
@@ -545,7 +546,7 @@ export const AppShell = ({
   );
 
   const renderNotificationsDropdown = () => (
-    <div className="absolute right-0 z-50 mt-2 w-[22rem] overflow-hidden rounded-2xl border border-violet-300/25 bg-[linear-gradient(170deg,rgba(19,15,37,0.98),rgba(8,7,20,0.98))] shadow-[0_24px_60px_rgba(5,3,16,0.65)] backdrop-blur-2xl">
+    <div className="absolute right-0 z-50 mt-2 w-[min(22rem,calc(100vw-1.5rem))] max-w-[22rem] overflow-hidden rounded-2xl border border-violet-300/25 bg-[linear-gradient(170deg,rgba(19,15,37,0.98),rgba(8,7,20,0.98))] shadow-[0_24px_60px_rgba(5,3,16,0.65)] backdrop-blur-2xl">
       <div className="flex items-center justify-between border-b border-violet-300/15 px-4 py-3">
         <h3 className="text-sm font-semibold text-violet-100">Notificacoes</h3>
         <div className="flex items-center gap-2">
@@ -729,8 +730,8 @@ export const AppShell = ({
           </button>
         </aside>
 
-        <main className={`ultra-shell-bg flex-1 p-4 pb-28 sm:p-6 sm:pb-28 lg:p-10 lg:pb-10 ${contentClassName ?? ""}`}>
-          <div className="mb-5 flex items-center justify-between rounded-xl border border-violet-300/24 bg-[linear-gradient(90deg,rgba(196,181,253,0.2),rgba(147,51,234,0.14))] px-5 py-2.5 shadow-[0_10px_24px_rgba(91,33,182,0.2)]">
+        <main className={`ultra-shell-bg flex-1 p-3 pb-[calc(env(safe-area-inset-bottom)+6.75rem)] sm:p-6 sm:pb-[calc(env(safe-area-inset-bottom)+7rem)] lg:p-10 lg:pb-10 ${contentClassName ?? ""}`}>
+          <div className="mb-5 flex items-center justify-between rounded-xl border border-violet-300/24 bg-[linear-gradient(90deg,rgba(196,181,253,0.2),rgba(147,51,234,0.14))] px-3 py-2.5 shadow-[0_10px_24px_rgba(91,33,182,0.2)] sm:px-5">
             <p className="text-sm font-medium tracking-[0.01em] text-violet-300/95 sm:text-base">
               Finance Cloud
             </p>
@@ -764,7 +765,7 @@ export const AppShell = ({
                 <div className="text-xs uppercase tracking-[0.2em] text-violet-200/45">
                   Finance Cloud
                 </div>
-                <h1 className="text-3xl font-extrabold tracking-tight text-white">{title}</h1>
+                <h1 className="text-2xl font-extrabold tracking-tight text-white sm:text-3xl">{title}</h1>
                 {subtitle && <p className="text-sm text-violet-100/75">{subtitle}</p>}
               </div>
 
@@ -855,7 +856,7 @@ export const AppShell = ({
         </main>
       </div>
 
-      <nav className="fixed inset-x-3 bottom-3 z-40 rounded-2xl border border-violet-300/20 bg-violet-950/90 p-1.5 backdrop-blur-xl lg:hidden">
+      <nav className="fixed inset-x-2 bottom-2 z-40 rounded-2xl border border-violet-300/20 bg-violet-950/90 p-1.5 pb-[calc(env(safe-area-inset-bottom)+0.375rem)] backdrop-blur-xl sm:inset-x-3 sm:bottom-3 lg:hidden">
         <div className="grid grid-cols-5 gap-1">
           {mobilePrimaryItems.map((item) => {
             const active = pathname === item.href;

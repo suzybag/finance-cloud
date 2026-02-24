@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { getStorageItem, setStorageItem } from "@/lib/safeStorage";
 
 export type ThemeMode = "normal" | "night-pro" | "reading";
 
@@ -46,7 +47,7 @@ const getInitialState = (): ThemeState => {
   }
 
   const fallback: ThemeState = { themeMode: "normal", ...MODE_PRESETS.normal };
-  const raw = window.localStorage.getItem(STORAGE_KEY);
+  const raw = getStorageItem(STORAGE_KEY, "local");
   if (!raw) return fallback;
 
   try {
@@ -92,7 +93,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     applyThemeClass(state.themeMode);
     applyFilterVariables(state);
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    setStorageItem(STORAGE_KEY, JSON.stringify(state), "local");
   }, [state]);
 
   const value = useMemo<ThemeContextValue>(

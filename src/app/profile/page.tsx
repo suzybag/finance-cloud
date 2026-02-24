@@ -24,6 +24,7 @@ import { AppShell } from "@/components/AppShell";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { useConfirmDialog } from "@/context/ConfirmDialogContext";
 import { useTheme } from "@/context/ThemeContext";
+import { getStorageItem, setStorageItem } from "@/lib/safeStorage";
 import { supabase } from "@/lib/supabaseClient";
 
 type Profile = {
@@ -391,7 +392,7 @@ export default function ProfilePage() {
   }, [userId]);
 
   useEffect(() => {
-    const raw = localStorage.getItem(PREFERENCES_KEY);
+    const raw = getStorageItem(PREFERENCES_KEY, "local");
     if (!raw) return;
     try {
       const parsed = JSON.parse(raw) as Partial<PreferencesState>;
@@ -406,7 +407,7 @@ export default function ProfilePage() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(PREFERENCES_KEY, JSON.stringify(preferences));
+    setStorageItem(PREFERENCES_KEY, JSON.stringify(preferences), "local");
   }, [preferences]);
 
   useEffect(
