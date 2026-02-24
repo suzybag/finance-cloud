@@ -137,6 +137,7 @@ export default function ReceberPage() {
   const [abateValue, setAbateValue] = useState("");
   const [abateError, setAbateError] = useState<string | null>(null);
   const [abating, setAbating] = useState(false);
+  const [openReportRowId, setOpenReportRowId] = useState<string | null>(null);
 
   const ensureUserId = async () => {
     if (userId) return userId;
@@ -570,9 +571,8 @@ export default function ReceberPage() {
                   0,
                 );
                 const hasAbatements = parsed.abatements.length > 0;
-                const latestAbatement = hasAbatements
-                  ? parsed.abatements[parsed.abatements.length - 1]
-                  : null;
+                const isReportOpen = openReportRowId === row.id;
+                const abatementsDescending = [...parsed.abatements].reverse();
 
                 return (
                   <article
@@ -598,25 +598,39 @@ export default function ReceberPage() {
                       <div className="flex flex-col items-start gap-2 sm:items-end">
                         <div className="flex items-center gap-2">
                           {hasAbatements ? (
-                            <span
-                              className="inline-flex items-center gap-1 rounded-full border border-violet-300/35 bg-violet-500/18 px-2 py-0.5 text-[11px] font-semibold text-violet-100"
-                              title={`Total abatido: ${brl(totalAbatido)}`}
+                            <button
+                              type="button"
+                              className="inline-flex items-center gap-1 rounded-full border border-violet-300/35 bg-violet-500/18 px-2 py-0.5 text-[11px] font-semibold text-violet-100 transition hover:bg-violet-500/28"
+                              title="Abrir relatorio de abatimentos"
+                              onClick={() =>
+                                setOpenReportRowId((prev) => (prev === row.id ? null : row.id))
+                              }
                             >
                               <ClipboardCheck className="h-3.5 w-3.5" />
-                              Relatorio
-                            </span>
+                              {isReportOpen ? "Ocultar relatorio" : "Relatorio"}
+                            </button>
                           ) : null}
                           <p className="text-base font-bold text-white">{brl(Math.abs(toNumber(row.amount)))}</p>
                         </div>
-                        {hasAbatements ? (
-                          <div className="rounded-lg border border-violet-300/25 bg-violet-500/10 px-2.5 py-1 text-[11px] text-violet-100/90">
-                            <p>Total abatido: {brl(totalAbatido)}</p>
-                            {latestAbatement ? (
-                              <p className="text-violet-100/65">
-                                Ultimo abate: {brl(latestAbatement.amount)} em{" "}
-                                {formatDateTimeLabel(latestAbatement.at)}
-                              </p>
-                            ) : null}
+                        {hasAbatements && isReportOpen ? (
+                          <div className="w-full rounded-lg border border-violet-300/25 bg-violet-500/10 px-2.5 py-2 text-[11px] text-violet-100/90 sm:w-[320px]">
+                            <p className="font-semibold text-violet-100">Total abatido: {brl(totalAbatido)}</p>
+                            <div className="mt-2 space-y-2">
+                              {abatementsDescending.map((item, index) => (
+                                <div
+                                  key={item.id}
+                                  className="rounded-md border border-violet-300/20 bg-black/20 px-2 py-1.5"
+                                >
+                                  <p className="font-semibold text-violet-100">
+                                    {index + 1}. Abatido {brl(item.amount)}
+                                  </p>
+                                  <p className="text-violet-100/70">
+                                    {formatDateTimeLabel(item.at)} | {brl(item.remaining_before)} -&gt;{" "}
+                                    {brl(item.remaining_after)}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         ) : null}
                         <div className="flex gap-2">
