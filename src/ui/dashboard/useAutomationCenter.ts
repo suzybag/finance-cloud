@@ -49,6 +49,7 @@ const DEFAULT_SETTINGS: AutomationSettings = {
   market_refresh_enabled: true,
   config: {},
 };
+const SW_PATH = "/sw.js?v=2026-02-24-2";
 
 const toNullableNumber = (value: string) => {
   if (!value.trim()) return null;
@@ -63,14 +64,18 @@ const toNullableNumber = (value: string) => {
 };
 
 const urlBase64ToUint8Array = (base64String: string) => {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = `${base64String}${padding}`.replace(/-/g, "+").replace(/_/g, "/");
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for (let index = 0; index < rawData.length; index += 1) {
-    outputArray[index] = rawData.charCodeAt(index);
+  try {
+    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = `${base64String}${padding}`.replace(/-/g, "+").replace(/_/g, "/");
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let index = 0; index < rawData.length; index += 1) {
+      outputArray[index] = rawData.charCodeAt(index);
+    }
+    return outputArray;
+  } catch {
+    return null;
   }
-  return outputArray;
 };
 
 const supportsPush = () =>
@@ -151,7 +156,7 @@ export const useAutomationCenter = () => {
       const vapidJson = await vapidResponse.json().catch(() => ({} as { configured?: boolean }));
       setPushConfigured(Boolean(vapidJson?.configured));
 
-      const registration = await navigator.serviceWorker.register("/sw.js");
+      const registration = await navigator.serviceWorker.register(SW_PATH, { updateViaCache: "none" });
       const sub = await registration.pushManager.getSubscription();
       setPushSubscribed(Boolean(sub));
     } catch {
@@ -267,12 +272,16 @@ export const useAutomationCenter = () => {
       if (!vapidJson.configured || !vapidJson.publicKey) {
         throw new Error("VAPID nao configurado no servidor.");
       }
+      const applicationServerKey = urlBase64ToUint8Array(vapidJson.publicKey);
+      if (!applicationServerKey) {
+        throw new Error("Chave VAPID invalida.");
+      }
 
-      const registration = await navigator.serviceWorker.register("/sw.js");
+      const registration = await navigator.serviceWorker.register(SW_PATH, { updateViaCache: "none" });
       const existing = await registration.pushManager.getSubscription();
       const subscription = existing || await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidJson.publicKey),
+        applicationServerKey,
       });
 
       const saveResponse = await fetch("/api/push/subscribe", {
@@ -311,7 +320,7 @@ export const useAutomationCenter = () => {
       const token = await getToken();
       if (!token) throw new Error("Sessao nao encontrada.");
 
-      const registration = await navigator.serviceWorker.register("/sw.js");
+      const registration = await navigator.serviceWorker.register(SW_PATH, { updateViaCache: "none" });
       const subscription = await registration.pushManager.getSubscription();
       const endpoint = subscription?.endpoint || "";
 
