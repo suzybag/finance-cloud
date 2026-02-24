@@ -73,13 +73,15 @@ export function InvestmentCategory({
   const Icon = CATEGORY_ICON_MAP[category as keyof typeof CATEGORY_ICON_MAP] || Wallet;
   const categoryTheme = CATEGORY_THEME_MAP[category as keyof typeof CATEGORY_THEME_MAP]
     || CATEGORY_THEME_MAP.Outros;
+  const ribbonClipPath = "polygon(18px 0, calc(100% - 18px) 0, 100% 50%, calc(100% - 18px) 100%, 18px 100%, 0 50%)";
 
   return (
-    <section className="rounded-3xl border border-slate-200/10 bg-slate-900/70 backdrop-blur-xl">
+    <section className="rounded-3xl border border-slate-200/10 bg-slate-900/70 p-3 backdrop-blur-xl">
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left"
+        className="relative flex w-full items-center justify-between gap-3 border border-slate-200/15 bg-[linear-gradient(90deg,rgba(51,65,85,0.7),rgba(15,23,42,0.92),rgba(51,65,85,0.7))] px-5 py-3.5 text-left shadow-[0_14px_34px_rgba(2,6,23,0.42)] transition hover:border-slate-200/30"
+        style={{ clipPath: ribbonClipPath }}
         aria-expanded={open}
       >
         <div className="flex items-center gap-3">
@@ -95,16 +97,16 @@ export function InvestmentCategory({
           <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${categoryTheme.tagClass}`}>
             {brl(categoryTotal)}
           </span>
-        <ChevronDown
-          className={`h-4 w-4 text-slate-300 transition-transform duration-300 ${open ? "rotate-180" : ""}`}
-        />
+          <ChevronDown
+            className={`h-4 w-4 text-slate-300 transition-transform duration-300 ${open ? "rotate-180" : ""}`}
+          />
         </div>
       </button>
 
       <div
         className={`overflow-hidden transition-all duration-300 ${open ? "max-h-[6000px] opacity-100" : "max-h-0 opacity-0"}`}
       >
-        <div className="border-t border-slate-200/10 p-3">
+        <div className="border-t border-slate-200/10 px-0 pb-0 pt-3">
           {items.length ? (
             <div className="grid gap-3 lg:grid-cols-2">
               {items.map((item) => (

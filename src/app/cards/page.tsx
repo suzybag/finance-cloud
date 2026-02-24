@@ -8,9 +8,6 @@ import {
   CircleDollarSign,
   CreditCard,
   Pencil,
-  ShieldCheck,
-  Sparkles,
-  TriangleAlert,
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
@@ -172,30 +169,6 @@ type CardQuickActionState =
       currentUsed: number;
     };
 
-const riskBadgeClass = (level: "excelente" | "bom" | "atencao" | "alto_risco") => {
-  if (level === "excelente") return "border-emerald-400/40 bg-emerald-500/15 text-emerald-200";
-  if (level === "bom") return "border-cyan-400/40 bg-cyan-500/15 text-cyan-200";
-  if (level === "atencao") return "border-amber-400/40 bg-amber-500/15 text-amber-200";
-  return "border-rose-400/40 bg-rose-500/15 text-rose-200";
-};
-
-const pillarMeta: Array<{
-  key: "punctuality" | "limitUsage" | "investments" | "history" | "spendingControl";
-  label: string;
-}> = [
-  { key: "punctuality", label: "Pontualidade" },
-  { key: "limitUsage", label: "Uso do limite" },
-  { key: "investments", label: "Investimentos" },
-  { key: "history", label: "Historico financeiro" },
-  { key: "spendingControl", label: "Controle de gastos" },
-];
-
-const formatShortDate = (value: string) => {
-  const parsed = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-};
-
 export default function CardsPage() {
   const confirmDialog = useConfirmDialog();
   const [cards, setCards] = useState<Card[]>([]);
@@ -235,7 +208,6 @@ export default function CardsPage() {
     error: relationshipError,
     warnings: relationshipWarnings,
     summary: relationshipSummary,
-    history: relationshipHistory,
     refresh: refreshRelationship,
     runAssessment,
   } = useBankRelationship();
@@ -911,18 +883,17 @@ export default function CardsPage() {
             </div>
           ) : null}
 
-          <section className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
-            <article className={`${ULTRA_SECTION_CLASS} p-5`}>
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="inline-flex items-center gap-2 text-lg font-bold text-white">
-                    <ShieldCheck className="h-5 w-5 text-cyan-300" />
-                    Score Relacionamento Bancario
-                  </h2>
-                  <p className="text-xs text-slate-400">
-                    Saude financeira para melhorar score e confianca de credito.
-                  </p>
-                </div>
+          <section className={`${ULTRA_SECTION_CLASS} p-4 sm:p-5`}>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-xs font-extrabold uppercase tracking-[0.12em] text-violet-100/90">
+                  Indicadores essenciais
+                </h2>
+                <p className="text-xs text-slate-400">
+                  Status do score, uso de limite, pontualidade, despesa e receita atual.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   className="rounded-lg border border-white/15 bg-black/30 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-black/45"
@@ -930,110 +901,6 @@ export default function CardsPage() {
                 >
                   Atualizar
                 </button>
-              </div>
-
-              {relationshipLoading ? (
-                <div className="mt-4 rounded-xl border border-white/10 bg-black/25 px-3 py-3 text-sm text-slate-300">
-                  Carregando score bancario...
-                </div>
-              ) : relationshipError ? (
-                <div className="mt-4 rounded-xl border border-rose-400/40 bg-rose-500/10 px-3 py-3 text-sm text-rose-100">
-                  {relationshipError}
-                </div>
-              ) : relationshipSummary ? (
-                <>
-                  <div className="mt-4 flex flex-wrap items-end gap-4">
-                    <div className="flex items-end gap-2">
-                      <p className="text-5xl font-black text-white">{relationshipSummary.score}</p>
-                      <p className="pb-1 text-sm text-slate-400">/100</p>
-                    </div>
-                    <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${riskBadgeClass(relationshipSummary.riskLevel)}`}>
-                      {relationshipSummary.riskLabel}
-                    </span>
-                    <span className="text-xs text-slate-400">
-                      {relationshipSummary.deltaScore === null
-                        ? "Sem base anterior"
-                        : `Variacao: ${relationshipSummary.deltaScore > 0 ? "+" : ""}${relationshipSummary.deltaScore} ponto(s)`}
-                    </span>
-                  </div>
-
-                  <div className="mt-4 space-y-2">
-                    {pillarMeta.map((pillar) => {
-                      const score = relationshipSummary.pillars[pillar.key];
-                      return (
-                        <div key={pillar.key}>
-                          <div className="mb-1 flex items-center justify-between text-xs">
-                            <span className="text-slate-300">{pillar.label}</span>
-                            <span className="font-semibold text-slate-100">{score}</span>
-                          </div>
-                          <div className="h-2 rounded-full bg-slate-900">
-                            <div
-                              className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-violet-500"
-                              style={{ width: `${score}%` }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                    <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2">
-                      <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Uso de limite</p>
-                      <p className="text-sm font-semibold text-slate-100">
-                        {relationshipSummary.indicators.cardLimitUtilizationPct.toFixed(1).replace(".", ",")}%
-                      </p>
-                    </div>
-                    <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2">
-                      <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Pontualidade</p>
-                      <p className="text-sm font-semibold text-slate-100">
-                        {relationshipSummary.indicators.onTimePaymentRate.toFixed(1).replace(".", ",")}%
-                      </p>
-                    </div>
-                    <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2">
-                      <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Investimentos ativos</p>
-                      <p className="text-sm font-semibold text-slate-100">
-                        {relationshipSummary.indicators.activeInvestments}
-                      </p>
-                    </div>
-                    <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2">
-                      <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Poupanca no mes</p>
-                      <p className="text-sm font-semibold text-slate-100">
-                        {relationshipSummary.indicators.savingsRatePct === null
-                          ? "-"
-                          : `${relationshipSummary.indicators.savingsRatePct.toFixed(1).replace(".", ",")}%`}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 rounded-xl border border-white/10 bg-black/25 px-3 py-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Historico recente</p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {relationshipHistory.slice(0, 8).map((item) => (
-                        <div key={`${item.reference_date}-${item.score}`} className="rounded-lg border border-white/10 bg-slate-900/50 px-2 py-1 text-xs text-slate-200">
-                          {formatShortDate(item.reference_date)}: <span className="font-semibold">{item.score}</span>
-                        </div>
-                      ))}
-                      {!relationshipHistory.length ? (
-                        <span className="text-xs text-slate-400">Sem historico ainda.</span>
-                      ) : null}
-                    </div>
-                  </div>
-                </>
-              ) : null}
-            </article>
-
-            <article className={`${ULTRA_SECTION_CLASS} p-5`}>
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="inline-flex items-center gap-2 text-lg font-bold text-white">
-                    <Sparkles className="h-5 w-5 text-violet-300" />
-                    Alertas e Recomendacoes
-                  </h2>
-                  <p className="text-xs text-slate-400">
-                    Acoes praticas para melhorar score bancario e evitar riscos.
-                  </p>
-                </div>
                 <button
                   type="button"
                   className="inline-flex items-center gap-2 rounded-lg border border-violet-400/30 bg-violet-500/15 px-3 py-1.5 text-xs font-semibold text-violet-100 hover:bg-violet-500/25 disabled:opacity-60"
@@ -1043,79 +910,57 @@ export default function CardsPage() {
                   {relationshipRunning ? "Recalculando..." : "Recalcular"}
                 </button>
               </div>
+            </div>
 
-              {relationshipSummary?.riskAlerts.length ? (
-                <div className="mt-4 space-y-2">
-                  {relationshipSummary.riskAlerts.slice(0, 4).map((risk) => (
-                    <div
-                      key={`${risk.code}-${risk.title}`}
-                      className={`rounded-xl border px-3 py-2 ${
-                        risk.severity === "critical"
-                          ? "border-rose-400/40 bg-rose-500/10 text-rose-100"
-                          : "border-amber-400/40 bg-amber-500/10 text-amber-100"
-                      }`}
-                    >
-                      <p className="inline-flex items-center gap-2 text-sm font-semibold">
-                        <TriangleAlert className="h-4 w-4" />
-                        {risk.title}
-                      </p>
-                      <p className="mt-1 text-xs">{risk.body}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-3 text-sm text-emerald-100">
-                  Nenhum risco critico detectado no momento.
-                </div>
-              )}
-
-              <div className="mt-4 space-y-2">
-                {(relationshipSummary?.recommendations || []).slice(0, 4).map((tip) => (
-                  <div key={`tip-${tip.slice(0, 24)}`} className="rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-3 py-2 text-sm text-cyan-100">
-                    {tip}
-                  </div>
-                ))}
-                {(relationshipSummary?.aiRecommendations || []).slice(0, 3).map((tip) => (
-                  <div key={`ai-${tip.slice(0, 24)}`} className="rounded-xl border border-violet-400/30 bg-violet-500/10 px-3 py-2 text-sm text-violet-100">
-                    {tip}
-                  </div>
-                ))}
+            {relationshipLoading ? (
+              <div className="mt-3 rounded-xl border border-white/10 bg-black/25 px-3 py-3 text-sm text-slate-300">
+                Carregando indicadores...
               </div>
-
-              {relationshipSummary ? (
-                <div className="mt-4 grid gap-2 sm:grid-cols-2 text-xs">
-                  <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-slate-300">
-                    <p className="text-slate-400">Despesa atual</p>
-                    <p className="font-semibold text-slate-100">{brl(relationshipSummary.indicators.expenseCurrentMonth)}</p>
-                  </div>
-                  <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-slate-300">
-                    <p className="text-slate-400">Receita atual</p>
-                    <p className="font-semibold text-slate-100">{brl(relationshipSummary.indicators.incomeCurrentMonth)}</p>
-                  </div>
-                  <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-slate-300">
-                    <p className="text-slate-400">Delta de gastos</p>
-                    <p className="font-semibold text-slate-100">
-                      {relationshipSummary.indicators.expenseDeltaPct === null
-                        ? "-"
-                        : `${relationshipSummary.indicators.expenseDeltaPct > 0 ? "+" : ""}${relationshipSummary.indicators.expenseDeltaPct.toFixed(1).replace(".", ",")}%`}
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-slate-300">
-                    <p className="text-slate-400">Status do score</p>
-                    <p className="inline-flex items-center gap-1 font-semibold text-slate-100">
-                      {relationshipSummary.deltaScore !== null && relationshipSummary.deltaScore < 0 ? (
-                        <TrendingDown className="h-3.5 w-3.5 text-rose-300" />
-                      ) : (
-                        <TrendingUp className="h-3.5 w-3.5 text-emerald-300" />
-                      )}
-                      {relationshipSummary.deltaScore === null
-                        ? "Sem comparacao"
-                        : `${relationshipSummary.deltaScore > 0 ? "+" : ""}${relationshipSummary.deltaScore}`}
-                    </p>
-                  </div>
+            ) : relationshipError ? (
+              <div className="mt-3 rounded-xl border border-rose-400/40 bg-rose-500/10 px-3 py-3 text-sm text-rose-100">
+                {relationshipError}
+              </div>
+            ) : relationshipSummary ? (
+              <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5 text-xs">
+                <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-slate-300">
+                  <p className="text-slate-400">Status do score</p>
+                  <p className="inline-flex items-center gap-1 font-semibold text-slate-100">
+                    {relationshipSummary.deltaScore !== null && relationshipSummary.deltaScore < 0 ? (
+                      <TrendingDown className="h-3.5 w-3.5 text-rose-300" />
+                    ) : (
+                      <TrendingUp className="h-3.5 w-3.5 text-emerald-300" />
+                    )}
+                    {relationshipSummary.deltaScore === null
+                      ? "Sem comparacao"
+                      : `${relationshipSummary.deltaScore > 0 ? "+" : ""}${relationshipSummary.deltaScore}`}
+                  </p>
                 </div>
-              ) : null}
-            </article>
+                <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-slate-300">
+                  <p className="text-slate-400">Uso de limite</p>
+                  <p className="font-semibold text-slate-100">
+                    {relationshipSummary.indicators.cardLimitUtilizationPct.toFixed(1).replace(".", ",")}%
+                  </p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-slate-300">
+                  <p className="text-slate-400">Pontualidade</p>
+                  <p className="font-semibold text-slate-100">
+                    {relationshipSummary.indicators.onTimePaymentRate.toFixed(1).replace(".", ",")}%
+                  </p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-slate-300">
+                  <p className="text-slate-400">Despesa atual</p>
+                  <p className="font-semibold text-slate-100">
+                    {brl(relationshipSummary.indicators.expenseCurrentMonth)}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-slate-300">
+                  <p className="text-slate-400">Receita atual</p>
+                  <p className="font-semibold text-slate-100">
+                    {brl(relationshipSummary.indicators.incomeCurrentMonth)}
+                  </p>
+                </div>
+              </div>
+            ) : null}
           </section>
 
           <section className={`${ULTRA_SECTION_CLASS} p-6`}>

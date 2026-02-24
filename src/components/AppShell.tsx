@@ -207,15 +207,25 @@ export const AppShell = ({
   const knownNotificationIdsRef = useRef<Set<string>>(new Set());
   const hasLoadedNotificationsRef = useRef(false);
   const bellBlinkIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const notificationAudioContextRef = useRef<AudioContext | null>(null);
+
+  const getNotificationAudioContext = useCallback(() => {
+    if (typeof window === "undefined") return null;
+    const AudioContextCtor = window.AudioContext
+      || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextCtor) return null;
+
+    if (!notificationAudioContextRef.current || notificationAudioContextRef.current.state === "closed") {
+      notificationAudioContextRef.current = new AudioContextCtor();
+    }
+
+    return notificationAudioContextRef.current;
+  }, []);
 
   const playNotificationTone = useCallback(() => {
-    if (typeof window === "undefined") return;
     try {
-      const AudioContextCtor = window.AudioContext
-        || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (!AudioContextCtor) return;
-
-      const context = new AudioContextCtor();
+      const context = getNotificationAudioContext();
+      if (!context) return;
       if (context.state === "suspended") {
         void context.resume();
       }
@@ -236,14 +246,10 @@ export const AppShell = ({
         osc.start(start);
         osc.stop(start + 0.12);
       });
-
-      window.setTimeout(() => {
-        void context.close();
-      }, 500);
     } catch {
       // best effort: if browser blocks autoplay audio, silently ignore
     }
-  }, []);
+  }, [getNotificationAudioContext]);
 
   const startBellBlink = useCallback(() => {
     if (bellBlinkIntervalRef.current) {
@@ -438,10 +444,33 @@ export const AppShell = ({
   }, [desktopNavCollapsed]);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const unlockNotificationAudio = () => {
+      const context = getNotificationAudioContext();
+      if (!context || context.state !== "suspended") return;
+      void context.resume();
+    };
+
+    window.addEventListener("pointerdown", unlockNotificationAudio, { passive: true });
+    window.addEventListener("keydown", unlockNotificationAudio);
+
     return () => {
-      if (!bellBlinkIntervalRef.current) return;
-      clearInterval(bellBlinkIntervalRef.current);
-      bellBlinkIntervalRef.current = null;
+      window.removeEventListener("pointerdown", unlockNotificationAudio);
+      window.removeEventListener("keydown", unlockNotificationAudio);
+    };
+  }, [getNotificationAudioContext]);
+
+  useEffect(() => {
+    return () => {
+      if (bellBlinkIntervalRef.current) {
+        clearInterval(bellBlinkIntervalRef.current);
+        bellBlinkIntervalRef.current = null;
+      }
+      if (notificationAudioContextRef.current && notificationAudioContextRef.current.state !== "closed") {
+        void notificationAudioContextRef.current.close();
+      }
+      notificationAudioContextRef.current = null;
     };
   }, []);
 
@@ -491,12 +520,24 @@ export const AppShell = ({
       onClick={() => setNotificationsOpen((prev) => !prev)}
       className={`relative h-11 w-11 rounded-full border flex items-center justify-center transition ${
         notificationBellBlink
-          ? "border-cyan-300/85 bg-cyan-500/20 text-cyan-100 shadow-[0_0_16px_rgba(34,211,238,0.6)]"
+          ? "border-rose-300/90 bg-rose-500/20 text-rose-100 shadow-[0_0_18px_rgba(251,113,133,0.85)]"
           : "border-violet-300/20 bg-violet-950/45 text-violet-100 hover:border-violet-200/35 hover:bg-violet-900/45"
       }`}
       aria-label="Notificacoes"
     >
-      <BellRing className="h-5 w-5" />
+      {notificationBellBlink ? (
+        <>
+          <span
+            aria-hidden
+            className="pointer-events-none absolute -inset-[3px] rounded-full border border-rose-300/80"
+          />
+          <span
+            aria-hidden
+            className="pointer-events-none absolute -inset-[7px] rounded-full border border-rose-500/45"
+          />
+        </>
+      ) : null}
+      <BellRing className="relative z-10 h-5 w-5" />
       {unreadNotificationsCount > 0 ? (
         <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-rose-400" />
       ) : null}
