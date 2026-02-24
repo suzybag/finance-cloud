@@ -409,7 +409,7 @@ export const DashboardSummaryScreen = () => {
   };
 
   const actions = (
-    <div className="flex items-center gap-2">
+    <div className="flex w-full flex-wrap items-center gap-2">
       <button
         type="button"
         className="rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2 text-xs font-semibold text-slate-100 transition hover:bg-slate-900/55"
@@ -536,13 +536,13 @@ export const DashboardSummaryScreen = () => {
               </p>
 
               {market.cryptos.list.length ? (
-                <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+                <div className="mt-4 grid grid-cols-2 gap-2 sm:flex sm:gap-2 sm:overflow-x-auto sm:pb-1">
                   {market.cryptos.list.slice(0, 5).map((coin) => {
                     const positive = coin.changePct24h >= 0;
                     return (
                       <div
                         key={coin.id}
-                        className="min-w-[140px] rounded-xl border border-white/10 bg-[#0e141d] px-3 py-2"
+                        className="min-w-0 rounded-xl border border-white/10 bg-[#0e141d] px-3 py-2 sm:min-w-[140px]"
                       >
                         <div className="flex items-center justify-between text-[11px]">
                           <span className="font-semibold text-slate-300">{coin.symbol}</span>
@@ -640,7 +640,7 @@ export const DashboardSummaryScreen = () => {
             </div>
           </section>
 
-          <div className="flex flex-wrap justify-end">{actions}</div>
+          <div className="flex flex-wrap justify-start sm:justify-end">{actions}</div>
 
           <section className="grid gap-4 md:grid-cols-3">
             <MetricCard
