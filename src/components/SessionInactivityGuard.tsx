@@ -35,20 +35,28 @@ export const SessionInactivityGuard = () => {
     };
 
     const runIdleLogout = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!mounted || !data.session) return;
-      await supabase.auth.signOut();
-      window.location.replace("/?reason=idle");
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!mounted || !data.session) return;
+        await supabase.auth.signOut();
+        window.location.replace("/?reason=idle");
+      } catch {
+        // best effort guard: if session lookup fails, keep app running
+      }
     };
 
     const schedule = async () => {
-      const { data } = await supabase.auth.getSession();
-      clearTimer();
-      if (!mounted || !data.session) return;
+      try {
+        const { data } = await supabase.auth.getSession();
+        clearTimer();
+        if (!mounted || !data.session) return;
 
-      timerRef.current = window.setTimeout(() => {
-        void runIdleLogout();
-      }, idleTimeoutMs);
+        timerRef.current = window.setTimeout(() => {
+          void runIdleLogout();
+        }, idleTimeoutMs);
+      } catch {
+        clearTimer();
+      }
     };
 
     const markActivity = () => {

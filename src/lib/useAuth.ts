@@ -13,12 +13,20 @@ export const useRequireAuth = () => {
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return;
-      setSession(data.session);
-      setLoading(false);
-      if (!data.session) router.replace("/");
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (!mounted) return;
+        setSession(data.session);
+        setLoading(false);
+        if (!data.session) router.replace("/");
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setSession(null);
+        setLoading(false);
+        router.replace("/");
+      });
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (_event, nextSession) => {

@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -70,68 +69,78 @@ export const useDashboardSummary = () => {
     setLoading(true);
     setMessage(null);
 
-    const [result, installmentRes, recurringRes, planningRes] = await Promise.all([
-      loadDashboardData(),
-      supabase.from("installments").select("*").order("created_at", { ascending: false }),
-      supabase.from("recurring_subscriptions").select("*").order("created_at", { ascending: false }),
-      supabase.from("financial_planning").select("*").order("created_at", { ascending: false }),
-    ]);
+    try {
+      const [result, installmentRes, recurringRes, planningRes] = await Promise.all([
+        loadDashboardData(),
+        supabase.from("installments").select("*").order("created_at", { ascending: false }),
+        supabase.from("recurring_subscriptions").select("*").order("created_at", { ascending: false }),
+        supabase.from("financial_planning").select("*").order("created_at", { ascending: false }),
+      ]);
 
-    if (installmentRes.error) {
+      if (installmentRes.error) {
+        setInstallments([]);
+        if (!isMissingInstallmentsTableError(installmentRes.error.message)) {
+          setMessage(`Parcelas indisponiveis: ${installmentRes.error.message}`);
+        }
+      } else {
+        const normalized = ((installmentRes.data || []) as Partial<InstallmentRow>[])
+          .map((row) => normalizeInstallmentRow(row))
+          .filter((row) => row.id && row.user_id);
+        setInstallments(normalized);
+      }
+
+      if (recurringRes.error) {
+        setRecurringSubscriptions([]);
+        if (!isMissingRecurringSubscriptionsTableError(recurringRes.error.message)) {
+          setMessage((prev) =>
+            prev
+              ? `${prev} | Assinaturas indisponiveis: ${recurringRes.error?.message}`
+              : `Assinaturas indisponiveis: ${recurringRes.error?.message}`,
+          );
+        }
+      } else {
+        const normalized = ((recurringRes.data || []) as Partial<RecurringSubscriptionRow>[])
+          .map((row) => normalizeRecurringSubscriptionRow(row))
+          .filter((row) => row.id && row.user_id);
+        setRecurringSubscriptions(normalized);
+      }
+
+      if (planningRes.error) {
+        setPlanningGoals([]);
+        if (!isMissingPlanningTableError(planningRes.error.message)) {
+          setMessage((prev) =>
+            prev
+              ? `${prev} | Planejamento indisponivel: ${planningRes.error?.message}`
+              : `Planejamento indisponivel: ${planningRes.error?.message}`,
+          );
+        }
+      } else {
+        const normalized = ((planningRes.data || []) as Partial<DashboardPlanningGoalRow>[])
+          .map((row) => normalizePlanningGoalRow(row))
+          .filter((row) => row.id && row.user_id);
+        setPlanningGoals(normalized);
+      }
+
+      if (result.error || !result.data) {
+        const baseError = result.error || "Falha ao carregar dados.";
+        setMessage((prev) => (prev ? `${baseError} | ${prev}` : baseError));
+        return;
+      }
+
+      setAccounts(result.data.accounts);
+      setCards(result.data.cards);
+      setTransactions(result.data.transactions);
+    } catch {
+      setAccounts([]);
+      setCards([]);
+      setTransactions([]);
       setInstallments([]);
-      if (!isMissingInstallmentsTableError(installmentRes.error.message)) {
-        setMessage(`Parcelas indisponiveis: ${installmentRes.error.message}`);
-      }
-    } else {
-      const normalized = ((installmentRes.data || []) as Partial<InstallmentRow>[])
-        .map((row) => normalizeInstallmentRow(row))
-        .filter((row) => row.id && row.user_id);
-      setInstallments(normalized);
-    }
-
-    if (recurringRes.error) {
       setRecurringSubscriptions([]);
-      if (!isMissingRecurringSubscriptionsTableError(recurringRes.error.message)) {
-        setMessage((prev) =>
-          prev
-            ? `${prev} | Assinaturas indisponiveis: ${recurringRes.error?.message}`
-            : `Assinaturas indisponiveis: ${recurringRes.error?.message}`,
-        );
-      }
-    } else {
-      const normalized = ((recurringRes.data || []) as Partial<RecurringSubscriptionRow>[])
-        .map((row) => normalizeRecurringSubscriptionRow(row))
-        .filter((row) => row.id && row.user_id);
-      setRecurringSubscriptions(normalized);
-    }
-
-    if (planningRes.error) {
       setPlanningGoals([]);
-      if (!isMissingPlanningTableError(planningRes.error.message)) {
-        setMessage((prev) =>
-          prev
-            ? `${prev} | Planejamento indisponivel: ${planningRes.error?.message}`
-            : `Planejamento indisponivel: ${planningRes.error?.message}`,
-        );
-      }
-    } else {
-      const normalized = ((planningRes.data || []) as Partial<DashboardPlanningGoalRow>[])
-        .map((row) => normalizePlanningGoalRow(row))
-        .filter((row) => row.id && row.user_id);
-      setPlanningGoals(normalized);
-    }
-
-    if (result.error || !result.data) {
-      const baseError = result.error || "Falha ao carregar dados.";
-      setMessage((prev) => (prev ? `${baseError} | ${prev}` : baseError));
+      setMessage("Falha ao carregar dados do dashboard no dispositivo.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setAccounts(result.data.accounts);
-    setCards(result.data.cards);
-    setTransactions(result.data.transactions);
-    setLoading(false);
   }, []);
 
   useEffect(() => {

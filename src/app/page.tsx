@@ -72,9 +72,12 @@ export default function LoginPage() {
   useEffect(() => {
     setAuthStorageMode(rememberLogin);
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) router.replace("/dashboard");
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (data.session) router.replace("/dashboard");
+      })
+      .catch(() => null);
   }, [rememberLogin, router]);
 
   useEffect(() => {

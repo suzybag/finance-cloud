@@ -1,8 +1,14 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getStorageItem, removeStorageItem, setStorageItem } from "./safeStorage";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+const sanitizePublicEnv = (value?: string) =>
+  String(value || "")
+    .replace(/\\n/g, "")
+    .replace(/[\r\n]+/g, "")
+    .trim();
+
+const supabaseUrl = sanitizePublicEnv(process.env.NEXT_PUBLIC_SUPABASE_URL);
+const supabaseAnonKey = sanitizePublicEnv(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 const AUTH_STORAGE_MODE_KEY = "finance_auth_storage_mode";
 
 let cachedClient: SupabaseClient | null = null;

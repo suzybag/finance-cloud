@@ -89,49 +89,53 @@ const isCryptoHint = (value?: string | null) =>
   (value || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes("cripto");
 
 const loadCryptoPositions = async (): Promise<CryptoPosition[]> => {
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-  const userId = userData.user?.id ?? null;
-  if (userError || !userId) return [];
+  try {
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    const userId = userData.user?.id ?? null;
+    if (userError || !userId) return [];
 
-  const { data, error } = await supabase
-    .from("investments")
-    .select("category, investment_type, asset_name, quantity, current_amount, operation")
-    .eq("user_id", userId);
+    const { data, error } = await supabase
+      .from("investments")
+      .select("category, investment_type, asset_name, quantity, current_amount, operation")
+      .eq("user_id", userId);
 
-  if (error) return [];
+    if (error) return [];
 
-  const grouped = new Map<string, { quantity: number; notionalBrl: number }>();
-  ((data || []) as InvestmentPositionRow[]).forEach((row) => {
-    const inferredCoinId = resolveCoinGeckoId({
-      symbol: row.asset_name || row.investment_type,
-      name: row.asset_name || row.investment_type,
-      category: row.category,
+    const grouped = new Map<string, { quantity: number; notionalBrl: number }>();
+    ((data || []) as InvestmentPositionRow[]).forEach((row) => {
+      const inferredCoinId = resolveCoinGeckoId({
+        symbol: row.asset_name || row.investment_type,
+        name: row.asset_name || row.investment_type,
+        category: row.category,
+      });
+
+      const explicitCrypto =
+        isCryptoHint(row.category) || isCryptoHint(row.investment_type) || isCryptoHint(row.asset_name);
+
+      if (!inferredCoinId && !explicitCrypto) return;
+      if (!inferredCoinId) return;
+
+      const quantity = Math.abs(toNumber(row.quantity));
+      if (quantity <= 0) return;
+      const signal = row.operation === "venda" ? -1 : 1;
+      const currentAmount = Math.max(0, toNumber(row.current_amount));
+      const prev = grouped.get(inferredCoinId) || { quantity: 0, notionalBrl: 0 };
+      grouped.set(inferredCoinId, {
+        quantity: prev.quantity + quantity * signal,
+        notionalBrl: prev.notionalBrl + currentAmount * signal,
+      });
     });
 
-    const explicitCrypto =
-      isCryptoHint(row.category) || isCryptoHint(row.investment_type) || isCryptoHint(row.asset_name);
-
-    if (!inferredCoinId && !explicitCrypto) return;
-    if (!inferredCoinId) return;
-
-    const quantity = Math.abs(toNumber(row.quantity));
-    if (quantity <= 0) return;
-    const signal = row.operation === "venda" ? -1 : 1;
-    const currentAmount = Math.max(0, toNumber(row.current_amount));
-    const prev = grouped.get(inferredCoinId) || { quantity: 0, notionalBrl: 0 };
-    grouped.set(inferredCoinId, {
-      quantity: prev.quantity + quantity * signal,
-      notionalBrl: prev.notionalBrl + currentAmount * signal,
-    });
-  });
-
-  return Array.from(grouped.entries())
-    .filter(([, data]) => data.quantity > 0)
-    .map(([coinId, data]) => ({
-      coinId,
-      quantity: data.quantity,
-      notionalBrl: Math.max(0, data.notionalBrl),
-    }));
+    return Array.from(grouped.entries())
+      .filter(([, data]) => data.quantity > 0)
+      .map(([coinId, data]) => ({
+        coinId,
+        quantity: data.quantity,
+        notionalBrl: Math.max(0, data.notionalBrl),
+      }));
+  } catch {
+    return [];
+  }
 };
 
 export const useMarketOverview = () => {
@@ -214,8 +218,12 @@ export const useMarketOverview = () => {
   }, [positions]);
 
   const refreshPositions = useCallback(async () => {
-    const loaded = await loadCryptoPositions();
-    setPositions(loaded);
+    try {
+      const loaded = await loadCryptoPositions();
+      setPositions(loaded);
+    } catch {
+      setPositions([]);
+    }
   }, []);
 
   useEffect(() => {
