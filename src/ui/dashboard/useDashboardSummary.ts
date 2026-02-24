@@ -14,6 +14,7 @@ import {
   normalizeRecurringSubscriptionRow,
   type RecurringSubscriptionRow,
 } from "@/lib/recurringSubscriptions";
+import { toNumber } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
 
 const isMissingInstallmentsTableError = (message?: string | null) =>
@@ -24,12 +25,43 @@ const isMissingRecurringSubscriptionsTableError = (message?: string | null) =>
   /relation .*recurring_subscriptions/i.test(message || "")
   || /schema cache/i.test((message || "").toLowerCase());
 
+const isMissingPlanningTableError = (message?: string | null) =>
+  /relation .*financial_planning/i.test(message || "")
+  || /schema cache/i.test((message || "").toLowerCase());
+
+export type DashboardPlanningGoalRow = {
+  id: string;
+  user_id: string;
+  goal_name: string;
+  goal_amount: number;
+  current_amount: number;
+  months: number;
+  is_completed: boolean;
+  completed_at: string | null;
+  created_at: string;
+};
+
+const toSafeMonths = (value: unknown) => Math.max(1, Math.round(toNumber(value) || 1));
+
+const normalizePlanningGoalRow = (row: Partial<DashboardPlanningGoalRow>): DashboardPlanningGoalRow => ({
+  id: String(row.id || ""),
+  user_id: String(row.user_id || ""),
+  goal_name: String(row.goal_name || ""),
+  goal_amount: Math.max(0, toNumber(row.goal_amount)),
+  current_amount: Math.max(0, toNumber(row.current_amount)),
+  months: toSafeMonths(row.months),
+  is_completed: Boolean(row.is_completed),
+  completed_at: row.completed_at || null,
+  created_at: row.created_at || new Date().toISOString(),
+});
+
 export const useDashboardSummary = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [cards, setCards] = useState<Card[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [installments, setInstallments] = useState<InstallmentRow[]>([]);
   const [recurringSubscriptions, setRecurringSubscriptions] = useState<RecurringSubscriptionRow[]>([]);
+  const [planningGoals, setPlanningGoals] = useState<DashboardPlanningGoalRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [period, setPeriod] = useState(monthInputValue());
@@ -38,10 +70,11 @@ export const useDashboardSummary = () => {
     setLoading(true);
     setMessage(null);
 
-    const [result, installmentRes, recurringRes] = await Promise.all([
+    const [result, installmentRes, recurringRes, planningRes] = await Promise.all([
       loadDashboardData(),
       supabase.from("installments").select("*").order("created_at", { ascending: false }),
       supabase.from("recurring_subscriptions").select("*").order("created_at", { ascending: false }),
+      supabase.from("financial_planning").select("*").order("created_at", { ascending: false }),
     ]);
 
     if (installmentRes.error) {
@@ -70,6 +103,22 @@ export const useDashboardSummary = () => {
         .map((row) => normalizeRecurringSubscriptionRow(row))
         .filter((row) => row.id && row.user_id);
       setRecurringSubscriptions(normalized);
+    }
+
+    if (planningRes.error) {
+      setPlanningGoals([]);
+      if (!isMissingPlanningTableError(planningRes.error.message)) {
+        setMessage((prev) =>
+          prev
+            ? `${prev} | Planejamento indisponivel: ${planningRes.error?.message}`
+            : `Planejamento indisponivel: ${planningRes.error?.message}`,
+        );
+      }
+    } else {
+      const normalized = ((planningRes.data || []) as Partial<DashboardPlanningGoalRow>[])
+        .map((row) => normalizePlanningGoalRow(row))
+        .filter((row) => row.id && row.user_id);
+      setPlanningGoals(normalized);
     }
 
     if (result.error || !result.data) {
@@ -103,6 +152,7 @@ export const useDashboardSummary = () => {
     transactions,
     installments,
     recurringSubscriptions,
+    planningGoals,
     summary,
     setPeriod,
     refresh,

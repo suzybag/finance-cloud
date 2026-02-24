@@ -14,7 +14,7 @@ import { computeAccountBalances, computeCardSummary, groupByCategory } from "@/l
 import { useCategoryMetadata } from "@/lib/useCategoryMetadata";
 import { resolveSubscriptionIconPath } from "@/lib/customMedia";
 import { monthInputValue, normalizePeriod } from "@/core/finance/dashboardSummary";
-import { useDashboardSummary } from "./useDashboardSummary";
+import { useDashboardSummary, type DashboardPlanningGoalRow } from "./useDashboardSummary";
 import { useMarketOverview } from "./useMarketOverview";
 import {
   ArrowDownRight,
@@ -120,6 +120,36 @@ const formatBillingCycleLabel = (cycle?: string | null) => {
   if (normalized === "annual") return "anual";
   if (normalized === "weekly") return "semanal";
   return "mensal";
+};
+
+const roundCurrency = (value: number) => Math.round((Number.isFinite(value) ? value : 0) * 100) / 100;
+const addMonths = (date: Date, months: number) => {
+  const copy = new Date(date);
+  copy.setMonth(copy.getMonth() + months);
+  return copy;
+};
+const toSafeGoalMonths = (value: number) => Math.max(1, Math.round(value || 1));
+
+const computePlanningMetrics = (goal: DashboardPlanningGoalRow) => {
+  const goalAmount = Math.max(0, goal.goal_amount);
+  const currentAmount = Math.max(0, goal.current_amount);
+  const months = toSafeGoalMonths(goal.months);
+  const valueRestante = Math.max(0, goalAmount - currentAmount);
+  const valueMonthlyNeeded = months > 0 ? valueRestante / months : valueRestante;
+  const percentual = goalAmount > 0 ? Math.min((currentAmount / goalAmount) * 100, 100) : 0;
+  const isCompleted = goalAmount > 0 && currentAmount >= goalAmount;
+  const baseDate = goal.created_at ? new Date(goal.created_at) : new Date();
+  const forecastDate = isCompleted
+    ? new Date(goal.completed_at || new Date().toISOString())
+    : addMonths(baseDate, months);
+
+  return {
+    valueRestante: roundCurrency(valueRestante),
+    valueMonthlyNeeded: roundCurrency(valueMonthlyNeeded),
+    percentual: Number.isFinite(percentual) ? percentual : 0,
+    isCompleted,
+    forecastDate,
+  };
 };
 
 const normalizeServiceName = (value?: string | null) =>
@@ -281,6 +311,7 @@ export const DashboardSummaryScreen = () => {
     transactions,
     installments,
     recurringSubscriptions,
+    planningGoals,
     summary,
     setPeriod,
     refresh,
@@ -337,6 +368,33 @@ export const DashboardSummaryScreen = () => {
         .slice(0, 4),
     [recurringSummary.active],
   );
+  const planningGoalsWithMetrics = useMemo(
+    () =>
+      planningGoals.map((goal) => ({
+        ...goal,
+        metrics: computePlanningMetrics(goal),
+      })),
+    [planningGoals],
+  );
+  const planningActiveGoals = useMemo(
+    () =>
+      planningGoalsWithMetrics
+        .filter((goal) => !goal.metrics.isCompleted)
+        .sort((a, b) => a.metrics.forecastDate.getTime() - b.metrics.forecastDate.getTime()),
+    [planningGoalsWithMetrics],
+  );
+  const planningCompletedGoals = useMemo(
+    () =>
+      planningGoalsWithMetrics
+        .filter((goal) => goal.metrics.isCompleted)
+        .sort((a, b) => {
+          const left = new Date(b.completed_at || b.created_at).getTime();
+          const right = new Date(a.completed_at || a.created_at).getTime();
+          return left - right;
+        }),
+    [planningGoalsWithMetrics],
+  );
+  const planningHighlightedGoal = planningActiveGoals[0] || planningCompletedGoals[0] || null;
   const marketTimeLabel = market.updatedAt
     ? new Date(market.updatedAt).toLocaleTimeString("pt-BR", {
         hour: "2-digit",
@@ -708,54 +766,116 @@ export const DashboardSummaryScreen = () => {
             </div>
 
             <div className="mb-4 rounded-2xl border border-violet-300/30 bg-[linear-gradient(145deg,rgba(35,16,66,0.86),rgba(16,10,38,0.92))] p-4 shadow-[0_18px_36px_rgba(25,12,58,0.46)]">
-              <div className="flex items-center gap-3">
-                <div className="grid h-12 w-12 place-items-center rounded-2xl border border-violet-300/35 bg-[linear-gradient(150deg,#7c3aed,#c026d3)] text-violet-100 shadow-[0_10px_24px_rgba(124,58,237,0.35)]">
-                  <CalendarDays className="h-6 w-6" />
-                </div>
-                <div>
-                  <p className="text-2xl font-semibold tracking-tight text-slate-50">Assinaturas</p>
-                  <p className="text-sm text-violet-200/85">Gastos recorrentes</p>
-                </div>
-              </div>
-
-              <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/40 p-3">
-                {!recurringTopSubscriptions.length ? (
-                  <p className="text-sm text-slate-300">Sem assinaturas ativas no momento.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {recurringTopSubscriptions.map((item) => {
-                      const visual = getServiceVisual(item.row.name, item.row.icon_path);
-                      const Icon = visual.icon;
-                      return (
-                        <div key={item.row.id} className="flex items-center justify-between gap-2 rounded-lg px-1 py-0.5">
-                          <div className="flex min-w-0 items-center gap-2">
-                            <div className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg border ${visual.tone}`}>
-                              {visual.logoSrc ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                  src={visual.logoSrc}
-                                  alt=""
-                                  className="h-5 w-5 rounded object-contain"
-                                  loading="lazy"
-                                />
-                              ) : (
-                                <Icon className="h-4 w-4" />
-                              )}
-                            </div>
-                            <p className="truncate text-sm text-slate-100">{item.row.name}</p>
-                          </div>
-                          <p className="text-sm font-semibold text-violet-100">{brl(item.metrics.monthlyEquivalent)}</p>
-                        </div>
-                      );
-                    })}
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_290px]">
+                <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-3">
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-12 w-12 place-items-center rounded-2xl border border-violet-300/35 bg-[linear-gradient(150deg,#7c3aed,#c026d3)] text-violet-100 shadow-[0_10px_24px_rgba(124,58,237,0.35)]">
+                      <CalendarDays className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-semibold tracking-tight text-slate-50">Assinaturas</p>
+                      <p className="text-sm text-violet-200/85">Gastos recorrentes</p>
+                    </div>
                   </div>
-                )}
 
-                <div className="my-3 border-t border-white/10" />
-                <div className="flex items-center justify-between text-sm">
-                  <p className="text-slate-400">Total/mes</p>
-                  <p className="text-2xl font-semibold tracking-tight text-violet-100">{brl(recurringSummary.monthlyTotal)}</p>
+                  {!recurringTopSubscriptions.length ? (
+                    <p className="mt-4 text-sm text-slate-300">Sem assinaturas ativas no momento.</p>
+                  ) : (
+                    <div className="mt-4 space-y-2">
+                      {recurringTopSubscriptions.map((item) => {
+                        const visual = getServiceVisual(item.row.name, item.row.icon_path);
+                        const Icon = visual.icon;
+                        return (
+                          <div key={item.row.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg px-1 py-0.5">
+                            <div className="flex min-w-0 items-center gap-2">
+                              <div className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg border ${visual.tone}`}>
+                                {visual.logoSrc ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={visual.logoSrc}
+                                    alt=""
+                                    className="h-5 w-5 rounded object-contain"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <Icon className="h-4 w-4" />
+                                )}
+                              </div>
+                              <p className="truncate text-sm text-slate-100">{item.row.name}</p>
+                            </div>
+                            <p className="pl-3 text-sm font-semibold text-violet-100">{brl(item.metrics.monthlyEquivalent)}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <div className="my-3 border-t border-white/10" />
+                  <div className="flex items-center justify-between text-sm">
+                    <p className="text-slate-400">Total/mes</p>
+                    <p className="text-2xl font-semibold tracking-tight text-violet-100">{brl(recurringSummary.monthlyTotal)}</p>
+                  </div>
                 </div>
+
+                <Link
+                  href="/planning"
+                  className="group rounded-2xl border border-violet-300/30 bg-[linear-gradient(155deg,rgba(18,13,35,0.9),rgba(12,9,24,0.95))] p-4 shadow-[0_14px_30px_rgba(8,5,22,0.45)] transition hover:border-violet-200/45 hover:bg-[linear-gradient(155deg,rgba(26,17,52,0.95),rgba(14,10,29,0.98))]"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.12em] text-violet-200/75">Planejamento</p>
+                      <h3 className="mt-1 text-lg font-semibold text-violet-50">
+                        {planningHighlightedGoal?.goal_name || "Sem meta ativa"}
+                      </h3>
+                    </div>
+                    <div className="grid h-10 w-10 place-items-center rounded-xl border border-violet-300/35 bg-violet-500/14 text-violet-100">
+                      <CalendarDays className="h-5 w-5" />
+                    </div>
+                  </div>
+
+                  {planningHighlightedGoal ? (
+                    <>
+                      <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3">
+                        <div className="flex items-end justify-between gap-2">
+                          <div>
+                            <p className="text-[11px] uppercase tracking-[0.1em] text-slate-400">Progresso</p>
+                            <p className="text-xl font-bold text-violet-100">
+                              {planningHighlightedGoal.metrics.percentual.toFixed(1).replace(".", ",")}%
+                            </p>
+                          </div>
+                          <p className="text-xs text-slate-300">
+                            {brl(planningHighlightedGoal.current_amount)} de {brl(planningHighlightedGoal.goal_amount)}
+                          </p>
+                        </div>
+                        <div className="mt-2 h-2 overflow-hidden rounded-full border border-white/10 bg-slate-800">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-violet-400 via-fuchsia-400 to-indigo-400 transition-[width] duration-700"
+                            style={{ width: `${planningHighlightedGoal.metrics.percentual.toFixed(2)}%` }}
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+                        <div className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-2">
+                          <p className="text-slate-400">Restante</p>
+                          <p className="font-semibold text-slate-100">{brl(planningHighlightedGoal.metrics.valueRestante)}</p>
+                        </div>
+                        <div className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-2">
+                          <p className="text-slate-400">Mensal</p>
+                          <p className="font-semibold text-slate-100">{brl(planningHighlightedGoal.metrics.valueMonthlyNeeded)}</p>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="mt-3 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-slate-300">
+                      Crie uma meta para acompanhar sua evolucao no painel.
+                    </p>
+                  )}
+
+                  <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-violet-200 transition group-hover:text-violet-100">
+                    Abrir planejamento
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </span>
+                </Link>
               </div>
             </div>
 
