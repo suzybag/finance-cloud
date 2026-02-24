@@ -81,6 +81,13 @@ type AlertNotificationRow = {
 const isAlertsTableMissing = (message?: string | null) =>
   /relation .*alerts/i.test(message || "");
 
+const canUseRealtime = () => {
+  if (typeof window === "undefined") return false;
+  if (!("WebSocket" in window)) return false;
+  if (window.isSecureContext === false) return false;
+  return true;
+};
+
 const formatNotificationDate = (value: string) => {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return "Agora";
@@ -372,24 +379,33 @@ export const AppShell = ({
 
   useEffect(() => {
     if (!user?.id) return undefined;
-    const channel = supabase
-      .channel(`alerts-feed-${user.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "alerts",
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          void loadNotifications();
-        },
-      )
-      .subscribe();
+    if (!canUseRealtime()) return undefined;
+
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    try {
+      channel = supabase
+        .channel(`alerts-feed-${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "alerts",
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => {
+            void loadNotifications();
+          },
+        )
+        .subscribe();
+    } catch {
+      return undefined;
+    }
 
     return () => {
-      void supabase.removeChannel(channel);
+      if (channel) {
+        void supabase.removeChannel(channel);
+      }
     };
   }, [loadNotifications, user?.id]);
 

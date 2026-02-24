@@ -80,6 +80,13 @@ type CryptoPosition = {
   notionalBrl: number;
 };
 
+const canUseRealtime = () => {
+  if (typeof window === "undefined") return false;
+  if (!("WebSocket" in window)) return false;
+  if (window.isSecureContext === false) return false;
+  return true;
+};
+
 const toNumber = (value: unknown) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -237,6 +244,8 @@ export const useMarketOverview = () => {
   }, [fetchMarket]);
 
   useEffect(() => {
+    if (!canUseRealtime()) return undefined;
+
     let mounted = true;
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
@@ -245,16 +254,20 @@ export const useMarketOverview = () => {
       const userId = data.user?.id;
       if (!mounted || !userId) return;
 
-      channel = supabase
-        .channel(`dashboard-investments-${userId}`)
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "investments", filter: `user_id=eq.${userId}` },
-          () => {
-            void refreshPositions();
-          },
-        )
-        .subscribe();
+      try {
+        channel = supabase
+          .channel(`dashboard-investments-${userId}`)
+          .on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "investments", filter: `user_id=eq.${userId}` },
+            () => {
+              void refreshPositions();
+            },
+          )
+          .subscribe();
+      } catch {
+        channel = null;
+      }
     };
 
     void initRealtime();
