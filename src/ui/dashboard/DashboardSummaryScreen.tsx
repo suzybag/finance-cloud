@@ -816,6 +816,16 @@ export const DashboardSummaryScreen = () => {
                     <p className="text-slate-400">Total/mes</p>
                     <p className="text-2xl font-semibold tracking-tight text-violet-100">{brl(recurringSummary.monthlyTotal)}</p>
                   </div>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <div className="rounded-lg border border-violet-300/20 bg-violet-500/10 px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-[0.12em] text-violet-100/72">Esquecidas</p>
+                      <p className="mt-1 text-base font-semibold text-violet-50">{recurringSummary.underused.length}</p>
+                    </div>
+                    <div className="rounded-lg border border-violet-300/20 bg-violet-500/10 px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-[0.12em] text-violet-100/72">Previsao 12m</p>
+                      <p className="mt-1 text-base font-semibold text-violet-50">{brl(recurringSummary.forecast12Months)}</p>
+                    </div>
+                  </div>
                 </div>
 
                 <Link
@@ -890,7 +900,7 @@ export const DashboardSummaryScreen = () => {
               </div>
             </div>
 
-            <div className="mb-4 grid gap-3 sm:grid-cols-4">
+            <div className="mb-4 grid gap-3 sm:grid-cols-2">
               <div className="rounded-xl border border-violet-300/20 bg-violet-500/12 p-3">
                 <p className="text-[11px] uppercase tracking-[0.12em] text-violet-100/72">Total mensal</p>
                 <p className="mt-1 text-lg font-semibold text-violet-50">{brl(recurringSummary.monthlyTotal)}</p>
@@ -898,14 +908,6 @@ export const DashboardSummaryScreen = () => {
               <div className="rounded-xl border border-violet-300/20 bg-violet-500/12 p-3">
                 <p className="text-[11px] uppercase tracking-[0.12em] text-violet-100/72">Proximas</p>
                 <p className="mt-1 text-lg font-semibold text-violet-50">{recurringSummary.upcoming.length}</p>
-              </div>
-              <div className="rounded-xl border border-violet-300/20 bg-violet-500/12 p-3">
-                <p className="text-[11px] uppercase tracking-[0.12em] text-violet-100/72">Esquecidas</p>
-                <p className="mt-1 text-lg font-semibold text-violet-50">{recurringSummary.underused.length}</p>
-              </div>
-              <div className="rounded-xl border border-violet-300/20 bg-violet-500/12 p-3">
-                <p className="text-[11px] uppercase tracking-[0.12em] text-violet-100/72">Previsao 12m</p>
-                <p className="mt-1 text-lg font-semibold text-violet-50">{brl(recurringSummary.forecast12Months)}</p>
               </div>
             </div>
 
