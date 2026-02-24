@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, CircleMinus, Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, CircleMinus, ClipboardCheck, Plus, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useConfirmDialog } from "@/context/ConfirmDialogContext";
 import { brl, toNumber } from "@/lib/money";
@@ -19,6 +19,14 @@ type ReceivableRow = {
   created_at: string;
 };
 
+type AbatementHistoryItem = {
+  id: string;
+  amount: number;
+  at: string;
+  remaining_before: number;
+  remaining_after: number;
+};
+
 const SECTION_CLASS =
   "rounded-2xl border border-violet-300/20 bg-[linear-gradient(165deg,rgba(31,18,56,0.94),rgba(12,10,30,0.95))] shadow-[0_16px_42px_rgba(22,10,48,0.55)] backdrop-blur-xl";
 
@@ -32,6 +40,7 @@ const SOFT_BTN_CLASS =
   "inline-flex items-center gap-2 rounded-xl border border-violet-300/20 bg-violet-950/35 px-3 py-2 text-xs font-semibold text-violet-100 transition hover:bg-violet-900/35 disabled:opacity-60";
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
+const ABATEMENTS_MARKER = "__FC_ABATEMENTS__::";
 
 const formatDateLabel = (value: string) => {
   const parsed = new Date(`${value}T00:00:00`);
@@ -41,6 +50,73 @@ const formatDateLabel = (value: string) => {
     month: "2-digit",
     year: "numeric",
   });
+};
+
+const formatDateTimeLabel = (value: string) => {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "-";
+  return parsed.toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const parseDescriptionWithHistory = (raw: string | null) => {
+  const source = raw || "";
+  const markerIndex = source.indexOf(ABATEMENTS_MARKER);
+  if (markerIndex < 0) {
+    return {
+      description: source.trim() || null,
+      abatements: [] as AbatementHistoryItem[],
+    };
+  }
+
+  const visibleDescription = source.slice(0, markerIndex).trim();
+  const historyRaw = source.slice(markerIndex + ABATEMENTS_MARKER.length).trim();
+
+  try {
+    const parsed = JSON.parse(historyRaw);
+    if (!Array.isArray(parsed)) {
+      return {
+        description: visibleDescription || null,
+        abatements: [] as AbatementHistoryItem[],
+      };
+    }
+
+    const abatements = parsed
+      .map((item) => ({
+        id: String(item?.id || ""),
+        amount: Math.abs(toNumber(item?.amount)),
+        at: String(item?.at || ""),
+        remaining_before: Math.abs(toNumber(item?.remaining_before)),
+        remaining_after: Math.abs(toNumber(item?.remaining_after)),
+      }))
+      .filter((item) => item.id && item.amount > 0);
+
+    return {
+      description: visibleDescription || null,
+      abatements,
+    };
+  } catch {
+    return {
+      description: visibleDescription || null,
+      abatements: [] as AbatementHistoryItem[],
+    };
+  }
+};
+
+const buildDescriptionWithHistory = (
+  visibleDescription: string | null,
+  abatements: AbatementHistoryItem[],
+) => {
+  const cleanDescription = (visibleDescription || "").trim();
+  if (!abatements.length) return cleanDescription || null;
+  const payload = JSON.stringify(abatements);
+  return cleanDescription
+    ? `${cleanDescription} ${ABATEMENTS_MARKER}${payload}`
+    : `${ABATEMENTS_MARKER}${payload}`;
 };
 
 export default function ReceberPage() {
@@ -312,12 +388,27 @@ export default function ReceberPage() {
       setAbateError(null);
       setFeedback(null);
 
+      const parsedHistory = parseDescriptionWithHistory(abateTarget.description);
       const nextAmount = Math.max(0, Number((currentAmount - parsedDiscount).toFixed(2)));
       const nextIsReceived = nextAmount === 0 ? true : abateTarget.is_received;
+      const nextAbatements: AbatementHistoryItem[] = [
+        ...parsedHistory.abatements,
+        {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          amount: parsedDiscount,
+          at: new Date().toISOString(),
+          remaining_before: currentAmount,
+          remaining_after: nextAmount,
+        },
+      ];
+      const nextDescription = buildDescriptionWithHistory(
+        parsedHistory.description,
+        nextAbatements,
+      );
 
       const { data, error } = await supabase
         .from("receivables")
-        .update({ amount: nextAmount, is_received: nextIsReceived })
+        .update({ amount: nextAmount, is_received: nextIsReceived, description: nextDescription })
         .eq("id", abateTarget.id)
         .eq("user_id", resolvedUserId)
         .select("id")
@@ -472,30 +563,63 @@ export default function ReceberPage() {
             <p className="mt-3 text-sm text-violet-100/80">Nenhum registro ainda.</p>
           ) : (
             <div className="mt-4 space-y-3">
-              {rows.map((row) => (
-                <article
-                  key={row.id}
-                  className={`rounded-xl border p-4 ${
-                    row.is_received
-                      ? "border-emerald-400/40 bg-emerald-500/10"
-                      : "border-violet-300/20 bg-black/20"
-                  }`}
-                >
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <span className="inline-flex rounded-full border border-violet-300/45 bg-gradient-to-r from-violet-600 via-indigo-500 to-violet-500 px-3.5 py-1.5 shadow-[0_10px_24px_rgba(109,40,217,0.45)]">
-                        <p className="text-base font-bold tracking-tight text-white sm:text-lg">
-                          {row.person_name}
-                        </p>
-                      </span>
-                      <p className="text-xs text-violet-100/70">Data: {formatDateLabel(row.due_date)}</p>
-                      {row.description ? (
-                        <p className="mt-1 text-xs text-violet-100/80">{row.description}</p>
-                      ) : null}
-                    </div>
-                    <div className="flex flex-col items-start gap-2 sm:items-end">
-                      <p className="text-base font-bold text-white">{brl(Math.abs(toNumber(row.amount)))}</p>
-                      <div className="flex gap-2">
+              {rows.map((row) => {
+                const parsed = parseDescriptionWithHistory(row.description);
+                const totalAbatido = parsed.abatements.reduce(
+                  (sum, item) => sum + Math.abs(toNumber(item.amount)),
+                  0,
+                );
+                const hasAbatements = parsed.abatements.length > 0;
+                const latestAbatement = hasAbatements
+                  ? parsed.abatements[parsed.abatements.length - 1]
+                  : null;
+
+                return (
+                  <article
+                    key={row.id}
+                    className={`rounded-xl border p-4 ${
+                      row.is_received
+                        ? "border-emerald-400/40 bg-emerald-500/10"
+                        : "border-violet-300/20 bg-black/20"
+                    }`}
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <span className="inline-flex rounded-full border border-violet-300/45 bg-gradient-to-r from-violet-600 via-indigo-500 to-violet-500 px-3.5 py-1.5 shadow-[0_10px_24px_rgba(109,40,217,0.45)]">
+                          <p className="text-sm font-bold tracking-tight text-white sm:text-base">
+                            {row.person_name}
+                          </p>
+                        </span>
+                        <p className="text-xs text-violet-100/70">Data: {formatDateLabel(row.due_date)}</p>
+                        {parsed.description ? (
+                          <p className="mt-1 text-xs text-violet-100/80">{parsed.description}</p>
+                        ) : null}
+                      </div>
+                      <div className="flex flex-col items-start gap-2 sm:items-end">
+                        <div className="flex items-center gap-2">
+                          {hasAbatements ? (
+                            <span
+                              className="inline-flex items-center gap-1 rounded-full border border-violet-300/35 bg-violet-500/18 px-2 py-0.5 text-[11px] font-semibold text-violet-100"
+                              title={`Total abatido: ${brl(totalAbatido)}`}
+                            >
+                              <ClipboardCheck className="h-3.5 w-3.5" />
+                              Relatorio
+                            </span>
+                          ) : null}
+                          <p className="text-base font-bold text-white">{brl(Math.abs(toNumber(row.amount)))}</p>
+                        </div>
+                        {hasAbatements ? (
+                          <div className="rounded-lg border border-violet-300/25 bg-violet-500/10 px-2.5 py-1 text-[11px] text-violet-100/90">
+                            <p>Total abatido: {brl(totalAbatido)}</p>
+                            {latestAbatement ? (
+                              <p className="text-violet-100/65">
+                                Ultimo abate: {brl(latestAbatement.amount)} em{" "}
+                                {formatDateTimeLabel(latestAbatement.at)}
+                              </p>
+                            ) : null}
+                          </div>
+                        ) : null}
+                        <div className="flex gap-2">
                         {!row.is_received ? (
                           <button
                             type="button"
@@ -529,7 +653,8 @@ export default function ReceberPage() {
                     </div>
                   </div>
                 </article>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>
