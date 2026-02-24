@@ -368,7 +368,13 @@ export default function ReceberPage() {
                 >
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <p className="text-sm font-semibold text-white">{row.person_name}</p>
+                      <p
+                        className={`text-xl font-extrabold tracking-tight sm:text-2xl ${
+                          row.is_received ? "text-emerald-100" : "text-violet-50"
+                        }`}
+                      >
+                        {row.person_name}
+                      </p>
                       <p className="text-xs text-violet-100/70">Data: {formatDateLabel(row.due_date)}</p>
                       {row.description ? (
                         <p className="mt-1 text-xs text-violet-100/80">{row.description}</p>
