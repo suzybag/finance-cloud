@@ -208,6 +208,7 @@ export const AppShell = ({
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationsError, setNotificationsError] = useState<string | null>(null);
   const [notificationBellBlink, setNotificationBellBlink] = useState(false);
+  const [notificationsDropdownTop, setNotificationsDropdownTop] = useState<number | null>(null);
   const [desktopNavCollapsed, setDesktopNavCollapsed] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const notificationsRef = useRef<HTMLDivElement | null>(null);
@@ -282,6 +283,27 @@ export const AppShell = ({
         return next;
       });
     }, 180);
+  }, []);
+
+  const syncNotificationsDropdownPosition = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const isMobileViewport = window.matchMedia("(max-width: 639px)").matches;
+    if (!isMobileViewport) {
+      setNotificationsDropdownTop(null);
+      return;
+    }
+
+    const anchor = notificationsRef.current;
+    if (!anchor) return;
+    const rect = anchor.getBoundingClientRect();
+    const viewportTopOffset = window.visualViewport?.offsetTop || 0;
+    const minTop = Math.max(56, viewportTopOffset + 8);
+    const estimatedPanelHeight = 430;
+    const bottomReserve = 110;
+    const preferredTop = rect.bottom + 8;
+    const maxTop = Math.max(minTop, window.innerHeight - estimatedPanelHeight - bottomReserve);
+    const nextTop = Math.max(minTop, Math.min(preferredTop, maxTop));
+    setNotificationsDropdownTop(nextTop);
   }, []);
 
   const displayName = profileName || user?.email?.split("@")[0] || "Usuario";
@@ -449,6 +471,27 @@ export const AppShell = ({
   }, [notificationsOpen]);
 
   useEffect(() => {
+    if (!notificationsOpen) return undefined;
+    syncNotificationsDropdownPosition();
+
+    const reposition = () => {
+      syncNotificationsDropdownPosition();
+    };
+
+    window.addEventListener("resize", reposition, { passive: true });
+    window.addEventListener("scroll", reposition, { passive: true });
+    window.visualViewport?.addEventListener("resize", reposition);
+    window.visualViewport?.addEventListener("scroll", reposition);
+
+    return () => {
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("scroll", reposition);
+      window.visualViewport?.removeEventListener("resize", reposition);
+      window.visualViewport?.removeEventListener("scroll", reposition);
+    };
+  }, [notificationsOpen, syncNotificationsDropdownPosition]);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
     const saved = getStorageItem(DESKTOP_NAV_COLLAPSED_KEY, "local");
     if (saved === "1") setDesktopNavCollapsed(true);
@@ -562,10 +605,13 @@ export const AppShell = ({
   );
 
   const renderNotificationsDropdown = () => (
-    <div className="absolute right-0 z-50 mt-2 w-[min(22rem,calc(100vw-1.5rem))] max-w-[22rem] overflow-hidden rounded-2xl border border-violet-300/25 bg-[linear-gradient(170deg,rgba(19,15,37,0.98),rgba(8,7,20,0.98))] shadow-[0_24px_60px_rgba(5,3,16,0.65)] backdrop-blur-2xl">
-      <div className="flex items-center justify-between border-b border-violet-300/15 px-4 py-3">
+    <div
+      className="fixed inset-x-2 z-50 overflow-hidden rounded-2xl border border-violet-300/25 bg-[linear-gradient(170deg,rgba(19,15,37,0.98),rgba(8,7,20,0.98))] shadow-[0_24px_60px_rgba(5,3,16,0.65)] backdrop-blur-2xl sm:absolute sm:right-0 sm:inset-x-auto sm:mt-2 sm:w-[22rem] sm:max-w-[22rem]"
+      style={notificationsDropdownTop !== null ? { top: `${notificationsDropdownTop}px` } : undefined}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-violet-300/15 px-4 py-3">
         <h3 className="text-sm font-semibold text-violet-100">Notificacoes</h3>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <span className="rounded-full border border-violet-300/30 bg-violet-500/20 px-2 py-0.5 text-[11px] font-semibold text-violet-100">
             {unreadNotificationsCount} novas
           </span>
@@ -583,7 +629,7 @@ export const AppShell = ({
         </div>
       </div>
 
-      <div className="max-h-72 space-y-2 overflow-y-auto px-3 py-3">
+      <div className="max-h-[min(58vh,24rem)] space-y-2 overflow-y-auto px-3 py-3 sm:max-h-72">
         {notificationsLoading ? (
           <div className="rounded-xl border border-violet-300/12 bg-white/[0.03] px-3 py-3 text-xs text-violet-100/70">
             Carregando notificacoes...
