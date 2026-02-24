@@ -1163,18 +1163,18 @@ export default function NotesPage() {
                           </p>
                           {hasImage ? (
                             coverUrl ? (
-                              <span className="inline-flex h-9 w-9 overflow-hidden rounded-lg border border-amber-300/35 bg-black/35 p-0.5 shadow-[0_6px_20px_rgba(245,158,11,0.25)]">
+                              <span className="inline-flex h-12 w-12 overflow-hidden rounded-xl border border-amber-300/35 bg-black/35 p-0.5 shadow-[0_6px_20px_rgba(245,158,11,0.25)]">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                   src={coverUrl}
                                   alt={`Capa da nota ${getNoteCardTitle(note)}`}
                                   loading="lazy"
-                                  className="h-full w-full rounded-md object-cover"
+                                  className="h-full w-full rounded-lg object-cover"
                                 />
                               </span>
                             ) : (
-                              <span className="inline-flex items-center rounded-lg border border-amber-300/30 bg-amber-500/10 p-1 text-amber-200">
-                                <ImageIcon className="h-3 w-3" />
+                              <span className="inline-flex items-center rounded-xl border border-amber-300/30 bg-amber-500/10 p-1.5 text-amber-200">
+                                <ImageIcon className="h-4 w-4" />
                               </span>
                             )
                           ) : null}
