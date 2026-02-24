@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, CircleMinus, Plus, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useConfirmDialog } from "@/context/ConfirmDialogContext";
 import { brl, toNumber } from "@/lib/money";
@@ -57,6 +57,10 @@ export default function ReceberPage() {
   const [amount, setAmount] = useState("");
   const [dueDate, setDueDate] = useState(todayIso());
   const [description, setDescription] = useState("");
+  const [abateTarget, setAbateTarget] = useState<ReceivableRow | null>(null);
+  const [abateValue, setAbateValue] = useState("");
+  const [abateError, setAbateError] = useState<string | null>(null);
+  const [abating, setAbating] = useState(false);
 
   const ensureUserId = async () => {
     if (userId) return userId;
@@ -272,6 +276,77 @@ export default function ReceberPage() {
     }
   };
 
+  const openAbatimento = (row: ReceivableRow) => {
+    setAbateTarget(row);
+    setAbateValue("");
+    setAbateError(null);
+  };
+
+  const closeAbatimento = () => {
+    setAbateTarget(null);
+    setAbateValue("");
+    setAbateError(null);
+    setAbating(false);
+  };
+
+  const handleApplyAbatimento = async () => {
+    if (!abateTarget) return;
+
+    const resolvedUserId = await ensureUserId();
+    if (!resolvedUserId) return;
+
+    const currentAmount = Math.abs(toNumber(abateTarget.amount));
+    const parsedDiscount = Math.abs(toNumber(abateValue));
+
+    if (!Number.isFinite(parsedDiscount) || parsedDiscount <= 0) {
+      setAbateError("Informe um valor valido maior que zero.");
+      return;
+    }
+    if (parsedDiscount > currentAmount) {
+      setAbateError("O valor abatido nao pode ser maior que o saldo.");
+      return;
+    }
+
+    try {
+      setAbating(true);
+      setAbateError(null);
+      setFeedback(null);
+
+      const nextAmount = Math.max(0, Number((currentAmount - parsedDiscount).toFixed(2)));
+      const nextIsReceived = nextAmount === 0 ? true : abateTarget.is_received;
+
+      const { data, error } = await supabase
+        .from("receivables")
+        .update({ amount: nextAmount, is_received: nextIsReceived })
+        .eq("id", abateTarget.id)
+        .eq("user_id", resolvedUserId)
+        .select("id")
+        .maybeSingle();
+
+      if (error) {
+        setAbating(false);
+        setAbateError(`Nao foi possivel abater: ${error.message}`);
+        return;
+      }
+      if (!data) {
+        setAbating(false);
+        setAbateError("Registro nao encontrado.");
+        return;
+      }
+
+      closeAbatimento();
+      setFeedback(
+        `Abatido ${brl(parsedDiscount)} de ${abateTarget.person_name}. Novo saldo: ${brl(nextAmount)}.`,
+      );
+      await loadRows(resolvedUserId);
+    } catch (error) {
+      setAbating(false);
+      setAbateError(
+        `Falha inesperada ao abater: ${error instanceof Error ? error.message : "erro desconhecido"}`,
+      );
+    }
+  };
+
   return (
     <AppShell
       title="Receber"
@@ -288,6 +363,46 @@ export default function ReceberPage() {
       )}
     >
       <div className="space-y-5">
+        {abateTarget ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+            <div className={`${SECTION_CLASS} w-full max-w-md p-5`}>
+              <h3 className="text-lg font-bold text-white">Abater saldo</h3>
+              <p className="mt-1 text-sm text-violet-100/80">
+                {abateTarget.person_name} - Saldo atual: {brl(Math.abs(toNumber(abateTarget.amount)))}
+              </p>
+
+              <div className="mt-4">
+                <input
+                  className={INPUT_CLASS}
+                  placeholder="Ex: 30,00"
+                  value={abateValue}
+                  onChange={(event) => setAbateValue(event.target.value)}
+                />
+              </div>
+
+              {abateError ? (
+                <div className="mt-3 rounded-lg border border-rose-500/40 bg-rose-950/40 px-3 py-2 text-xs text-rose-200">
+                  {abateError}
+                </div>
+              ) : null}
+
+              <div className="mt-4 flex justify-end gap-2">
+                <button type="button" className={SOFT_BTN_CLASS} onClick={closeAbatimento} disabled={abating}>
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className={PRIMARY_BTN_CLASS}
+                  onClick={() => void handleApplyAbatimento()}
+                  disabled={abating}
+                >
+                  {abating ? "Aplicando..." : "Aplicar abatimento"}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         {feedback ? (
           <div className="rounded-xl border border-violet-300/30 bg-violet-950/35 px-4 py-3 text-sm text-violet-100">
             {feedback}
@@ -383,6 +498,17 @@ export default function ReceberPage() {
                     <div className="flex flex-col items-start gap-2 sm:items-end">
                       <p className="text-base font-bold text-white">{brl(Math.abs(toNumber(row.amount)))}</p>
                       <div className="flex gap-2">
+                        {!row.is_received ? (
+                          <button
+                            type="button"
+                            className={SOFT_BTN_CLASS}
+                            onClick={() => openAbatimento(row)}
+                            disabled={busyId === row.id}
+                          >
+                            <CircleMinus className="h-3.5 w-3.5" />
+                            Abater saldo
+                          </button>
+                        ) : null}
                         <button
                           type="button"
                           className={SOFT_BTN_CLASS}
