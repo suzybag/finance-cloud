@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
+import { AnimatedCircularProgressBar } from "@/components/AnimatedCircularProgressBar";
 import { AppShell } from "@/components/AppShell";
 import { BankLogo } from "@/components/BankLogo";
 import { CategoryIcon } from "@/components/CategoryIcon";
@@ -766,7 +767,7 @@ export const DashboardSummaryScreen = () => {
             </div>
 
             <div className="mb-4 rounded-2xl border border-violet-300/30 bg-[linear-gradient(145deg,rgba(35,16,66,0.86),rgba(16,10,38,0.92))] p-4 shadow-[0_18px_36px_rgba(25,12,58,0.46)]">
-              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_290px]">
+              <div className="grid gap-4 xl:grid-cols-2">
                 <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-3">
                   <div className="flex items-center gap-3">
                     <div className="grid h-12 w-12 place-items-center rounded-2xl border border-violet-300/35 bg-[linear-gradient(150deg,#7c3aed,#c026d3)] text-violet-100 shadow-[0_10px_24px_rgba(124,58,237,0.35)]">
@@ -786,7 +787,7 @@ export const DashboardSummaryScreen = () => {
                         const visual = getServiceVisual(item.row.name, item.row.icon_path);
                         const Icon = visual.icon;
                         return (
-                          <div key={item.row.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg px-1 py-0.5">
+                          <div key={item.row.id} className="grid grid-cols-[minmax(0,1fr)_96px] items-center gap-2 rounded-lg px-1 py-0.5">
                             <div className="flex min-w-0 items-center gap-2">
                               <div className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg border ${visual.tone}`}>
                                 {visual.logoSrc ? (
@@ -803,7 +804,7 @@ export const DashboardSummaryScreen = () => {
                               </div>
                               <p className="truncate text-sm text-slate-100">{item.row.name}</p>
                             </div>
-                            <p className="pl-3 text-sm font-semibold text-violet-100">{brl(item.metrics.monthlyEquivalent)}</p>
+                            <p className="text-right text-sm font-semibold text-violet-100">{brl(item.metrics.monthlyEquivalent)}</p>
                           </div>
                         );
                       })}
@@ -836,16 +837,26 @@ export const DashboardSummaryScreen = () => {
                   {planningHighlightedGoal ? (
                     <>
                       <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3">
-                        <div className="flex items-end justify-between gap-2">
+                        <div className="grid gap-3 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
+                          <div className="mx-auto sm:mx-0">
+                            <AnimatedCircularProgressBar
+                              value={planningHighlightedGoal.metrics.percentual}
+                              size={96}
+                              strokeWidth={9}
+                              gaugePrimaryColor="rgb(139 92 246)"
+                              gaugeSecondaryColor="rgba(148, 163, 184, 0.2)"
+                              valueClassName="text-base"
+                            />
+                          </div>
                           <div>
                             <p className="text-[11px] uppercase tracking-[0.1em] text-slate-400">Progresso</p>
                             <p className="text-xl font-bold text-violet-100">
                               {planningHighlightedGoal.metrics.percentual.toFixed(1).replace(".", ",")}%
                             </p>
+                            <p className="mt-1 text-xs text-slate-300">
+                              {brl(planningHighlightedGoal.current_amount)} de {brl(planningHighlightedGoal.goal_amount)}
+                            </p>
                           </div>
-                          <p className="text-xs text-slate-300">
-                            {brl(planningHighlightedGoal.current_amount)} de {brl(planningHighlightedGoal.goal_amount)}
-                          </p>
                         </div>
                         <div className="mt-2 h-2 overflow-hidden rounded-full border border-white/10 bg-slate-800">
                           <div
