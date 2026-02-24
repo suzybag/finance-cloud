@@ -19,6 +19,8 @@ import { useMarketOverview } from "./useMarketOverview";
 import {
   ArrowDownRight,
   ArrowUpRight,
+  Briefcase,
+  Car,
   CalendarDays,
   Clapperboard,
   ChevronRight,
@@ -27,12 +29,17 @@ import {
   CreditCard,
   Dumbbell,
   ExternalLink,
+  House,
   Laptop,
   Layers,
   Music2,
+  Plane,
   PlayCircle,
   Repeat2,
   RefreshCcw,
+  ShoppingBag,
+  Smartphone,
+  Utensils,
 } from "lucide-react";
 
 const IconFallback = ({ label }: { label: string }) => (
@@ -161,6 +168,37 @@ const getServiceVisual = (name?: string | null, iconPath?: string | null) => {
     return { icon: Laptop, tone: "border-violet-300/30 bg-violet-500/10 text-violet-100", logoSrc };
   }
   return { icon: CreditCard, tone: "border-violet-300/35 bg-violet-500/15 text-violet-100", logoSrc };
+};
+
+const getInstallmentVisual = (name?: string | null, category?: string | null) => {
+  const normalized = `${normalizeServiceName(name)} ${normalizeServiceName(category)}`.trim();
+  if (
+    normalized.includes("iphone")
+    || normalized.includes("celular")
+    || normalized.includes("smartphone")
+    || normalized.includes("android")
+  ) {
+    return { icon: Smartphone, tone: "border-blue-300/35 bg-blue-500/15 text-blue-100" };
+  }
+  if (normalized.includes("carro") || normalized.includes("transporte") || normalized.includes("combust")) {
+    return { icon: Car, tone: "border-violet-300/35 bg-violet-500/15 text-violet-100" };
+  }
+  if (normalized.includes("casa") || normalized.includes("moradia") || normalized.includes("aluguel")) {
+    return { icon: House, tone: "border-cyan-300/35 bg-cyan-500/15 text-cyan-100" };
+  }
+  if (normalized.includes("comida") || normalized.includes("aliment") || normalized.includes("restaurante")) {
+    return { icon: Utensils, tone: "border-amber-300/35 bg-amber-500/15 text-amber-100" };
+  }
+  if (normalized.includes("trabalho") || normalized.includes("empresa")) {
+    return { icon: Briefcase, tone: "border-emerald-300/35 bg-emerald-500/15 text-emerald-100" };
+  }
+  if (normalized.includes("viagem")) {
+    return { icon: Plane, tone: "border-indigo-300/35 bg-indigo-500/15 text-indigo-100" };
+  }
+  if (normalized.includes("tecnologia") || normalized.includes("notebook")) {
+    return { icon: Laptop, tone: "border-sky-300/35 bg-sky-500/15 text-sky-100" };
+  }
+  return { icon: ShoppingBag, tone: "border-violet-300/35 bg-violet-500/15 text-violet-100" };
 };
 
 const MarketIndicatorCard = ({
@@ -612,6 +650,8 @@ export const DashboardSummaryScreen = () => {
                     : urgency <= 3
                       ? "border-amber-300/35 bg-amber-500/15 text-amber-100"
                       : "border-violet-300/35 bg-violet-500/15 text-violet-100";
+                  const installmentVisual = getInstallmentVisual(item.row.name, item.row.category);
+                  const InstallmentIcon = installmentVisual.icon;
 
                   return (
                     <div
@@ -620,11 +660,9 @@ export const DashboardSummaryScreen = () => {
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex min-w-0 items-center gap-2">
-                          <CategoryIcon
-                            categoryName={`${item.row.name} ${item.row.category || ""}`}
-                            size={13}
-                            circleSize={30}
-                          />
+                          <div className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg border ${installmentVisual.tone}`}>
+                            <InstallmentIcon className="h-4 w-4" />
+                          </div>
                           <p className="truncate text-sm font-semibold text-slate-100">{item.row.name}</p>
                         </div>
                         <span className={`rounded-full border px-2 py-0.5 text-[11px] ${badgeClass}`}>
