@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { AnimatedCircularProgressBar } from "@/components/AnimatedCircularProgressBar";
 import { AppShell } from "@/components/AppShell";
@@ -302,6 +302,8 @@ const CryptoSparkline = ({ values, positive }: { values: number[]; positive: boo
   );
 };
 
+const DASHBOARD_PREVIEW_LIMIT = 2;
+
 export const DashboardSummaryScreen = () => {
   const {
     loading,
@@ -318,10 +320,18 @@ export const DashboardSummaryScreen = () => {
     refresh,
   } = useDashboardSummary();
   const { market, loading: loadingMarket, error: marketError, refreshMarket } = useMarketOverview();
+  const [showAllAccounts, setShowAllAccounts] = useState(false);
+  const [showAllCards, setShowAllCards] = useState(false);
 
   const accountBalances = computeAccountBalances(accounts, transactions);
   const visibleAccounts = accounts.filter((account) => !account.archived);
   const visibleCards = cards.filter((card) => !card.archived);
+  const visibleAccountsInDashboard = showAllAccounts
+    ? visibleAccounts
+    : visibleAccounts.slice(0, DASHBOARD_PREVIEW_LIMIT);
+  const visibleCardsInDashboard = showAllCards
+    ? visibleCards
+    : visibleCards.slice(0, DASHBOARD_PREVIEW_LIMIT);
 
   const periodLabel = normalizePeriod(period);
   const periodDate = new Date(`${periodLabel}-01T00:00:00`);
@@ -1032,35 +1042,42 @@ export const DashboardSummaryScreen = () => {
 
           <section className="grid gap-6 lg:grid-cols-2">
             <div className="rounded-2xl border border-violet-300/20 bg-[linear-gradient(160deg,rgba(29,16,54,0.72),rgba(12,9,30,0.84))] p-5 shadow-[0_18px_42px_rgba(30,12,58,0.4)]">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-slate-100">Contas</h2>
-                <button className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300 hover:bg-slate-700">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-semibold text-slate-100">Contas</h2>
+                  <span className="rounded-full border border-cyan-300/25 bg-cyan-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-cyan-100">
+                    {visibleAccountsInDashboard.length}/{visibleAccounts.length}
+                  </span>
+                </div>
+                <button className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300 transition hover:bg-slate-700">
                   Nova conta
                 </button>
               </div>
               <div className="space-y-3">
-                {visibleAccounts.length ? (
-                  visibleAccounts.map((account) => {
+                {visibleAccountsInDashboard.length ? (
+                  visibleAccountsInDashboard.map((account) => {
                     const bankLabel = account.institution?.trim() || account.name;
                     const iconPath = getBankIconPath(bankLabel);
                     const balance = accountBalances.get(account.id) ?? 0;
+                    const balanceTone = balance >= 0 ? "text-emerald-300" : "text-rose-300";
                     return (
                       <div
                         key={account.id}
-                        className="flex items-center justify-between rounded-xl border border-white/5 bg-slate-900/80 px-4 py-3"
+                        className="group relative overflow-hidden rounded-2xl border border-white/10 bg-[linear-gradient(130deg,rgba(15,23,42,0.88),rgba(30,41,59,0.65))] px-4 py-3.5 transition hover:-translate-y-0.5 hover:border-violet-300/35 hover:shadow-[0_14px_30px_rgba(12,9,26,0.55)]"
                       >
+                        <div className="pointer-events-none absolute -right-4 -bottom-6 h-16 w-16 rounded-full bg-violet-500/10 blur-xl" />
                         <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-800 text-slate-300">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-slate-900/90 text-slate-300">
                             {iconPath ? <BankLogo bankName={bankLabel} size={26} /> : <IconFallback label={bankLabel} />}
                           </div>
                           <div>
-                            <p className="text-sm font-medium">{account.name}</p>
+                            <p className="text-sm font-semibold text-slate-100">{account.name}</p>
                             <p className="text-[11px] text-slate-400">{bankLabel}</p>
                           </div>
                         </div>
                         <div className="text-right">
                           <p className="text-xs text-slate-400">Saldo</p>
-                          <p className="text-sm font-semibold text-emerald-400">
+                          <p className={`text-base font-semibold ${balanceTone}`}>
                             {brl(balance)}
                           </p>
                         </div>
@@ -1071,33 +1088,57 @@ export const DashboardSummaryScreen = () => {
                   <p className="text-sm text-slate-400">Nenhuma conta cadastrada.</p>
                 )}
               </div>
+              {visibleAccounts.length > DASHBOARD_PREVIEW_LIMIT ? (
+                <div className="mt-4 flex items-center justify-between">
+                  <p className="text-[11px] text-slate-400">
+                    Mostrando {visibleAccountsInDashboard.length} de {visibleAccounts.length} contas
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowAllAccounts((prev) => !prev)}
+                    className="rounded-full border border-violet-300/30 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-100 transition hover:bg-violet-500/20"
+                  >
+                    {showAllAccounts ? "Mostrar menos" : "Mostrar tudo"}
+                  </button>
+                </div>
+              ) : null}
             </div>
 
             <div className="rounded-2xl border border-violet-300/20 bg-[linear-gradient(160deg,rgba(29,16,54,0.72),rgba(12,9,30,0.84))] p-5 shadow-[0_18px_42px_rgba(30,12,58,0.4)]">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-slate-100">Cartoes de credito</h2>
-                <button className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300 hover:bg-slate-700">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-semibold text-slate-100">Cartoes de credito</h2>
+                  <span className="rounded-full border border-cyan-300/25 bg-cyan-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-cyan-100">
+                    {visibleCardsInDashboard.length}/{visibleCards.length}
+                  </span>
+                </div>
+                <button className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300 transition hover:bg-slate-700">
                   Novo cartao
                 </button>
               </div>
               <div className="space-y-3">
-                {visibleCards.length ? (
-                  visibleCards.map((card) => {
+                {visibleCardsInDashboard.length ? (
+                  visibleCardsInDashboard.map((card) => {
                     const bankLabel = card.issuer?.trim() || card.name;
                     const iconPath = getBankIconPath(bankLabel);
                     const summaryCard = computeCardSummary(card, transactions);
+                    const usagePercentRaw = card.limit_total > 0
+                      ? (summaryCard.currentTotal / card.limit_total) * 100
+                      : 0;
+                    const usagePercent = Math.max(0, Math.min(100, usagePercentRaw));
                     return (
                       <div
                         key={card.id}
-                        className="space-y-3 rounded-xl border border-white/5 bg-gradient-to-r from-slate-900 to-slate-900/60 p-4"
+                        className="group relative space-y-3 overflow-hidden rounded-2xl border border-white/10 bg-[linear-gradient(130deg,rgba(15,23,42,0.88),rgba(30,41,59,0.65))] p-4 transition hover:-translate-y-0.5 hover:border-violet-300/35 hover:shadow-[0_14px_30px_rgba(12,9,26,0.55)]"
                       >
+                        <div className="pointer-events-none absolute -right-6 -top-8 h-20 w-20 rounded-full bg-cyan-500/10 blur-2xl" />
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-800 text-slate-300">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-slate-900/90 text-slate-300">
                               {iconPath ? <BankLogo bankName={bankLabel} size={26} /> : <IconFallback label={bankLabel} />}
                             </div>
                             <div>
-                              <p className="text-sm font-medium">{card.name}</p>
+                              <p className="text-sm font-semibold text-slate-100">{card.name}</p>
                               <p className="text-[11px] text-slate-400">{bankLabel}</p>
                             </div>
                           </div>
@@ -1107,6 +1148,17 @@ export const DashboardSummaryScreen = () => {
                               {brl(summaryCard.limitAvailable)}
                             </p>
                           </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          <div className="h-1.5 overflow-hidden rounded-full bg-slate-800/90">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-violet-400 to-fuchsia-400"
+                              style={{ width: `${usagePercent.toFixed(1)}%` }}
+                            />
+                          </div>
+                          <p className="text-[11px] text-slate-400">
+                            Uso do limite: {usagePercent.toFixed(0).replace(".", ",")}%
+                          </p>
                         </div>
                         <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
                           <span>Limite: {brl(card.limit_total)}</span>
@@ -1122,6 +1174,20 @@ export const DashboardSummaryScreen = () => {
                   <p className="text-sm text-slate-400">Nenhum cartao cadastrado.</p>
                 )}
               </div>
+              {visibleCards.length > DASHBOARD_PREVIEW_LIMIT ? (
+                <div className="mt-4 flex items-center justify-between">
+                  <p className="text-[11px] text-slate-400">
+                    Mostrando {visibleCardsInDashboard.length} de {visibleCards.length} cartoes
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowAllCards((prev) => !prev)}
+                    className="rounded-full border border-violet-300/30 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-100 transition hover:bg-violet-500/20"
+                  >
+                    {showAllCards ? "Mostrar menos" : "Mostrar tudo"}
+                  </button>
+                </div>
+              ) : null}
             </div>
           </section>
         </div>

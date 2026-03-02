@@ -19,6 +19,59 @@ type SendEmailResult = {
 
 const DEFAULT_FROM = "Finance Cloud <alerts@finance-cloud.local>";
 
+const mapProviderError = (provider: "resend" | "brevo", rawError: string) => {
+  const reason = rawError.trim();
+  if (!reason) {
+    return provider === "resend" ? "Resend falhou no envio." : "Brevo falhou no envio.";
+  }
+
+  if (provider === "resend") {
+    if (/you can only send testing emails/i.test(reason) || /testing emails/i.test(reason)) {
+      return "Resend em modo de teste. Verifique um dominio no Resend e configure RESEND_FROM ou ALERT_EMAIL_FROM.";
+    }
+    if (/domain .*not verified/i.test(reason) || /verify a domain/i.test(reason)) {
+      return "Dominio de envio nao verificado no Resend. Verifique o dominio e ajuste RESEND_FROM.";
+    }
+    if (/invalid .*from/i.test(reason) || /from .*invalid/i.test(reason)) {
+      return "Remetente invalido no Resend. Ajuste RESEND_FROM ou ALERT_EMAIL_FROM.";
+    }
+  }
+
+  if (provider === "brevo") {
+    if (/unauthorized/i.test(reason) || /invalid api key/i.test(reason)) {
+      return "BREVO_API_KEY invalida ou nao autorizada.";
+    }
+    if (/sender/i.test(reason) && /not verified/i.test(reason)) {
+      return "Remetente do Brevo nao verificado. Ajuste BREVO_FROM.";
+    }
+  }
+
+  return reason;
+};
+
+const mergeFailures = (primary: SendEmailResult, fallback: SendEmailResult): SendEmailResult => {
+  const primaryError = (primary.error || "").trim();
+  const fallbackError = (fallback.error || "").trim();
+
+  if (
+    /RESEND_API_KEY nao configurada\./i.test(primaryError) &&
+    /BREVO_API_KEY nao configurada\./i.test(fallbackError)
+  ) {
+    return {
+      ok: false,
+      provider: primary.provider,
+      error: "Nenhum provedor de email configurado. Configure RESEND_API_KEY ou BREVO_API_KEY.",
+    };
+  }
+
+  const joined = [primaryError, fallbackError].filter(Boolean).join(" | fallback: ");
+  return {
+    ok: false,
+    provider: primary.provider,
+    error: joined || "Falha ao enviar email.",
+  };
+};
+
 const parseFrom = (raw?: string) => {
   const value = (raw || "").trim() || DEFAULT_FROM;
   const match = value.match(/^(.*)<([^>]+)>$/);
@@ -66,10 +119,11 @@ const sendViaResend = async (input: SendEmailInput): Promise<SendEmailResult> =>
 
   const data = await response.json().catch(() => ({} as { id?: string; message?: string; error?: string }));
   if (!response.ok) {
+    const rawError = data?.message || data?.error || `Resend falhou (${response.status}).`;
     return {
       ok: false,
       provider: "resend",
-      error: data?.message || data?.error || `Resend falhou (${response.status}).`,
+      error: mapProviderError("resend", rawError),
     };
   }
 
@@ -112,10 +166,11 @@ const sendViaBrevo = async (input: SendEmailInput): Promise<SendEmailResult> => 
 
   const data = await response.json().catch(() => ({} as { messageId?: string; message?: string; code?: string }));
   if (!response.ok) {
+    const rawError = data?.message || data?.code || `Brevo falhou (${response.status}).`;
     return {
       ok: false,
       provider: "brevo",
-      error: data?.message || data?.code || `Brevo falhou (${response.status}).`,
+      error: mapProviderError("brevo", rawError),
     };
   }
 
@@ -132,11 +187,11 @@ export const sendEmailAlert = async (input: SendEmailInput): Promise<SendEmailRe
     const brevoResult = await sendViaBrevo(input);
     if (brevoResult.ok) return brevoResult;
     const resendFallback = await sendViaResend(input);
-    return resendFallback.ok ? resendFallback : brevoResult;
+    return resendFallback.ok ? resendFallback : mergeFailures(brevoResult, resendFallback);
   }
 
   const resendResult = await sendViaResend(input);
   if (resendResult.ok) return resendResult;
   const brevoFallback = await sendViaBrevo(input);
-  return brevoFallback.ok ? brevoFallback : resendResult;
+  return brevoFallback.ok ? brevoFallback : mergeFailures(resendResult, brevoFallback);
 };

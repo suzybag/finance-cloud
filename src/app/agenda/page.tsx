@@ -118,6 +118,12 @@ const getStatus = (row: AgendaEventRow) => {
       className: "border-slate-400/30 bg-slate-500/15 text-slate-200",
     };
   }
+  if (row.email_error) {
+    return {
+      label: "Falha no envio",
+      className: "border-rose-400/30 bg-rose-500/15 text-rose-200",
+    };
+  }
   if (row.email_sent_at) {
     return {
       label: "Email enviado",
@@ -229,7 +235,7 @@ export default function AgendaPage() {
   );
 
   const upcomingCount = sortedEvents.filter((item) => new Date(item.event_at).getTime() >= currentTimeMs).length;
-  const pendingCount = sortedEvents.filter((item) => item.alert_enabled && !item.email_sent_at).length;
+  const pendingCount = sortedEvents.filter((item) => item.alert_enabled && !item.email_sent_at && !item.email_error).length;
   const sentCount = sortedEvents.filter((item) => !!item.email_sent_at).length;
 
   const parseForm = (state: AgendaFormState) => {
@@ -432,6 +438,7 @@ export default function AgendaPage() {
       skipped?: number;
       failed?: number;
       message?: string;
+      errors?: string[];
     };
     setRunningAlerts(false);
 
@@ -440,8 +447,10 @@ export default function AgendaPage() {
       return;
     }
 
+    const firstError = Array.isArray(data.errors) ? String(data.errors[0] || "") : "";
+    const firstErrorText = firstError.replace(/^\[[^\]]+\]\s*/, "").slice(0, 180);
     setFeedback(
-      `Lembretes executados. Processados: ${data.processed || 0}, enviados: ${data.sent || 0}, ignorados: ${data.skipped || 0}, falhas: ${data.failed || 0}.`,
+      `Lembretes executados. Processados: ${data.processed || 0}, enviados: ${data.sent || 0}, ignorados: ${data.skipped || 0}, falhas: ${data.failed || 0}.${firstErrorText ? ` Primeiro erro: ${firstErrorText}` : ""}`,
     );
     await loadEvents();
   };
@@ -631,7 +640,7 @@ export default function AgendaPage() {
                           <td className="px-3 py-3 text-xs text-slate-300">
                             {formatDateTime(row.email_sent_at)}
                             {row.email_error ? (
-                              <p className="mt-1 max-w-[220px] truncate text-[11px] text-rose-300">
+                              <p className="mt-1 max-w-[280px] whitespace-normal break-words text-[11px] text-rose-300">
                                 Erro: {row.email_error}
                               </p>
                             ) : null}
