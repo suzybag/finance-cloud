@@ -440,38 +440,33 @@ export const AppShell = ({
     };
 
     const selectedIds = getDashboardCountdownEventIds(user.id);
-    if (selectedIds.length) {
-      const { data, error } = await supabase
-        .from("agenda_events")
-        .select("id, title, event_at")
-        .eq("user_id", user.id)
-        .in("id", selectedIds);
-
-      if (!error) {
-        const selectedUpcoming = toUpcomingEvents((data || []) as Array<{ id?: string; title?: string; event_at?: string }>);
-        if (selectedUpcoming.length) {
-          setDashboardCountdownEvents(selectedUpcoming);
-          return;
-        }
-      }
-    }
-
-    const { data: fallbackData, error: fallbackError } = await supabase
-      .from("agenda_events")
-      .select("id, title, event_at")
-      .eq("user_id", user.id)
-      .gte("event_at", new Date().toISOString())
-      .order("event_at", { ascending: true })
-      .limit(5);
-
-    if (fallbackError) {
+    if (!selectedIds.length) {
       setDashboardCountdownEvents([]);
       return;
     }
 
-    setDashboardCountdownEvents(
-      toUpcomingEvents((fallbackData || []) as Array<{ id?: string; title?: string; event_at?: string }>),
+    const { data, error } = await supabase
+      .from("agenda_events")
+      .select("id, title, event_at")
+      .eq("user_id", user.id)
+      .in("id", selectedIds);
+
+    if (error) {
+      setDashboardCountdownEvents([]);
+      return;
+    }
+
+    const byId = new Map(
+      toUpcomingEvents((data || []) as Array<{ id?: string; title?: string; event_at?: string }>)
+        .map((item) => [item.id, item]),
     );
+
+    const ordered = selectedIds
+      .map((id) => byId.get(id))
+      .filter((item): item is DashboardCountdownEvent => !!item)
+      .sort((a, b) => a.eventAtMs - b.eventAtMs);
+
+    setDashboardCountdownEvents(ordered);
   }, [user]);
 
   const markAllNotificationsRead = useCallback(async () => {
@@ -806,17 +801,10 @@ export const AppShell = ({
   );
 
   const renderAgendaCountdownWidget = () => {
-    const countdownParts = activeDashboardCountdownParts || {
-      days: 0,
-      hours: 0,
-      minutes: 0,
-      seconds: 0,
-      extra: 0,
-    };
-    const title = activeDashboardCountdown?.title || "Sem compromisso futuro";
-    const tooltip = activeDashboardCountdown
-      ? `Compromisso: ${activeDashboardCountdown.title}`
-      : "Sem compromisso futuro";
+    if (!activeDashboardCountdown || !activeDashboardCountdownParts) return null;
+    const countdownParts = activeDashboardCountdownParts;
+    const title = activeDashboardCountdown.title;
+    const tooltip = `Compromisso: ${activeDashboardCountdown.title}`;
 
     return (
       <Link
