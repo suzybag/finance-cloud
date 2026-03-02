@@ -1,12 +1,16 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRequireAuth } from "@/lib/useAuth";
 import { supabase } from "@/lib/supabaseClient";
 import { getStorageItem, setStorageItem } from "@/lib/safeStorage";
+import {
+  DASHBOARD_COUNTDOWN_UPDATED_EVENT,
+  getDashboardCountdownEventIds,
+} from "@/lib/agendaDashboardCountdown";
 import {
   ArrowLeftRight,
   BarChart3,
@@ -27,6 +31,7 @@ import {
   Repeat2,
   Receipt,
   Settings,
+  Timer,
   TriangleAlert,
   TrendingUp,
   Upload,
@@ -77,6 +82,16 @@ type AlertNotificationRow = {
   is_read: boolean;
   created_at: string;
 };
+
+type DashboardCountdownEvent = {
+  id: string;
+  title: string;
+  eventAtIso: string;
+  eventAtMs: number;
+};
+
+const toCountdownStyle = (value: number) =>
+  ({ "--value": Math.max(0, Math.floor(value)) } as CSSProperties & Record<"--value", number>);
 
 const isAlertsTableMissing = (message?: string | null) =>
   /relation .*alerts/i.test(message || "");
@@ -210,6 +225,8 @@ export const AppShell = ({
   const [notificationBellBlink, setNotificationBellBlink] = useState(false);
   const [notificationsDropdownTop, setNotificationsDropdownTop] = useState<number | null>(null);
   const [desktopNavCollapsed, setDesktopNavCollapsed] = useState(false);
+  const [dashboardCountdownEvents, setDashboardCountdownEvents] = useState<DashboardCountdownEvent[]>([]);
+  const [dashboardCountdownNowMs, setDashboardCountdownNowMs] = useState(() => Date.now());
   const menuRef = useRef<HTMLDivElement | null>(null);
   const notificationsRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -320,6 +337,30 @@ export const AppShell = ({
       .join("");
   }, [displayName]);
 
+  const activeDashboardCountdown = useMemo(
+    () => dashboardCountdownEvents.find((item) => item.eventAtMs > dashboardCountdownNowMs) || null,
+    [dashboardCountdownEvents, dashboardCountdownNowMs],
+  );
+
+  const activeDashboardCountdownParts = useMemo(() => {
+    if (!activeDashboardCountdown) return null;
+    const diffSeconds = Math.max(
+      0,
+      Math.floor((activeDashboardCountdown.eventAtMs - dashboardCountdownNowMs) / 1000),
+    );
+    const days = Math.floor(diffSeconds / 86400);
+    const hours = Math.floor((diffSeconds % 86400) / 3600);
+    const minutes = Math.floor((diffSeconds % 3600) / 60);
+    const seconds = diffSeconds % 60;
+    return {
+      days,
+      hours,
+      minutes,
+      seconds,
+      extra: Math.max(0, dashboardCountdownEvents.length - 1),
+    };
+  }, [activeDashboardCountdown, dashboardCountdownEvents.length, dashboardCountdownNowMs]);
+
   const loadProfile = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase
@@ -376,6 +417,48 @@ export const AppShell = ({
     setNotificationsLoading(false);
   }, [playNotificationTone, startBellBlink, user]);
 
+  const loadDashboardCountdownEvents = useCallback(async () => {
+    if (!user?.id) {
+      setDashboardCountdownEvents([]);
+      return;
+    }
+
+    const selectedIds = getDashboardCountdownEventIds(user.id);
+    if (!selectedIds.length) {
+      setDashboardCountdownEvents([]);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("agenda_events")
+      .select("id, title, event_at")
+      .eq("user_id", user.id)
+      .in("id", selectedIds);
+
+    if (error) {
+      setDashboardCountdownEvents([]);
+      return;
+    }
+
+    const nowMs = Date.now();
+    const byId = new Map<string, DashboardCountdownEvent>();
+    ((data || []) as Array<{ id?: string; title?: string; event_at?: string }>).forEach((row) => {
+      const id = String(row.id || "").trim();
+      const title = String(row.title || "").trim();
+      const eventAtIso = String(row.event_at || "").trim();
+      const eventAtMs = new Date(eventAtIso).getTime();
+      if (!id || !title || !eventAtIso || !Number.isFinite(eventAtMs) || eventAtMs <= nowMs) return;
+      byId.set(id, { id, title, eventAtIso, eventAtMs });
+    });
+
+    const ordered = selectedIds
+      .map((id) => byId.get(id))
+      .filter((item): item is DashboardCountdownEvent => !!item)
+      .sort((a, b) => a.eventAtMs - b.eventAtMs);
+
+    setDashboardCountdownEvents(ordered);
+  }, [user]);
+
   const markAllNotificationsRead = useCallback(async () => {
     if (!user?.id || !unreadNotificationsCount) return;
     await supabase
@@ -398,6 +481,10 @@ export const AppShell = ({
   useEffect(() => {
     void loadNotifications();
   }, [loadNotifications]);
+
+  useEffect(() => {
+    void loadDashboardCountdownEvents();
+  }, [loadDashboardCountdownEvents, pathname]);
 
   useEffect(() => {
     if (!user?.id) return undefined;
@@ -430,6 +517,27 @@ export const AppShell = ({
       }
     };
   }, [loadNotifications, user?.id]);
+
+  useEffect(() => {
+    const refresh = () => {
+      void loadDashboardCountdownEvents();
+    };
+
+    window.addEventListener(DASHBOARD_COUNTDOWN_UPDATED_EVENT, refresh as EventListener);
+    window.addEventListener("storage", refresh);
+    return () => {
+      window.removeEventListener(DASHBOARD_COUNTDOWN_UPDATED_EVENT, refresh as EventListener);
+      window.removeEventListener("storage", refresh);
+    };
+  }, [loadDashboardCountdownEvents]);
+
+  useEffect(() => {
+    if (!dashboardCountdownEvents.length) return undefined;
+    const intervalId = setInterval(() => {
+      setDashboardCountdownNowMs(Date.now());
+    }, 1000);
+    return () => clearInterval(intervalId);
+  }, [dashboardCountdownEvents.length]);
 
   useEffect(() => {
     const handler = (event: Event) => {
@@ -682,6 +790,64 @@ export const AppShell = ({
     </div>
   );
 
+  const renderAgendaCountdownWidget = () => {
+    if (!activeDashboardCountdown || !activeDashboardCountdownParts) return null;
+
+    return (
+      <Link
+        href="/agenda"
+        className="hidden xl:block rounded-xl border border-violet-300/22 bg-violet-950/45 px-2.5 py-2 backdrop-blur-xl transition hover:border-violet-200/35 hover:bg-violet-900/45"
+        title={`Compromisso: ${activeDashboardCountdown.title}`}
+      >
+        <div className="mb-1 flex items-center gap-1.5">
+          <Timer className="h-3.5 w-3.5 text-cyan-200" />
+          <p className="max-w-[180px] truncate text-[10px] font-semibold text-violet-100/85">
+            {activeDashboardCountdown.title}
+          </p>
+        </div>
+        <div className="grid auto-cols-max grid-flow-col gap-2 text-center">
+          <div className="flex flex-col">
+            <span className="countdown font-mono text-lg leading-none">
+              <span style={toCountdownStyle(activeDashboardCountdownParts.days)} aria-live="polite" aria-label={`${activeDashboardCountdownParts.days}`}>
+                {activeDashboardCountdownParts.days}
+              </span>
+            </span>
+            <span className="text-[9px] uppercase text-violet-100/55">d</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="countdown font-mono text-lg leading-none">
+              <span style={toCountdownStyle(activeDashboardCountdownParts.hours)} aria-live="polite" aria-label={`${activeDashboardCountdownParts.hours}`}>
+                {activeDashboardCountdownParts.hours}
+              </span>
+            </span>
+            <span className="text-[9px] uppercase text-violet-100/55">h</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="countdown font-mono text-lg leading-none">
+              <span style={toCountdownStyle(activeDashboardCountdownParts.minutes)} aria-live="polite" aria-label={`${activeDashboardCountdownParts.minutes}`}>
+                {activeDashboardCountdownParts.minutes}
+              </span>
+            </span>
+            <span className="text-[9px] uppercase text-violet-100/55">min</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="countdown font-mono text-lg leading-none">
+              <span style={toCountdownStyle(activeDashboardCountdownParts.seconds)} aria-live="polite" aria-label={`${activeDashboardCountdownParts.seconds}`}>
+                {activeDashboardCountdownParts.seconds}
+              </span>
+            </span>
+            <span className="text-[9px] uppercase text-violet-100/55">seg</span>
+          </div>
+        </div>
+        {activeDashboardCountdownParts.extra > 0 ? (
+          <p className="mt-1 text-[10px] text-violet-100/55">
+            +{activeDashboardCountdownParts.extra} compromisso(s)
+          </p>
+        ) : null}
+      </Link>
+    );
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen grid place-items-center text-slate-100">
@@ -834,6 +1000,7 @@ export const AppShell = ({
               <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
                 {actions}
                 <div className="flex items-center gap-2">
+                  {renderAgendaCountdownWidget()}
                   <div className="relative z-30" ref={notificationsRef}>
                     {renderNotificationsButton()}
                     {notificationsOpen ? renderNotificationsDropdown() : null}
@@ -871,6 +1038,7 @@ export const AppShell = ({
           ) : (
             <div className="flex items-center justify-end">
               <div className="flex items-center gap-2">
+                {renderAgendaCountdownWidget()}
                 <div className="relative z-30" ref={notificationsRef}>
                   {renderNotificationsButton()}
                   {notificationsOpen ? renderNotificationsDropdown() : null}
