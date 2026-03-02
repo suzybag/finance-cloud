@@ -806,12 +806,28 @@ export const AppShell = ({
   );
 
   const renderAgendaCountdownWidget = () => {
-    if (!activeDashboardCountdown || !activeDashboardCountdownParts) return null;
+    if (!activeDashboardCountdown || !activeDashboardCountdownParts) {
+      return (
+        <Link
+          href="/agenda"
+          className="hidden lg:flex min-w-[188px] items-center gap-2 rounded-xl border border-violet-300/18 bg-violet-950/35 px-2.5 py-2 backdrop-blur-xl transition hover:border-violet-200/35 hover:bg-violet-900/45"
+          title="Sem compromisso futuro"
+        >
+          <div className="grid h-8 w-8 place-items-center rounded-lg border border-violet-300/25 bg-violet-500/15">
+            <Timer className="h-4 w-4 text-violet-100/85" />
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-[10px] font-semibold text-violet-100/85">Sem compromisso futuro</p>
+            <p className="truncate text-[9px] text-violet-100/55">Adicionar na agenda</p>
+          </div>
+        </Link>
+      );
+    }
 
     return (
       <Link
         href="/agenda"
-        className="hidden lg:block rounded-xl border border-violet-300/22 bg-violet-950/45 px-2.5 py-2 backdrop-blur-xl transition hover:border-violet-200/35 hover:bg-violet-900/45"
+        className="hidden lg:block min-w-[188px] rounded-xl border border-violet-300/22 bg-violet-950/45 px-2.5 py-2 backdrop-blur-xl transition hover:border-violet-200/35 hover:bg-violet-900/45"
         title={`Compromisso: ${activeDashboardCountdown.title}`}
       >
         <div className="mb-1 flex items-center gap-1.5">
