@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
@@ -61,7 +62,6 @@ const mobilePrimaryHrefs = new Set(["/dashboard", "/accounts", "/cards", "/trans
 const mobilePrimaryItems = navItems.filter((item) => mobilePrimaryHrefs.has(item.href));
 const mobileSecondaryItems = navItems.filter((item) => !mobilePrimaryHrefs.has(item.href));
 const DESKTOP_NAV_COLLAPSED_KEY = "finance_desktop_nav_collapsed";
-const GLOBAL_DATE_KEY = "finance_global_date_v1";
 
 type HeaderNotification = {
   id: string;
@@ -92,14 +92,6 @@ type DashboardCountdownEvent = {
 
 const toCountdownStyle = (value: number) =>
   ({ "--value": Math.max(0, Math.floor(value)) } as CSSProperties & Record<"--value", number>);
-
-const getTodayInputDate = () => {
-  const date = new Date();
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
 
 const isAlertsTableMissing = (message?: string | null) =>
   /relation .*alerts/i.test(message || "");
@@ -233,9 +225,6 @@ export const AppShell = ({
   const [notificationBellBlink, setNotificationBellBlink] = useState(false);
   const [notificationsDropdownTop, setNotificationsDropdownTop] = useState<number | null>(null);
   const [desktopNavCollapsed, setDesktopNavCollapsed] = useState(false);
-  const [globalSelectedDate, setGlobalSelectedDate] = useState<string>(() => (
-    getStorageItem(GLOBAL_DATE_KEY, "local") || getTodayInputDate()
-  ));
   const [dashboardCountdownEvents, setDashboardCountdownEvents] = useState<DashboardCountdownEvent[]>([]);
   const [dashboardCountdownNowMs, setDashboardCountdownNowMs] = useState(() => Date.now());
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -623,20 +612,6 @@ export const AppShell = ({
   }, [desktopNavCollapsed]);
 
   useEffect(() => {
-    if (!globalSelectedDate) return;
-    setStorageItem(GLOBAL_DATE_KEY, globalSelectedDate, "local");
-    window.dispatchEvent(
-      new CustomEvent("finance_global_date_changed", {
-        detail: { date: globalSelectedDate },
-      }),
-    );
-  }, [globalSelectedDate]);
-
-  useEffect(() => {
-    void import("cally");
-  }, []);
-
-  useEffect(() => {
     if (typeof window === "undefined") return;
 
     const unlockNotificationAudio = () => {
@@ -873,73 +848,6 @@ export const AppShell = ({
     );
   };
 
-  const renderGlobalDatePicker = () => {
-    const anchorStyle = { anchorName: "--global-date-anchor" } as CSSProperties & { anchorName: string };
-    const popoverStyle = { positionAnchor: "--global-date-anchor" } as CSSProperties & { positionAnchor: string };
-
-    const label = (() => {
-      const parsed = new Date(`${globalSelectedDate}T00:00:00`);
-      if (Number.isNaN(parsed.getTime())) return "Escolha uma data";
-      return parsed.toLocaleDateString("pt-BR", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      });
-    })();
-
-    return (
-      <div className="relative z-30 hidden lg:block">
-        <button
-          popoverTarget="global-date-popover"
-          className="input input-border h-11 min-h-11 rounded-xl border-violet-300/22 bg-violet-950/45 px-3 text-xs font-semibold text-violet-100 backdrop-blur-xl"
-          id="global-date-button"
-          style={anchorStyle}
-          type="button"
-        >
-          {label}
-        </button>
-        <div
-          popover="auto"
-          id="global-date-popover"
-          className="dropdown mt-2 rounded-2xl border border-violet-300/20 bg-[#120d21] p-2 shadow-[0_22px_48px_rgba(7,4,16,0.62)]"
-          style={popoverStyle}
-        >
-          <calendar-date
-            className="cally rounded-xl bg-[#120d21] text-violet-100"
-            value={globalSelectedDate}
-            onChange={(event) => {
-              const target = event.currentTarget as HTMLElement & { value?: string };
-              const nextDate = String(target.value || "").trim();
-              if (nextDate) {
-                setGlobalSelectedDate(nextDate);
-              }
-            }}
-          >
-            <svg
-              aria-label="Anterior"
-              className="size-4 fill-current text-violet-100"
-              slot="previous"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-            >
-              <path d="M15.75 19.5 8.25 12l7.5-7.5"></path>
-            </svg>
-            <svg
-              aria-label="Proximo"
-              className="size-4 fill-current text-violet-100"
-              slot="next"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-            >
-              <path d="m8.25 4.5 7.5 7.5-7.5 7.5"></path>
-            </svg>
-            <calendar-month></calendar-month>
-          </calendar-date>
-        </div>
-      </div>
-    );
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen grid place-items-center text-slate-100">
@@ -1092,7 +1000,6 @@ export const AppShell = ({
               <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
                 {actions}
                 <div className="flex items-center gap-2">
-                  {renderGlobalDatePicker()}
                   {renderAgendaCountdownWidget()}
                   <div className="relative z-30" ref={notificationsRef}>
                     {renderNotificationsButton()}
@@ -1131,7 +1038,6 @@ export const AppShell = ({
           ) : (
             <div className="flex items-center justify-end">
               <div className="flex items-center gap-2">
-                {renderGlobalDatePicker()}
                 {renderAgendaCountdownWidget()}
                 <div className="relative z-30" ref={notificationsRef}>
                   {renderNotificationsButton()}

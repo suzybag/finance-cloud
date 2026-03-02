@@ -1,7 +1,6 @@
 "use client";
-/* eslint-disable react-hooks/set-state-in-effect */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { type CSSProperties, useCallback, useEffect, useMemo, useState } from "react";
 import {
   Bell,
   CalendarClock,
@@ -66,6 +65,39 @@ const toIsoFromLocalInput = (value: string) => {
   if (Number.isNaN(parsed.getTime())) return null;
   return parsed.toISOString();
 };
+
+const getTodayInputDate = () => {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const extractDatePart = (localDateTimeValue: string) => {
+  const [datePart] = String(localDateTimeValue || "").split("T");
+  if (/^\d{4}-\d{2}-\d{2}$/.test(datePart || "")) return datePart;
+  return getTodayInputDate();
+};
+
+const mergeDateWithLocalTime = (currentLocalDateTime: string, nextDatePart: string) => {
+  const timePartRaw = String(currentLocalDateTime || "").split("T")[1] || "09:00";
+  const safeTimePart = /^\d{2}:\d{2}/.test(timePartRaw) ? timePartRaw.slice(0, 5) : "09:00";
+  return `${nextDatePart}T${safeTimePart}`;
+};
+
+const formatInputDateLabel = (datePart: string) => {
+  const parsed = new Date(`${datePart}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return "Escolher data";
+  return parsed.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+};
+
+const anchorStyleFor = (name: string) => ({ anchorName: name } as CSSProperties & { anchorName: string });
+const positionAnchorStyleFor = (name: string) => ({ positionAnchor: name } as CSSProperties & { positionAnchor: string });
 
 const getDefaultForm = (): AgendaFormState => {
   const now = new Date();
@@ -177,6 +209,10 @@ export default function AgendaPage() {
   const [dashboardPickerOpen, setDashboardPickerOpen] = useState(false);
   const [dashboardEventIds, setDashboardEventIds] = useState<string[]>([]);
   const [dashboardDraftEventIds, setDashboardDraftEventIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    void import("cally");
+  }, []);
 
   useEffect(() => {
     try {
@@ -604,6 +640,55 @@ export default function AgendaPage() {
                   value={form.eventAtLocal}
                   onChange={(event) => setForm((prev) => ({ ...prev, eventAtLocal: event.target.value }))}
                 />
+                <div className="mt-2">
+                  <button
+                    type="button"
+                    popoverTarget="agenda-create-event-date-popover"
+                    id="agenda-create-event-date-anchor"
+                    style={anchorStyleFor("--agenda-create-event-date-anchor")}
+                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-violet-300/20 bg-black/25 px-3 text-xs font-semibold text-violet-100 transition hover:border-violet-200/35"
+                  >
+                    <CalendarClock className="h-3.5 w-3.5 text-violet-200" />
+                    {formatInputDateLabel(extractDatePart(form.eventAtLocal))}
+                  </button>
+                  <div
+                    popover="auto"
+                    id="agenda-create-event-date-popover"
+                    className="dropdown mt-2 rounded-2xl border border-violet-300/20 bg-[#120d21] p-2 shadow-[0_22px_48px_rgba(7,4,16,0.62)]"
+                    style={positionAnchorStyleFor("--agenda-create-event-date-anchor")}
+                  >
+                    <calendar-date
+                      className="cally rounded-xl bg-[#120d21] text-violet-100"
+                      value={extractDatePart(form.eventAtLocal)}
+                      onChange={(event) => {
+                        const target = event.currentTarget as HTMLElement & { value?: string };
+                        const nextDate = String(target.value || "").trim();
+                        if (!nextDate) return;
+                        setForm((prev) => ({ ...prev, eventAtLocal: mergeDateWithLocalTime(prev.eventAtLocal, nextDate) }));
+                      }}
+                    >
+                      <svg
+                        aria-label="Anterior"
+                        className="size-4 fill-current text-violet-100"
+                        slot="previous"
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                      >
+                        <path d="M15.75 19.5 8.25 12l7.5-7.5"></path>
+                      </svg>
+                      <svg
+                        aria-label="Proximo"
+                        className="size-4 fill-current text-violet-100"
+                        slot="next"
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                      >
+                        <path d="m8.25 4.5 7.5 7.5-7.5 7.5"></path>
+                      </svg>
+                      <calendar-month></calendar-month>
+                    </calendar-date>
+                  </div>
+                </div>
               </label>
 
               <label className="block">
@@ -616,6 +701,55 @@ export default function AgendaPage() {
                   value={form.alertAtLocal}
                   onChange={(event) => setForm((prev) => ({ ...prev, alertAtLocal: event.target.value }))}
                 />
+                <div className="mt-2">
+                  <button
+                    type="button"
+                    popoverTarget="agenda-create-alert-date-popover"
+                    id="agenda-create-alert-date-anchor"
+                    style={anchorStyleFor("--agenda-create-alert-date-anchor")}
+                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-violet-300/20 bg-black/25 px-3 text-xs font-semibold text-violet-100 transition hover:border-violet-200/35"
+                  >
+                    <CalendarClock className="h-3.5 w-3.5 text-violet-200" />
+                    {formatInputDateLabel(extractDatePart(form.alertAtLocal))}
+                  </button>
+                  <div
+                    popover="auto"
+                    id="agenda-create-alert-date-popover"
+                    className="dropdown mt-2 rounded-2xl border border-violet-300/20 bg-[#120d21] p-2 shadow-[0_22px_48px_rgba(7,4,16,0.62)]"
+                    style={positionAnchorStyleFor("--agenda-create-alert-date-anchor")}
+                  >
+                    <calendar-date
+                      className="cally rounded-xl bg-[#120d21] text-violet-100"
+                      value={extractDatePart(form.alertAtLocal)}
+                      onChange={(event) => {
+                        const target = event.currentTarget as HTMLElement & { value?: string };
+                        const nextDate = String(target.value || "").trim();
+                        if (!nextDate) return;
+                        setForm((prev) => ({ ...prev, alertAtLocal: mergeDateWithLocalTime(prev.alertAtLocal, nextDate) }));
+                      }}
+                    >
+                      <svg
+                        aria-label="Anterior"
+                        className="size-4 fill-current text-violet-100"
+                        slot="previous"
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                      >
+                        <path d="M15.75 19.5 8.25 12l7.5-7.5"></path>
+                      </svg>
+                      <svg
+                        aria-label="Proximo"
+                        className="size-4 fill-current text-violet-100"
+                        slot="next"
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                      >
+                        <path d="m8.25 4.5 7.5 7.5-7.5 7.5"></path>
+                      </svg>
+                      <calendar-month></calendar-month>
+                    </calendar-date>
+                  </div>
+                </div>
               </label>
             </div>
 
@@ -778,6 +912,55 @@ export default function AgendaPage() {
                   value={editForm.eventAtLocal}
                   onChange={(event) => setEditForm((prev) => ({ ...prev, eventAtLocal: event.target.value }))}
                 />
+                <div className="mt-2">
+                  <button
+                    type="button"
+                    popoverTarget="agenda-edit-event-date-popover"
+                    id="agenda-edit-event-date-anchor"
+                    style={anchorStyleFor("--agenda-edit-event-date-anchor")}
+                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-violet-300/20 bg-black/25 px-3 text-xs font-semibold text-violet-100 transition hover:border-violet-200/35"
+                  >
+                    <CalendarClock className="h-3.5 w-3.5 text-violet-200" />
+                    {formatInputDateLabel(extractDatePart(editForm.eventAtLocal))}
+                  </button>
+                  <div
+                    popover="auto"
+                    id="agenda-edit-event-date-popover"
+                    className="dropdown mt-2 rounded-2xl border border-violet-300/20 bg-[#120d21] p-2 shadow-[0_22px_48px_rgba(7,4,16,0.62)]"
+                    style={positionAnchorStyleFor("--agenda-edit-event-date-anchor")}
+                  >
+                    <calendar-date
+                      className="cally rounded-xl bg-[#120d21] text-violet-100"
+                      value={extractDatePart(editForm.eventAtLocal)}
+                      onChange={(event) => {
+                        const target = event.currentTarget as HTMLElement & { value?: string };
+                        const nextDate = String(target.value || "").trim();
+                        if (!nextDate) return;
+                        setEditForm((prev) => ({ ...prev, eventAtLocal: mergeDateWithLocalTime(prev.eventAtLocal, nextDate) }));
+                      }}
+                    >
+                      <svg
+                        aria-label="Anterior"
+                        className="size-4 fill-current text-violet-100"
+                        slot="previous"
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                      >
+                        <path d="M15.75 19.5 8.25 12l7.5-7.5"></path>
+                      </svg>
+                      <svg
+                        aria-label="Proximo"
+                        className="size-4 fill-current text-violet-100"
+                        slot="next"
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                      >
+                        <path d="m8.25 4.5 7.5 7.5-7.5 7.5"></path>
+                      </svg>
+                      <calendar-month></calendar-month>
+                    </calendar-date>
+                  </div>
+                </div>
               </label>
               <label className="block">
                 <span className="mb-1 block text-xs font-semibold text-violet-100/75">Data/hora do alerta</span>
@@ -787,6 +970,55 @@ export default function AgendaPage() {
                   value={editForm.alertAtLocal}
                   onChange={(event) => setEditForm((prev) => ({ ...prev, alertAtLocal: event.target.value }))}
                 />
+                <div className="mt-2">
+                  <button
+                    type="button"
+                    popoverTarget="agenda-edit-alert-date-popover"
+                    id="agenda-edit-alert-date-anchor"
+                    style={anchorStyleFor("--agenda-edit-alert-date-anchor")}
+                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-violet-300/20 bg-black/25 px-3 text-xs font-semibold text-violet-100 transition hover:border-violet-200/35"
+                  >
+                    <CalendarClock className="h-3.5 w-3.5 text-violet-200" />
+                    {formatInputDateLabel(extractDatePart(editForm.alertAtLocal))}
+                  </button>
+                  <div
+                    popover="auto"
+                    id="agenda-edit-alert-date-popover"
+                    className="dropdown mt-2 rounded-2xl border border-violet-300/20 bg-[#120d21] p-2 shadow-[0_22px_48px_rgba(7,4,16,0.62)]"
+                    style={positionAnchorStyleFor("--agenda-edit-alert-date-anchor")}
+                  >
+                    <calendar-date
+                      className="cally rounded-xl bg-[#120d21] text-violet-100"
+                      value={extractDatePart(editForm.alertAtLocal)}
+                      onChange={(event) => {
+                        const target = event.currentTarget as HTMLElement & { value?: string };
+                        const nextDate = String(target.value || "").trim();
+                        if (!nextDate) return;
+                        setEditForm((prev) => ({ ...prev, alertAtLocal: mergeDateWithLocalTime(prev.alertAtLocal, nextDate) }));
+                      }}
+                    >
+                      <svg
+                        aria-label="Anterior"
+                        className="size-4 fill-current text-violet-100"
+                        slot="previous"
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                      >
+                        <path d="M15.75 19.5 8.25 12l7.5-7.5"></path>
+                      </svg>
+                      <svg
+                        aria-label="Proximo"
+                        className="size-4 fill-current text-violet-100"
+                        slot="next"
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                      >
+                        <path d="m8.25 4.5 7.5 7.5-7.5 7.5"></path>
+                      </svg>
+                      <calendar-month></calendar-month>
+                    </calendar-date>
+                  </div>
+                </div>
               </label>
             </div>
 
