@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion, useAnimate, usePresence } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FiClock, FiPlus, FiTrash2 } from "react-icons/fi";
 import { getStorageItem, setStorageItem } from "@/lib/safeStorage";
 
@@ -32,10 +32,36 @@ const buildTaskId = () => {
 };
 
 const formatDuration = (time: number, unit: TimeUnit) => `${time} ${unit}`;
+const toMinutes = (time: number, unit: TimeUnit) => (unit === "hrs" ? time * 60 : time);
+const formatMinutes = (value: number) => {
+  const safe = Math.max(0, Math.round(value));
+  const hours = Math.floor(safe / 60);
+  const minutes = safe % 60;
+  if (hours && minutes) return `${hours}h ${minutes}min`;
+  if (hours) return `${hours}h`;
+  return `${minutes}min`;
+};
 
 export const VanishList = () => {
   const [todos, setTodos] = useState<DailyTodo[]>(DEFAULT_TODOS);
   const [hydrated, setHydrated] = useState(false);
+
+  const stats = useMemo(() => {
+    const total = todos.length;
+    const done = todos.filter((task) => task.checked).length;
+    const remaining = Math.max(total - done, 0);
+    const completionPct = total ? Math.round((done / total) * 100) : 0;
+    const totalMinutes = todos.reduce((sum, task) => sum + toMinutes(task.time, task.unit), 0);
+    const doneMinutes = todos.reduce((sum, task) => sum + (task.checked ? toMinutes(task.time, task.unit) : 0), 0);
+    return {
+      total,
+      done,
+      remaining,
+      completionPct,
+      totalMinutes,
+      doneMinutes,
+    };
+  }, [todos]);
 
   useEffect(() => {
     try {
@@ -83,6 +109,65 @@ export const VanishList = () => {
       <div className="mb-4">
         <h3 className="text-lg font-bold text-white">Tarefas diarias</h3>
         <p className="text-sm text-violet-100/70">Checklist rapido para executar junto com sua agenda.</p>
+      </div>
+
+      <div className="mb-4">
+        <div className="stats stats-vertical w-full overflow-hidden rounded-2xl border border-violet-300/20 bg-[#120d21]/75 shadow-[0_16px_34px_rgba(8,5,20,0.45)] lg:stats-horizontal">
+          <div className="stat">
+            <div className="stat-figure text-violet-300">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                className="inline-block h-8 w-8 stroke-current"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                ></path>
+              </svg>
+            </div>
+            <div className="stat-title text-violet-100/70">Total de tarefas</div>
+            <div className="stat-value text-violet-300">{stats.total}</div>
+            <div className="stat-desc text-violet-100/70">{stats.done} concluidas hoje</div>
+          </div>
+
+          <div className="stat">
+            <div className="stat-figure text-cyan-300">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                className="inline-block h-8 w-8 stroke-current"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                ></path>
+              </svg>
+            </div>
+            <div className="stat-title text-violet-100/70">Tempo planejado</div>
+            <div className="stat-value text-cyan-300">{formatMinutes(stats.totalMinutes)}</div>
+            <div className="stat-desc text-violet-100/70">{formatMinutes(stats.doneMinutes)} concluidos</div>
+          </div>
+
+          <div className="stat">
+            <div className="stat-figure text-secondary">
+              <div className="avatar avatar-online">
+                <div className="w-16 rounded-full ring ring-emerald-300/35 ring-offset-2 ring-offset-[#120d21]">
+                  <img src="https://img.daisyui.com/images/profile/demo/anakeen@192.webp" alt="Avatar de tarefas" />
+                </div>
+              </div>
+            </div>
+            <div className="stat-value text-emerald-300">{stats.completionPct}%</div>
+            <div className="stat-title text-violet-100/80">Tarefas concluidas</div>
+            <div className="stat-desc text-violet-100/70">{stats.remaining} tarefas restantes</div>
+          </div>
+        </div>
       </div>
 
       <Todos removeElement={removeElement} todos={todos} handleCheck={handleCheck} />
