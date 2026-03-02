@@ -796,7 +796,7 @@ export const AppShell = ({
     return (
       <Link
         href="/agenda"
-        className="hidden xl:block rounded-xl border border-violet-300/22 bg-violet-950/45 px-2.5 py-2 backdrop-blur-xl transition hover:border-violet-200/35 hover:bg-violet-900/45"
+        className="hidden lg:block rounded-xl border border-violet-300/22 bg-violet-950/45 px-2.5 py-2 backdrop-blur-xl transition hover:border-violet-200/35 hover:bg-violet-900/45"
         title={`Compromisso: ${activeDashboardCountdown.title}`}
       >
         <div className="mb-1 flex items-center gap-1.5">
