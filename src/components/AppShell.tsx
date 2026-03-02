@@ -423,40 +423,55 @@ export const AppShell = ({
       return;
     }
 
+    const toUpcomingEvents = (rows: Array<{ id?: string; title?: string; event_at?: string }>) => {
+      const nowMs = Date.now();
+      const unique = new Map<string, DashboardCountdownEvent>();
+
+      rows.forEach((row) => {
+        const id = String(row.id || "").trim();
+        const title = String(row.title || "").trim();
+        const eventAtIso = String(row.event_at || "").trim();
+        const eventAtMs = new Date(eventAtIso).getTime();
+        if (!id || !title || !eventAtIso || !Number.isFinite(eventAtMs) || eventAtMs <= nowMs) return;
+        unique.set(id, { id, title, eventAtIso, eventAtMs });
+      });
+
+      return Array.from(unique.values()).sort((a, b) => a.eventAtMs - b.eventAtMs);
+    };
+
     const selectedIds = getDashboardCountdownEventIds(user.id);
-    if (!selectedIds.length) {
-      setDashboardCountdownEvents([]);
-      return;
+    if (selectedIds.length) {
+      const { data, error } = await supabase
+        .from("agenda_events")
+        .select("id, title, event_at")
+        .eq("user_id", user.id)
+        .in("id", selectedIds);
+
+      if (!error) {
+        const selectedUpcoming = toUpcomingEvents((data || []) as Array<{ id?: string; title?: string; event_at?: string }>);
+        if (selectedUpcoming.length) {
+          setDashboardCountdownEvents(selectedUpcoming);
+          return;
+        }
+      }
     }
 
-    const { data, error } = await supabase
+    const { data: fallbackData, error: fallbackError } = await supabase
       .from("agenda_events")
       .select("id, title, event_at")
       .eq("user_id", user.id)
-      .in("id", selectedIds);
+      .gte("event_at", new Date().toISOString())
+      .order("event_at", { ascending: true })
+      .limit(5);
 
-    if (error) {
+    if (fallbackError) {
       setDashboardCountdownEvents([]);
       return;
     }
 
-    const nowMs = Date.now();
-    const byId = new Map<string, DashboardCountdownEvent>();
-    ((data || []) as Array<{ id?: string; title?: string; event_at?: string }>).forEach((row) => {
-      const id = String(row.id || "").trim();
-      const title = String(row.title || "").trim();
-      const eventAtIso = String(row.event_at || "").trim();
-      const eventAtMs = new Date(eventAtIso).getTime();
-      if (!id || !title || !eventAtIso || !Number.isFinite(eventAtMs) || eventAtMs <= nowMs) return;
-      byId.set(id, { id, title, eventAtIso, eventAtMs });
-    });
-
-    const ordered = selectedIds
-      .map((id) => byId.get(id))
-      .filter((item): item is DashboardCountdownEvent => !!item)
-      .sort((a, b) => a.eventAtMs - b.eventAtMs);
-
-    setDashboardCountdownEvents(ordered);
+    setDashboardCountdownEvents(
+      toUpcomingEvents((fallbackData || []) as Array<{ id?: string; title?: string; event_at?: string }>),
+    );
   }, [user]);
 
   const markAllNotificationsRead = useCallback(async () => {
