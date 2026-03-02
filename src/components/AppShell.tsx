@@ -822,52 +822,54 @@ export const AppShell = ({
     return (
       <Link
         href="/agenda"
-        className="hidden lg:block min-w-[228px] rounded-xl border border-violet-300/22 bg-violet-950/45 px-2 py-1.5 backdrop-blur-xl transition hover:border-violet-200/35 hover:bg-violet-900/45"
+        className="hidden lg:block w-[216px] rounded-xl border border-violet-300/20 bg-[linear-gradient(160deg,rgba(26,18,48,0.94),rgba(9,9,16,0.96))] px-2 py-1.5 shadow-[0_16px_36px_rgba(2,2,10,0.72),inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-xl transition hover:border-violet-200/35 hover:shadow-[0_18px_40px_rgba(4,3,18,0.78),inset_0_1px_0_rgba(255,255,255,0.06)]"
         title={tooltip}
       >
         <div className="mb-1 flex items-center gap-1.5">
-          <Timer className="h-3.5 w-3.5 text-cyan-200" />
-          <p className="max-w-[170px] truncate text-[10px] font-semibold text-violet-100/85">
+          <span className="grid h-5 w-5 place-items-center rounded-md border border-violet-300/30 bg-violet-500/18">
+            <Timer className="h-3 w-3 text-violet-200" />
+          </span>
+          <p className="max-w-[160px] truncate text-[10px] font-semibold text-violet-50">
             {title}
           </p>
         </div>
-        <div className="grid auto-cols-max grid-flow-col justify-between gap-1 text-center">
+        <div className="grid auto-cols-max grid-flow-col gap-2 text-center">
           <div className="flex flex-col">
-            <span className="countdown font-mono text-3xl leading-none">
+            <span className="countdown font-mono text-[30px] font-semibold leading-none text-violet-50">
               <span style={toCountdownStyle(countdownParts.days)} aria-live="polite" aria-label={`${countdownParts.days}`}>
                 {countdownParts.days}
               </span>
             </span>
-            <span className="text-[10px] text-violet-100/65">dias</span>
+            <span className="text-[9px] font-medium text-violet-100/80">dias</span>
           </div>
           <div className="flex flex-col">
-            <span className="countdown font-mono text-3xl leading-none">
+            <span className="countdown font-mono text-[30px] font-semibold leading-none text-violet-50">
               <span style={toCountdownStyle(countdownParts.hours)} aria-live="polite" aria-label={`${countdownParts.hours}`}>
                 {countdownParts.hours}
               </span>
             </span>
-            <span className="text-[10px] text-violet-100/65">horas</span>
+            <span className="text-[9px] font-medium text-violet-100/80">horas</span>
           </div>
           <div className="flex flex-col">
-            <span className="countdown font-mono text-3xl leading-none">
+            <span className="countdown font-mono text-[30px] font-semibold leading-none text-violet-50">
               <span style={toCountdownStyle(countdownParts.minutes)} aria-live="polite" aria-label={`${countdownParts.minutes}`}>
                 {countdownParts.minutes}
               </span>
             </span>
-            <span className="text-[10px] text-violet-100/65">min</span>
+            <span className="text-[9px] font-medium text-violet-100/80">min</span>
           </div>
           <div className="flex flex-col">
-            <span className="countdown font-mono text-3xl leading-none">
+            <span className="countdown font-mono text-[30px] font-semibold leading-none text-violet-50">
               <span style={toCountdownStyle(countdownParts.seconds)} aria-live="polite" aria-label={`${countdownParts.seconds}`}>
                 {countdownParts.seconds}
               </span>
             </span>
-            <span className="text-[10px] text-violet-100/65">seg</span>
+            <span className="text-[9px] font-medium text-violet-100/80">seg</span>
           </div>
         </div>
-        <p className="mt-0.5 text-[9px] text-violet-100/55">{subtitle}</p>
+        <p className="mt-0.5 text-[9px] text-violet-100/70">{subtitle}</p>
         {countdownParts.extra > 0 ? (
-          <p className="mt-0.5 text-[9px] text-violet-100/55">
+          <p className="mt-0.5 text-[9px] text-violet-100/70">
             +{countdownParts.extra} compromisso(s)
           </p>
         ) : null}
