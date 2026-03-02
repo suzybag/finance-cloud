@@ -822,52 +822,52 @@ export const AppShell = ({
     return (
       <Link
         href="/agenda"
-        className="hidden lg:block min-w-[260px] rounded-xl border border-violet-300/22 bg-violet-950/45 px-2.5 py-2 backdrop-blur-xl transition hover:border-violet-200/35 hover:bg-violet-900/45"
+        className="hidden lg:block min-w-[228px] rounded-xl border border-violet-300/22 bg-violet-950/45 px-2 py-1.5 backdrop-blur-xl transition hover:border-violet-200/35 hover:bg-violet-900/45"
         title={tooltip}
       >
         <div className="mb-1 flex items-center gap-1.5">
           <Timer className="h-3.5 w-3.5 text-cyan-200" />
-          <p className="max-w-[180px] truncate text-[10px] font-semibold text-violet-100/85">
+          <p className="max-w-[170px] truncate text-[10px] font-semibold text-violet-100/85">
             {title}
           </p>
         </div>
-        <div className="grid auto-cols-max grid-flow-col gap-2 text-center">
+        <div className="grid auto-cols-max grid-flow-col justify-between gap-1 text-center">
           <div className="flex flex-col">
-            <span className="countdown font-mono text-2xl leading-none">
+            <span className="countdown font-mono text-3xl leading-none">
               <span style={toCountdownStyle(countdownParts.days)} aria-live="polite" aria-label={`${countdownParts.days}`}>
                 {countdownParts.days}
               </span>
             </span>
-            <span className="text-[9px] uppercase text-violet-100/55">dias</span>
+            <span className="text-[10px] text-violet-100/65">dias</span>
           </div>
           <div className="flex flex-col">
-            <span className="countdown font-mono text-2xl leading-none">
+            <span className="countdown font-mono text-3xl leading-none">
               <span style={toCountdownStyle(countdownParts.hours)} aria-live="polite" aria-label={`${countdownParts.hours}`}>
                 {countdownParts.hours}
               </span>
             </span>
-            <span className="text-[9px] uppercase text-violet-100/55">horas</span>
+            <span className="text-[10px] text-violet-100/65">horas</span>
           </div>
           <div className="flex flex-col">
-            <span className="countdown font-mono text-2xl leading-none">
+            <span className="countdown font-mono text-3xl leading-none">
               <span style={toCountdownStyle(countdownParts.minutes)} aria-live="polite" aria-label={`${countdownParts.minutes}`}>
                 {countdownParts.minutes}
               </span>
             </span>
-            <span className="text-[9px] uppercase text-violet-100/55">min</span>
+            <span className="text-[10px] text-violet-100/65">min</span>
           </div>
           <div className="flex flex-col">
-            <span className="countdown font-mono text-2xl leading-none">
+            <span className="countdown font-mono text-3xl leading-none">
               <span style={toCountdownStyle(countdownParts.seconds)} aria-live="polite" aria-label={`${countdownParts.seconds}`}>
                 {countdownParts.seconds}
               </span>
             </span>
-            <span className="text-[9px] uppercase text-violet-100/55">seg</span>
+            <span className="text-[10px] text-violet-100/65">seg</span>
           </div>
         </div>
-        <p className="mt-1 text-[9px] text-violet-100/55">{subtitle}</p>
+        <p className="mt-0.5 text-[9px] text-violet-100/55">{subtitle}</p>
         {countdownParts.extra > 0 ? (
-          <p className="mt-1 text-[10px] text-violet-100/55">
+          <p className="mt-0.5 text-[9px] text-violet-100/55">
             +{countdownParts.extra} compromisso(s)
           </p>
         ) : null}
