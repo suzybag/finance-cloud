@@ -806,73 +806,69 @@ export const AppShell = ({
   );
 
   const renderAgendaCountdownWidget = () => {
-    if (!activeDashboardCountdown || !activeDashboardCountdownParts) {
-      return (
-        <Link
-          href="/agenda"
-          className="hidden lg:flex min-w-[188px] items-center gap-2 rounded-xl border border-violet-300/18 bg-violet-950/35 px-2.5 py-2 backdrop-blur-xl transition hover:border-violet-200/35 hover:bg-violet-900/45"
-          title="Sem compromisso futuro"
-        >
-          <div className="grid h-8 w-8 place-items-center rounded-lg border border-violet-300/25 bg-violet-500/15">
-            <Timer className="h-4 w-4 text-violet-100/85" />
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-[10px] font-semibold text-violet-100/85">Sem compromisso futuro</p>
-            <p className="truncate text-[9px] text-violet-100/55">Adicionar na agenda</p>
-          </div>
-        </Link>
-      );
-    }
+    const countdownParts = activeDashboardCountdownParts || {
+      days: 0,
+      hours: 0,
+      minutes: 0,
+      seconds: 0,
+      extra: 0,
+    };
+    const title = activeDashboardCountdown?.title || "Sem compromisso futuro";
+    const subtitle = activeDashboardCountdown ? "Contagem ate o compromisso" : "Adicionar na agenda";
+    const tooltip = activeDashboardCountdown
+      ? `Compromisso: ${activeDashboardCountdown.title}`
+      : "Sem compromisso futuro";
 
     return (
       <Link
         href="/agenda"
-        className="hidden lg:block min-w-[188px] rounded-xl border border-violet-300/22 bg-violet-950/45 px-2.5 py-2 backdrop-blur-xl transition hover:border-violet-200/35 hover:bg-violet-900/45"
-        title={`Compromisso: ${activeDashboardCountdown.title}`}
+        className="hidden lg:block min-w-[260px] rounded-xl border border-violet-300/22 bg-violet-950/45 px-2.5 py-2 backdrop-blur-xl transition hover:border-violet-200/35 hover:bg-violet-900/45"
+        title={tooltip}
       >
         <div className="mb-1 flex items-center gap-1.5">
           <Timer className="h-3.5 w-3.5 text-cyan-200" />
           <p className="max-w-[180px] truncate text-[10px] font-semibold text-violet-100/85">
-            {activeDashboardCountdown.title}
+            {title}
           </p>
         </div>
         <div className="grid auto-cols-max grid-flow-col gap-2 text-center">
           <div className="flex flex-col">
-            <span className="countdown font-mono text-lg leading-none">
-              <span style={toCountdownStyle(activeDashboardCountdownParts.days)} aria-live="polite" aria-label={`${activeDashboardCountdownParts.days}`}>
-                {activeDashboardCountdownParts.days}
+            <span className="countdown font-mono text-2xl leading-none">
+              <span style={toCountdownStyle(countdownParts.days)} aria-live="polite" aria-label={`${countdownParts.days}`}>
+                {countdownParts.days}
               </span>
             </span>
-            <span className="text-[9px] uppercase text-violet-100/55">d</span>
+            <span className="text-[9px] uppercase text-violet-100/55">dias</span>
           </div>
           <div className="flex flex-col">
-            <span className="countdown font-mono text-lg leading-none">
-              <span style={toCountdownStyle(activeDashboardCountdownParts.hours)} aria-live="polite" aria-label={`${activeDashboardCountdownParts.hours}`}>
-                {activeDashboardCountdownParts.hours}
+            <span className="countdown font-mono text-2xl leading-none">
+              <span style={toCountdownStyle(countdownParts.hours)} aria-live="polite" aria-label={`${countdownParts.hours}`}>
+                {countdownParts.hours}
               </span>
             </span>
-            <span className="text-[9px] uppercase text-violet-100/55">h</span>
+            <span className="text-[9px] uppercase text-violet-100/55">horas</span>
           </div>
           <div className="flex flex-col">
-            <span className="countdown font-mono text-lg leading-none">
-              <span style={toCountdownStyle(activeDashboardCountdownParts.minutes)} aria-live="polite" aria-label={`${activeDashboardCountdownParts.minutes}`}>
-                {activeDashboardCountdownParts.minutes}
+            <span className="countdown font-mono text-2xl leading-none">
+              <span style={toCountdownStyle(countdownParts.minutes)} aria-live="polite" aria-label={`${countdownParts.minutes}`}>
+                {countdownParts.minutes}
               </span>
             </span>
             <span className="text-[9px] uppercase text-violet-100/55">min</span>
           </div>
           <div className="flex flex-col">
-            <span className="countdown font-mono text-lg leading-none">
-              <span style={toCountdownStyle(activeDashboardCountdownParts.seconds)} aria-live="polite" aria-label={`${activeDashboardCountdownParts.seconds}`}>
-                {activeDashboardCountdownParts.seconds}
+            <span className="countdown font-mono text-2xl leading-none">
+              <span style={toCountdownStyle(countdownParts.seconds)} aria-live="polite" aria-label={`${countdownParts.seconds}`}>
+                {countdownParts.seconds}
               </span>
             </span>
             <span className="text-[9px] uppercase text-violet-100/55">seg</span>
           </div>
         </div>
-        {activeDashboardCountdownParts.extra > 0 ? (
+        <p className="mt-1 text-[9px] text-violet-100/55">{subtitle}</p>
+        {countdownParts.extra > 0 ? (
           <p className="mt-1 text-[10px] text-violet-100/55">
-            +{activeDashboardCountdownParts.extra} compromisso(s)
+            +{countdownParts.extra} compromisso(s)
           </p>
         ) : null}
       </Link>
