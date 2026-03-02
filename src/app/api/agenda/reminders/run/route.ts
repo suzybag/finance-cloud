@@ -115,7 +115,10 @@ const runAgendaReminders = async ({
     const todayKey = formatDateKeyInTimezone(nowIso, timezone);
     const eventDayKey = formatDateKeyInTimezone(row.event_at, timezone);
 
-    const recipient = (row.user_email || "").trim() || (fallbackEmail || "").trim();
+    const fallbackRecipient = (fallbackEmail || "").trim();
+    const storedRecipient = (row.user_email || "").trim();
+    // In user-triggered runs, prefer the authenticated email (same destination used by OTP).
+    const recipient = fallbackRecipient || storedRecipient;
     if (!recipient) {
       skipped += 1;
       await db
@@ -178,6 +181,7 @@ const runAgendaReminders = async ({
     await db
       .from("agenda_events")
       .update({
+        user_email: recipient,
         email_sent_at: nowIso,
         last_attempt_at: nowIso,
         attempt_count: (row.attempt_count || 0) + 1,

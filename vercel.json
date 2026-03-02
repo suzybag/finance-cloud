@@ -22,7 +22,7 @@
     },
     {
       "path": "/api/agenda/reminders/run",
-      "schedule": "25 9 * * *"
+      "schedule": "* * * * *"
     },
     {
       "path": "/api/maintenance/supabase-trim",
