@@ -326,6 +326,10 @@ export const DashboardSummaryScreen = () => {
   const accountBalances = computeAccountBalances(accounts, transactions);
   const visibleAccounts = accounts.filter((account) => !account.archived);
   const visibleCards = cards.filter((card) => !card.archived);
+  const accountBalanceAbsMax = visibleAccounts.reduce((max, account) => {
+    const balance = Math.abs(accountBalances.get(account.id) ?? 0);
+    return Math.max(max, balance);
+  }, 0) || 1;
   const visibleAccountsInDashboard = showAllAccounts
     ? visibleAccounts
     : visibleAccounts.slice(0, DASHBOARD_PREVIEW_LIMIT);
@@ -1041,15 +1045,18 @@ export const DashboardSummaryScreen = () => {
           </section>
 
           <section className="grid gap-6 lg:grid-cols-2">
-            <div className="rounded-2xl border border-violet-300/20 bg-[linear-gradient(160deg,rgba(29,16,54,0.72),rgba(12,9,30,0.84))] p-5 shadow-[0_18px_42px_rgba(30,12,58,0.4)]">
+            <div className="rounded-3xl border border-cyan-300/20 bg-[linear-gradient(160deg,rgba(5,16,30,0.94),rgba(10,23,38,0.86))] p-5 shadow-[0_22px_55px_rgba(2,8,23,0.55)]">
               <div className="mb-4 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-sm font-semibold text-slate-100">Contas</h2>
-                  <span className="rounded-full border border-cyan-300/25 bg-cyan-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-cyan-100">
-                    {visibleAccountsInDashboard.length}/{visibleAccounts.length}
-                  </span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-base font-bold tracking-tight text-slate-100">Contas</h2>
+                    <span className="rounded-full border border-cyan-300/40 bg-cyan-400/15 px-2.5 py-0.5 text-[11px] font-semibold text-cyan-100">
+                      {visibleAccountsInDashboard.length}/{visibleAccounts.length}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[11px] text-slate-400">Bancos e saldos em tempo real</p>
                 </div>
-                <button className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300 transition hover:bg-slate-700">
+                <button className="rounded-full border border-cyan-300/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-100 transition hover:bg-cyan-500/20">
                   Nova conta
                 </button>
               </div>
@@ -1060,32 +1067,45 @@ export const DashboardSummaryScreen = () => {
                     const iconPath = getBankIconPath(bankLabel);
                     const balance = accountBalances.get(account.id) ?? 0;
                     const balanceTone = balance >= 0 ? "text-emerald-300" : "text-rose-300";
+                    const balanceProgress = Math.max(8, Math.min(100, (Math.abs(balance) / accountBalanceAbsMax) * 100));
+
                     return (
                       <div
                         key={account.id}
-                        className="group relative overflow-hidden rounded-2xl border border-white/10 bg-[linear-gradient(130deg,rgba(15,23,42,0.88),rgba(30,41,59,0.65))] px-4 py-3.5 transition hover:-translate-y-0.5 hover:border-violet-300/35 hover:shadow-[0_14px_30px_rgba(12,9,26,0.55)]"
+                        className="group relative overflow-hidden rounded-2xl border border-cyan-300/15 bg-[linear-gradient(130deg,rgba(4,12,24,0.94),rgba(12,26,42,0.86))] px-4 py-3.5 transition duration-200 hover:-translate-y-0.5 hover:border-cyan-300/35 hover:shadow-[0_14px_34px_rgba(8,47,73,0.35)]"
                       >
-                        <div className="pointer-events-none absolute -right-4 -bottom-6 h-16 w-16 rounded-full bg-violet-500/10 blur-xl" />
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-slate-900/90 text-slate-300">
-                            {iconPath ? <BankLogo bankName={bankLabel} size={26} /> : <IconFallback label={bankLabel} />}
+                        <div className="pointer-events-none absolute -right-7 -top-7 h-20 w-20 rounded-full bg-cyan-400/15 blur-2xl" />
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cyan-200/20 bg-slate-900/85">
+                              {iconPath ? <BankLogo bankName={bankLabel} size={26} /> : <IconFallback label={bankLabel} />}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate text-[15px] font-semibold text-slate-100">{account.name}</p>
+                              <p className="truncate text-[11px] text-slate-400">{bankLabel}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-sm font-semibold text-slate-100">{account.name}</p>
-                            <p className="text-[11px] text-slate-400">{bankLabel}</p>
+                          <div className="text-right">
+                            <p className="text-[11px] text-slate-400">Saldo</p>
+                            <p className={`text-xl leading-none font-bold ${balanceTone}`}>{brl(balance)}</p>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-xs text-slate-400">Saldo</p>
-                          <p className={`text-base font-semibold ${balanceTone}`}>
-                            {brl(balance)}
-                          </p>
+                        <div className="mt-3 space-y-1.5">
+                          <div className="h-1.5 overflow-hidden rounded-full bg-slate-800/95">
+                            <div
+                              className={`h-full rounded-full ${balance >= 0 ? "bg-gradient-to-r from-cyan-400 via-sky-400 to-emerald-400" : "bg-gradient-to-r from-rose-400 via-orange-400 to-amber-400"}`}
+                              style={{ width: `${balanceProgress.toFixed(1)}%` }}
+                            />
+                          </div>
+                          <p className="text-[11px] text-slate-400">Peso relativo no saldo total</p>
                         </div>
                       </div>
                     );
                   })
                 ) : (
-                  <p className="text-sm text-slate-400">Nenhuma conta cadastrada.</p>
+                  <p className="rounded-2xl border border-cyan-300/15 bg-slate-950/50 px-4 py-5 text-sm text-slate-400">
+                    Nenhuma conta cadastrada.
+                  </p>
                 )}
               </div>
               {visibleAccounts.length > DASHBOARD_PREVIEW_LIMIT ? (
@@ -1096,7 +1116,7 @@ export const DashboardSummaryScreen = () => {
                   <button
                     type="button"
                     onClick={() => setShowAllAccounts((prev) => !prev)}
-                    className="rounded-full border border-violet-300/30 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-100 transition hover:bg-violet-500/20"
+                    className="rounded-full border border-cyan-300/35 bg-cyan-500/12 px-3 py-1.5 text-xs font-semibold text-cyan-100 transition hover:bg-cyan-500/25"
                   >
                     {showAllAccounts ? "Mostrar menos" : "Mostrar tudo"}
                   </button>
@@ -1104,15 +1124,18 @@ export const DashboardSummaryScreen = () => {
               ) : null}
             </div>
 
-            <div className="rounded-2xl border border-violet-300/20 bg-[linear-gradient(160deg,rgba(29,16,54,0.72),rgba(12,9,30,0.84))] p-5 shadow-[0_18px_42px_rgba(30,12,58,0.4)]">
+            <div className="rounded-3xl border border-blue-300/20 bg-[linear-gradient(160deg,rgba(7,15,30,0.95),rgba(15,21,44,0.86))] p-5 shadow-[0_22px_55px_rgba(5,7,34,0.58)]">
               <div className="mb-4 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-sm font-semibold text-slate-100">Cartoes de credito</h2>
-                  <span className="rounded-full border border-cyan-300/25 bg-cyan-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-cyan-100">
-                    {visibleCardsInDashboard.length}/{visibleCards.length}
-                  </span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-base font-bold tracking-tight text-slate-100">Cartoes de credito</h2>
+                    <span className="rounded-full border border-blue-300/45 bg-blue-400/15 px-2.5 py-0.5 text-[11px] font-semibold text-blue-100">
+                      {visibleCardsInDashboard.length}/{visibleCards.length}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[11px] text-slate-400">Limite, fatura e vencimento</p>
                 </div>
-                <button className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300 transition hover:bg-slate-700">
+                <button className="rounded-full border border-blue-300/35 bg-blue-500/12 px-3 py-1.5 text-xs font-semibold text-blue-100 transition hover:bg-blue-500/25">
                   Novo cartao
                 </button>
               </div>
@@ -1126,41 +1149,47 @@ export const DashboardSummaryScreen = () => {
                       ? (summaryCard.currentTotal / card.limit_total) * 100
                       : 0;
                     const usagePercent = Math.max(0, Math.min(100, usagePercentRaw));
+                    const usageTone = usagePercent >= 80
+                      ? "text-rose-200"
+                      : usagePercent >= 50
+                        ? "text-amber-200"
+                        : "text-emerald-200";
+                    const usageBar = usagePercent >= 80
+                      ? "bg-gradient-to-r from-rose-400 via-orange-400 to-amber-400"
+                      : usagePercent >= 50
+                        ? "bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-400"
+                        : "bg-gradient-to-r from-sky-400 via-cyan-400 to-emerald-400";
+
                     return (
                       <div
                         key={card.id}
-                        className="group relative space-y-3 overflow-hidden rounded-2xl border border-white/10 bg-[linear-gradient(130deg,rgba(15,23,42,0.88),rgba(30,41,59,0.65))] p-4 transition hover:-translate-y-0.5 hover:border-violet-300/35 hover:shadow-[0_14px_30px_rgba(12,9,26,0.55)]"
+                        className="group relative space-y-3 overflow-hidden rounded-2xl border border-blue-300/15 bg-[linear-gradient(130deg,rgba(7,13,29,0.95),rgba(14,22,45,0.88))] p-4 transition duration-200 hover:-translate-y-0.5 hover:border-blue-300/35 hover:shadow-[0_16px_34px_rgba(16,24,62,0.45)]"
                       >
-                        <div className="pointer-events-none absolute -right-6 -top-8 h-20 w-20 rounded-full bg-cyan-500/10 blur-2xl" />
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-slate-900/90 text-slate-300">
+                        <div className="pointer-events-none absolute -right-6 -top-8 h-20 w-20 rounded-full bg-blue-400/15 blur-2xl" />
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-blue-200/20 bg-slate-900/85">
                               {iconPath ? <BankLogo bankName={bankLabel} size={26} /> : <IconFallback label={bankLabel} />}
                             </div>
-                            <div>
-                              <p className="text-sm font-semibold text-slate-100">{card.name}</p>
-                              <p className="text-[11px] text-slate-400">{bankLabel}</p>
+                            <div className="min-w-0">
+                              <p className="truncate text-[15px] font-semibold text-slate-100">{card.name}</p>
+                              <p className="truncate text-[11px] text-slate-400">{bankLabel}</p>
                             </div>
                           </div>
                           <div className="text-right">
                             <p className="text-[11px] text-slate-400">Disponivel</p>
-                            <p className="text-sm font-semibold text-emerald-400">
-                              {brl(summaryCard.limitAvailable)}
-                            </p>
+                            <p className="text-xl leading-none font-bold text-emerald-300">{brl(summaryCard.limitAvailable)}</p>
                           </div>
                         </div>
                         <div className="space-y-1.5">
-                          <div className="h-1.5 overflow-hidden rounded-full bg-slate-800/90">
-                            <div
-                              className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-violet-400 to-fuchsia-400"
-                              style={{ width: `${usagePercent.toFixed(1)}%` }}
-                            />
+                          <div className="h-1.5 overflow-hidden rounded-full bg-slate-800/95">
+                            <div className={`h-full rounded-full ${usageBar}`} style={{ width: `${usagePercent.toFixed(1)}%` }} />
                           </div>
-                          <p className="text-[11px] text-slate-400">
+                          <p className={`text-[11px] ${usageTone}`}>
                             Uso do limite: {usagePercent.toFixed(0).replace(".", ",")}%
                           </p>
                         </div>
-                        <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
+                        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[11px] text-slate-400">
                           <span>Limite: {brl(card.limit_total)}</span>
                           <span>Fatura: {brl(summaryCard.currentTotal)}</span>
                           <span>
@@ -1171,7 +1200,9 @@ export const DashboardSummaryScreen = () => {
                     );
                   })
                 ) : (
-                  <p className="text-sm text-slate-400">Nenhum cartao cadastrado.</p>
+                  <p className="rounded-2xl border border-blue-300/15 bg-slate-950/50 px-4 py-5 text-sm text-slate-400">
+                    Nenhum cartao cadastrado.
+                  </p>
                 )}
               </div>
               {visibleCards.length > DASHBOARD_PREVIEW_LIMIT ? (
@@ -1182,7 +1213,7 @@ export const DashboardSummaryScreen = () => {
                   <button
                     type="button"
                     onClick={() => setShowAllCards((prev) => !prev)}
-                    className="rounded-full border border-violet-300/30 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-100 transition hover:bg-violet-500/20"
+                    className="rounded-full border border-blue-300/35 bg-blue-500/12 px-3 py-1.5 text-xs font-semibold text-blue-100 transition hover:bg-blue-500/25"
                   >
                     {showAllCards ? "Mostrar menos" : "Mostrar tudo"}
                   </button>
