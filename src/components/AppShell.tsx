@@ -809,7 +809,7 @@ export const AppShell = ({
     return (
       <Link
         href="/agenda"
-        className="hidden lg:block w-[216px] rounded-xl border border-violet-300/20 bg-[linear-gradient(160deg,rgba(26,18,48,0.94),rgba(9,9,16,0.96))] px-2 py-1 shadow-[0_16px_36px_rgba(2,2,10,0.72),inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-xl transition hover:border-violet-200/35 hover:shadow-[0_18px_40px_rgba(4,3,18,0.78),inset_0_1px_0_rgba(255,255,255,0.06)]"
+        className="block shrink-0 w-[216px] rounded-xl border border-violet-300/20 bg-[linear-gradient(160deg,rgba(26,18,48,0.94),rgba(9,9,16,0.96))] px-2 py-1 shadow-[0_16px_36px_rgba(2,2,10,0.72),inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-xl transition hover:border-violet-200/35 hover:shadow-[0_18px_40px_rgba(4,3,18,0.78),inset_0_1px_0_rgba(255,255,255,0.06)]"
         title={tooltip}
       >
         <div className="mb-0.5 flex items-center gap-1.5">
