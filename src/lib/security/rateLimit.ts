@@ -99,6 +99,7 @@ export const getRateLimitPolicy = (pathname: string): RateLimitPolicy => {
     path.startsWith("/api/automations/run")
     || path.startsWith("/api/reports/monthly/run")
     || path.startsWith("/api/agenda/reminders/run")
+    || path.startsWith("/api/agenda/daily-alerts")
     || path.startsWith("/api/banking/relationship/run")
   ) {
     return { windowMs: 60_000, max: 15 };

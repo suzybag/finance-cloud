@@ -469,23 +469,6 @@ export const AppShell = ({
     setDashboardCountdownEvents(ordered);
   }, [user]);
 
-  const runAgendaReminderSweep = useCallback(async () => {
-    if (!user?.id) return;
-    if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
-
-    const { data: sessionData } = await supabase.auth.getSession();
-    const token = sessionData.session?.access_token;
-    if (!token) return;
-
-    await fetch("/api/agenda/reminders/run", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    }).catch(() => {
-      // background best effort
-    });
-  }, [user?.id]);
-
   const markAllNotificationsRead = useCallback(async () => {
     if (!user?.id || !unreadNotificationsCount) return;
     await supabase
@@ -512,17 +495,6 @@ export const AppShell = ({
   useEffect(() => {
     void loadDashboardCountdownEvents();
   }, [loadDashboardCountdownEvents, pathname]);
-
-  useEffect(() => {
-    if (!user?.id) return undefined;
-
-    void runAgendaReminderSweep();
-    const intervalId = setInterval(() => {
-      void runAgendaReminderSweep();
-    }, 60_000);
-
-    return () => clearInterval(intervalId);
-  }, [runAgendaReminderSweep, user?.id]);
 
   useEffect(() => {
     if (!user?.id) return undefined;

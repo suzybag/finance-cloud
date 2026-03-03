@@ -508,7 +508,7 @@ export default function AgendaPage() {
       return;
     }
 
-    const response = await fetch("/api/agenda/reminders/run", {
+    const response = await fetch("/api/agenda/daily-alerts", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -524,14 +524,14 @@ export default function AgendaPage() {
     setRunningAlerts(false);
 
     if (!response.ok || !data.ok) {
-      setFeedback(data.message || "Falha ao executar lembretes.");
+      setFeedback(data.message || "Falha ao executar resumo diario.");
       return;
     }
 
     const firstError = Array.isArray(data.errors) ? String(data.errors[0] || "") : "";
     const firstErrorText = firstError.replace(/^\[[^\]]+\]\s*/, "").slice(0, 180);
     setFeedback(
-      `Lembretes executados. Processados: ${data.processed || 0}, enviados: ${data.sent || 0}, ignorados: ${data.skipped || 0}, falhas: ${data.failed || 0}.${firstErrorText ? ` Primeiro erro: ${firstErrorText}` : ""}`,
+      `Resumo diario executado. Processados: ${data.processed || 0}, enviados: ${data.sent || 0}, ignorados: ${data.skipped || 0}, falhas: ${data.failed || 0}.${firstErrorText ? ` Primeiro erro: ${firstErrorText}` : ""}`,
     );
     await loadEvents();
   };
@@ -553,7 +553,7 @@ export default function AgendaPage() {
         disabled={runningAlerts}
       >
         {runningAlerts ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bell className="h-3.5 w-3.5" />}
-        Executar alertas
+        Executar resumo diario
       </button>
       <button
         type="button"

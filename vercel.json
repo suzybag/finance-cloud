@@ -21,7 +21,7 @@
       "schedule": "20 9 * * *"
     },
     {
-      "path": "/api/agenda/reminders/run",
+      "path": "/api/agenda/daily-alerts",
       "schedule": "25 9 * * *"
     },
     {

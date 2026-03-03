@@ -2039,6 +2039,113 @@ create trigger trg_agenda_events_set_updated_at
 before update on public.agenda_events
 for each row execute function public.set_agenda_events_updated_at();
 
+create table if not exists public.agenda_daily_alerts (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  reference_date date not null,
+  user_email text not null,
+  events_count int not null default 0,
+  status text not null default 'sent',
+  details text,
+  sent_at timestamptz,
+  last_attempt_at timestamptz not null default now(),
+  attempt_count int not null default 0,
+  created_at timestamptz not null default now(),
+  unique (user_id, reference_date)
+);
+
+alter table public.agenda_daily_alerts add column if not exists user_id uuid;
+alter table public.agenda_daily_alerts add column if not exists reference_date date;
+alter table public.agenda_daily_alerts add column if not exists user_email text;
+alter table public.agenda_daily_alerts add column if not exists events_count int not null default 0;
+alter table public.agenda_daily_alerts add column if not exists status text not null default 'sent';
+alter table public.agenda_daily_alerts add column if not exists details text;
+alter table public.agenda_daily_alerts add column if not exists sent_at timestamptz;
+alter table public.agenda_daily_alerts add column if not exists last_attempt_at timestamptz not null default now();
+alter table public.agenda_daily_alerts add column if not exists attempt_count int not null default 0;
+alter table public.agenda_daily_alerts add column if not exists created_at timestamptz not null default now();
+
+update public.agenda_daily_alerts
+set user_email = ''
+where user_email is null;
+
+update public.agenda_daily_alerts
+set reference_date = current_date
+where reference_date is null;
+
+update public.agenda_daily_alerts
+set events_count = 0
+where events_count is null or events_count < 0;
+
+update public.agenda_daily_alerts
+set attempt_count = 0
+where attempt_count is null or attempt_count < 0;
+
+update public.agenda_daily_alerts
+set status = 'sent'
+where status is null or trim(status) = '';
+
+alter table public.agenda_daily_alerts alter column user_id set not null;
+alter table public.agenda_daily_alerts alter column reference_date set not null;
+alter table public.agenda_daily_alerts alter column user_email set not null;
+alter table public.agenda_daily_alerts alter column events_count set not null;
+alter table public.agenda_daily_alerts alter column attempt_count set not null;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'agenda_daily_alerts_user_id_fkey'
+      and conrelid = 'public.agenda_daily_alerts'::regclass
+  ) then
+    alter table public.agenda_daily_alerts
+    add constraint agenda_daily_alerts_user_id_fkey
+    foreign key (user_id) references auth.users(id) on delete cascade;
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'agenda_daily_alerts_user_date_unique'
+      and conrelid = 'public.agenda_daily_alerts'::regclass
+  ) then
+    alter table public.agenda_daily_alerts
+    add constraint agenda_daily_alerts_user_date_unique unique (user_id, reference_date);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'agenda_daily_alerts_events_count_non_negative'
+      and conrelid = 'public.agenda_daily_alerts'::regclass
+  ) then
+    alter table public.agenda_daily_alerts
+    add constraint agenda_daily_alerts_events_count_non_negative check (events_count >= 0);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'agenda_daily_alerts_attempt_count_non_negative'
+      and conrelid = 'public.agenda_daily_alerts'::regclass
+  ) then
+    alter table public.agenda_daily_alerts
+    add constraint agenda_daily_alerts_attempt_count_non_negative check (attempt_count >= 0);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'agenda_daily_alerts_status_valid'
+      and conrelid = 'public.agenda_daily_alerts'::regclass
+  ) then
+    alter table public.agenda_daily_alerts
+    add constraint agenda_daily_alerts_status_valid check (status in ('sent', 'error', 'skipped'));
+  end if;
+end
+$$;
+
 create table if not exists public.subscriptions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -2541,6 +2648,7 @@ alter table public.recurring_subscription_payments enable row level security;
 alter table public.email_alert_rules enable row level security;
 alter table public.monthly_report_deliveries enable row level security;
 alter table public.agenda_events enable row level security;
+alter table public.agenda_daily_alerts enable row level security;
 alter table public.subscriptions enable row level security;
 alter table public.insights enable row level security;
 alter table public.automations enable row level security;
@@ -2746,6 +2854,17 @@ begin
 
   if not exists (
     select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'agenda_daily_alerts' and policyname = 'agenda_daily_alerts_crud_own'
+  ) then
+    create policy agenda_daily_alerts_crud_own
+    on public.agenda_daily_alerts
+    for all
+    using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
     where schemaname = 'public' and tablename = 'subscriptions' and policyname = 'subscriptions_crud_own'
   ) then
     create policy subscriptions_crud_own
@@ -2837,6 +2956,7 @@ create index if not exists idx_email_alert_rules_last_triggered on public.email_
 create index if not exists idx_monthly_report_deliveries_user_month on public.monthly_report_deliveries(user_id, reference_month desc);
 create index if not exists idx_agenda_events_user_event on public.agenda_events(user_id, event_at);
 create index if not exists idx_agenda_events_due on public.agenda_events(alert_enabled, email_sent_at, alert_at);
+create index if not exists idx_agenda_daily_alerts_user_date on public.agenda_daily_alerts(user_id, reference_date desc);
 create index if not exists idx_subscriptions_user_active on public.subscriptions(user_id, active, created_at desc);
 create index if not exists idx_insights_user_period on public.insights(user_id, period desc, created_at desc);
 create index if not exists idx_automations_enabled on public.automations(enabled, updated_at desc);
