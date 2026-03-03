@@ -14,6 +14,9 @@ export const revalidate = 0;
 
 const MAX_BATCH_SIZE = 3000;
 const DEFAULT_TZ = "America/Sao_Paulo";
+const DAILY_SENT_EVENT_TYPE = "agenda_daily_alert_sent";
+const DAILY_ERROR_EVENT_TYPE = "agenda_daily_alert_error";
+const DAILY_SKIPPED_EVENT_TYPE = "agenda_daily_alert_skipped";
 
 type AgendaEventRow = {
   id: string;
@@ -24,14 +27,6 @@ type AgendaEventRow = {
   event_at: string;
   timezone: string | null;
   alert_enabled: boolean;
-};
-
-type DailyAlertLogRow = {
-  id: string;
-  user_id: string;
-  reference_date: string;
-  status: string;
-  attempt_count: number | null;
 };
 
 type GroupedDailyAgenda = {
@@ -46,8 +41,13 @@ const mapTableHint = (message?: string | null) => {
   const text = message || "";
   if (/relation .*agenda_events/i.test(text)) return "Tabela agenda_events nao encontrada.";
   if (/relation .*agenda_daily_alerts/i.test(text)) return "Tabela agenda_daily_alerts nao encontrada.";
+  if (/relation .*security_events/i.test(text)) return "Tabela security_events nao encontrada.";
   return null;
 };
+
+const sleep = (ms: number) => new Promise((resolve) => {
+  setTimeout(resolve, ms);
+});
 
 const normalizeTimezone = (value?: string | null) => {
   const timezone = (value || "").trim();
@@ -163,6 +163,93 @@ const buildDailySummaryEmail = (group: GroupedDailyAgenda) => {
   };
 };
 
+const hasDailySentMarker = async ({
+  db,
+  userId,
+  referenceDate,
+}: {
+  db: SupabaseClient;
+  userId: string;
+  referenceDate: string;
+}) => {
+  const markerRes = await db
+    .from("security_events")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("event_type", DAILY_SENT_EVENT_TYPE)
+    .contains("metadata", { reference_date: referenceDate })
+    .limit(1);
+
+  if (markerRes.error) {
+    const hint = mapTableHint(markerRes.error.message);
+    throw new Error(hint ? `${hint} Rode o supabase.sql atualizado.` : markerRes.error.message);
+  }
+
+  return (markerRes.data || []).length > 0;
+};
+
+const writeDailyLog = async ({
+  db,
+  userId,
+  referenceDate,
+  eventType,
+  severity,
+  message,
+  metadata,
+}: {
+  db: SupabaseClient;
+  userId: string;
+  referenceDate: string;
+  eventType: string;
+  severity: "info" | "warning" | "critical";
+  message: string;
+  metadata?: Record<string, unknown>;
+}) => {
+  const insertRes = await db
+    .from("security_events")
+    .insert({
+      user_id: userId,
+      event_type: eventType,
+      severity,
+      message: message.slice(0, 500),
+      path: "/api/agenda/daily-alerts",
+      metadata: {
+        reference_date: referenceDate,
+        ...(metadata || {}),
+      },
+    });
+
+  if (insertRes.error) {
+    const hint = mapTableHint(insertRes.error.message);
+    throw new Error(hint ? `${hint} Rode o supabase.sql atualizado.` : insertRes.error.message);
+  }
+};
+
+const sendWithRetry = async ({
+  to,
+  subject,
+  html,
+  text,
+}: {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+}) => {
+  let attempt = 0;
+  let lastResult = await sendEmailAlert({ to, subject, html, text });
+  while (!lastResult.ok && attempt < 2) {
+    const reason = String(lastResult.error || "");
+    if (!/too many requests|rate limit/i.test(reason)) {
+      return lastResult;
+    }
+    attempt += 1;
+    await sleep(700 * attempt);
+    lastResult = await sendEmailAlert({ to, subject, html, text });
+  }
+  return lastResult;
+};
+
 const runDailyAgendaAlerts = async ({
   db,
   userFilter,
@@ -242,24 +329,15 @@ const runDailyAgendaAlerts = async ({
   let skipped = 0;
   let failed = 0;
   const errors: string[] = [];
+  let sequence = 0;
 
   for (const group of grouped.values()) {
-    const logRes = await db
-      .from("agenda_daily_alerts")
-      .select("id, user_id, reference_date, status, attempt_count")
-      .eq("user_id", group.userId)
-      .eq("reference_date", group.referenceDate)
-      .maybeSingle();
-
-    if (logRes.error) {
-      const hint = mapTableHint(logRes.error.message);
-      throw new Error(hint ? `${hint} Rode o supabase.sql atualizado.` : logRes.error.message);
-    }
-
-    const existingLog = (logRes.data || null) as DailyAlertLogRow | null;
-    const nextAttemptCount = (existingLog?.attempt_count || 0) + 1;
-
-    if (existingLog?.status === "sent") {
+    const alreadySent = await hasDailySentMarker({
+      db,
+      userId: group.userId,
+      referenceDate: group.referenceDate,
+    });
+    if (alreadySent) {
       skipped += 1;
       console.info(`[agenda-daily-alerts] skip user=${group.userId} date=${group.referenceDate} motivo=ja_enviado`);
       continue;
@@ -268,26 +346,30 @@ const runDailyAgendaAlerts = async ({
     if (!group.recipient) {
       skipped += 1;
       const reason = "Usuario sem email para envio de resumo diario.";
-      await db.from("agenda_daily_alerts").upsert(
-        {
-          user_id: group.userId,
-          reference_date: group.referenceDate,
-          user_email: "",
+      await writeDailyLog({
+        db,
+        userId: group.userId,
+        referenceDate: group.referenceDate,
+        eventType: DAILY_SKIPPED_EVENT_TYPE,
+        severity: "warning",
+        message: reason,
+        metadata: {
+          recipient: "",
           events_count: group.events.length,
-          status: "skipped",
-          details: reason,
-          sent_at: null,
-          last_attempt_at: nowIso,
-          attempt_count: nextAttemptCount,
+          attempted_at: nowIso,
         },
-        { onConflict: "user_id,reference_date" },
-      );
+      });
       console.warn(`[agenda-daily-alerts] skip user=${group.userId} date=${group.referenceDate} motivo=sem_email`);
       continue;
     }
 
+    if (sequence > 0) {
+      await sleep(550);
+    }
+    sequence += 1;
+
     const payload = buildDailySummaryEmail(group);
-    const send = await sendEmailAlert({
+    const send = await sendWithRetry({
       to: group.recipient,
       subject: payload.subject,
       html: payload.html,
@@ -298,39 +380,38 @@ const runDailyAgendaAlerts = async ({
       failed += 1;
       const reason = send.error || "Falha no envio do resumo diario.";
       errors.push(`[${group.userId}] ${reason}`);
-      await db.from("agenda_daily_alerts").upsert(
-        {
-          user_id: group.userId,
-          reference_date: group.referenceDate,
-          user_email: group.recipient,
+      await writeDailyLog({
+        db,
+        userId: group.userId,
+        referenceDate: group.referenceDate,
+        eventType: DAILY_ERROR_EVENT_TYPE,
+        severity: "critical",
+        message: reason.slice(0, 500),
+        metadata: {
+          recipient: group.recipient,
           events_count: payload.eventsCount,
-          status: "error",
-          details: reason.slice(0, 500),
-          sent_at: null,
-          last_attempt_at: nowIso,
-          attempt_count: nextAttemptCount,
+          attempted_at: nowIso,
         },
-        { onConflict: "user_id,reference_date" },
-      );
+      });
       console.error(`[agenda-daily-alerts] erro user=${group.userId} date=${group.referenceDate} reason=${reason}`);
       continue;
     }
 
     sent += 1;
-    await db.from("agenda_daily_alerts").upsert(
-      {
-        user_id: group.userId,
-        reference_date: group.referenceDate,
-        user_email: group.recipient,
+    await writeDailyLog({
+      db,
+      userId: group.userId,
+      referenceDate: group.referenceDate,
+      eventType: DAILY_SENT_EVENT_TYPE,
+      severity: "info",
+      message: `Resumo diario enviado via ${send.provider}.`,
+      metadata: {
+        recipient: group.recipient,
         events_count: payload.eventsCount,
-        status: "sent",
-        details: send.provider,
+        provider: send.provider,
         sent_at: nowIso,
-        last_attempt_at: nowIso,
-        attempt_count: nextAttemptCount,
       },
-      { onConflict: "user_id,reference_date" },
-    );
+    });
     console.info(`[agenda-daily-alerts] enviado user=${group.userId} date=${group.referenceDate} provider=${send.provider}`);
   }
 
