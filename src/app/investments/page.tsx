@@ -97,6 +97,11 @@ const safeRatio = (numerator: number, denominator: number, fallback = 0) => {
   return numerator / denominator;
 };
 
+const relativeDifference = (left: number, right: number) => {
+  const base = Math.max(Math.abs(right), 1);
+  return Math.abs(left - right) / base;
+};
+
 const parsePromptQuantity = (value: string) => {
   const raw = (value || "").trim().replace(/\s/g, "");
   if (!raw) return Number.NaN;
@@ -241,8 +246,32 @@ const normalizeInvestment = (
     }
   }
 
-  investedAmount = roundCurrency((quantity * averagePrice) + costs);
-  currentAmount = roundCurrency(quantity * currentPrice);
+  if (investedAmount <= 0) {
+    investedAmount = roundCurrency((quantity * averagePrice) + costs);
+  }
+
+  if (currentAmount <= 0) {
+    currentAmount = roundCurrency(quantity * currentPrice);
+  }
+
+  const derivedInvestedAmount = roundCurrency((quantity * averagePrice) + costs);
+  const derivedCurrentAmount = roundCurrency(quantity * currentPrice);
+
+  if (quantity > 0 && investedAmount > 0 && relativeDifference(derivedInvestedAmount, investedAmount) > 0.02) {
+    const netInvestedAmount = Math.max(investedAmount - costs, 0);
+    averagePrice = roundCurrency(
+      netInvestedAmount > 0
+        ? safeRatio(netInvestedAmount, quantity, averagePrice)
+        : averagePrice,
+    );
+  }
+
+  if (quantity > 0 && currentAmount > 0 && relativeDifference(derivedCurrentAmount, currentAmount) > 0.02) {
+    currentPrice = roundCurrency(safeRatio(currentAmount, quantity, currentPrice));
+  }
+
+  investedAmount = roundCurrency(investedAmount);
+  currentAmount = roundCurrency(currentAmount);
 
   const resolvedAssetLogo = isGoldAsset
     ? "/custom/icons/barras-de-ouro.png"

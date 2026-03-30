@@ -6,6 +6,8 @@ export type InvestmentStatsRow = {
   quantity: number;
   average_price: number;
   current_price: number;
+  invested_amount?: number | null;
+  current_amount?: number | null;
   dividends_received?: number | null;
   price_history?: number[];
   operation?: "compra" | "venda" | string;
@@ -17,6 +19,11 @@ const safeNumber = (value: unknown) => {
 };
 
 const roundCurrency = (value: number) => Math.round(value * 100) / 100;
+const resolveAmount = (preferred: unknown, fallback: number) => {
+  const parsed = safeNumber(preferred);
+  if (parsed > 0) return parsed;
+  return fallback;
+};
 
 export function useInvestmentStats(investments: InvestmentStatsRow[]) {
   return useMemo(() => {
@@ -24,14 +31,16 @@ export function useInvestmentStats(investments: InvestmentStatsRow[]) {
       const quantity = Math.abs(safeNumber(item.quantity));
       const signal = item.operation === "venda" ? -1 : 1;
       const currentPrice = safeNumber(item.current_price);
-      return sum + (quantity * currentPrice * signal);
+      const currentAmount = resolveAmount(item.current_amount, quantity * currentPrice);
+      return sum + (currentAmount * signal);
     }, 0);
 
     const valorInvestido = investments.reduce((sum, item) => {
       const quantity = Math.abs(safeNumber(item.quantity));
       const signal = item.operation === "venda" ? -1 : 1;
       const averagePrice = safeNumber(item.average_price);
-      return sum + (quantity * averagePrice * signal);
+      const investedAmount = resolveAmount(item.invested_amount, quantity * averagePrice);
+      return sum + (investedAmount * signal);
     }, 0);
 
     const ganhoCapital = patrimonioTotal - valorInvestido;

@@ -285,7 +285,17 @@ export const resolvePriceHistory = ({
 }) => {
   const parsed = toHistoryNumbers(history);
   if (parsed.length >= 2) {
-    return parsed.slice(-30);
+    const recent = parsed.slice(-30);
+    const last = recent[recent.length - 1] || 0;
+    const target = Math.max(safeNumber(currentPrice), 0);
+    if (last > 0 && target > 0) {
+      const mismatch = Math.abs(last - target) / Math.max(target, 1);
+      if (mismatch > 0.2) {
+        const ratio = target / last;
+        return recent.map((entry) => roundCurrency(Math.max(0.0001, entry * ratio)));
+      }
+    }
+    return recent;
   }
   return buildSyntheticPriceHistory(averagePrice, currentPrice, seedRef);
 };
