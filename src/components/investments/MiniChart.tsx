@@ -24,7 +24,7 @@ export function MiniChart({ prices }: MiniChartProps) {
   return (
     <div className={`rounded-2xl border px-3 py-2 ${panelClass}`}>
       <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.08em] text-slate-400">
-        <span>Ultimos 7 dias</span>
+        <span>Tendencia recente</span>
         <span className={positive ? "text-emerald-200" : "text-rose-200"}>
           {formatPercent(trendPct)}
         </span>

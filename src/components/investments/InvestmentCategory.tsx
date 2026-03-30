@@ -73,15 +73,14 @@ export function InvestmentCategory({
   const Icon = CATEGORY_ICON_MAP[category as keyof typeof CATEGORY_ICON_MAP] || Wallet;
   const categoryTheme = CATEGORY_THEME_MAP[category as keyof typeof CATEGORY_THEME_MAP]
     || CATEGORY_THEME_MAP.Outros;
-  const ribbonClipPath = "polygon(18px 0, calc(100% - 18px) 0, 100% 50%, calc(100% - 18px) 100%, 18px 100%, 0 50%)";
+  const itemLabel = items.length === 1 ? "1 investimento" : `${items.length} investimentos`;
 
   return (
     <section className="rounded-3xl border border-slate-200/10 bg-slate-900/70 p-3 backdrop-blur-xl">
       <button
         type="button"
         onClick={onToggle}
-        className="relative flex w-full items-center justify-between gap-3 border border-slate-200/15 bg-[linear-gradient(90deg,rgba(51,65,85,0.7),rgba(15,23,42,0.92),rgba(51,65,85,0.7))] px-5 py-3.5 text-left shadow-[0_14px_34px_rgba(2,6,23,0.42)] transition hover:border-slate-200/30"
-        style={{ clipPath: ribbonClipPath }}
+        className="flex w-full items-center justify-between gap-3 rounded-2xl border border-slate-200/15 bg-slate-950/72 px-4 py-3.5 text-left shadow-[0_14px_34px_rgba(2,6,23,0.32)] transition hover:border-slate-200/30 hover:bg-slate-950/82"
         aria-expanded={open}
       >
         <div className="flex items-center gap-3">
@@ -90,7 +89,7 @@ export function InvestmentCategory({
           </span>
           <div>
             <h4 className="text-sm font-bold tracking-tight text-white">{category}</h4>
-            <p className="text-xs text-slate-400">{items.length} ativo(s)</p>
+            <p className="text-xs text-slate-400">{itemLabel}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">

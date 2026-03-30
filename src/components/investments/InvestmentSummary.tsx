@@ -3,9 +3,9 @@
 import {
   ArrowDownRight,
   ArrowUpRight,
-  Minus,
-  Coins,
+  BadgeDollarSign,
   HandCoins,
+  Minus,
   LineChart,
   Wallet,
 } from "lucide-react";
@@ -38,71 +38,55 @@ const getTrendAppearance = (value: number) => {
 
 export function InvestmentSummary({ investments }: InvestmentSummaryProps) {
   const stats = useInvestmentStats(investments);
-  const lucroTrend = getTrendAppearance(stats.lucroTotal);
-  const variacaoTrend = getTrendAppearance(stats.variacaoPercent);
+  const resultadoTrend = getTrendAppearance(stats.lucroTotal);
+  const variacaoTrend = getTrendAppearance(stats.variacaoValor);
   const rentabilidadeTrend = getTrendAppearance(stats.rentabilidade);
 
   return (
-    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <section className="grid gap-3 lg:grid-cols-3">
       <StatCard
         index={0}
-        title="Patrimonio total"
-        value={brl(stats.patrimonioTotal)}
+        title="Voce aplicou"
+        value={brl(stats.valorInvestido)}
         icon={Wallet}
         extra={(
           <p className="text-xs text-slate-400">
-            Base investida: <span className="font-semibold text-slate-200">{brl(stats.valorInvestido)}</span>
+            Total dos aportes registrados na carteira.
           </p>
         )}
       />
 
       <StatCard
         index={1}
-        title="Lucro total"
-        value={brl(stats.lucroTotal)}
-        valueClassName={lucroTrend.textClass}
-        icon={HandCoins}
-        extra={(
-          <div className="grid grid-cols-2 gap-2 text-xs text-slate-400">
-            <p>
-              Capital
-              <span className="ml-1 font-semibold text-slate-100">{brl(stats.ganhoCapital)}</span>
-            </p>
-            <p>
-              Dividendos
-              <span className="ml-1 font-semibold text-slate-100">{brl(stats.proventos12m)}</span>
-            </p>
-          </div>
-        )}
-      />
-
-      <StatCard
-        index={2}
-        title="Proventos recebidos (12M)"
-        value={brl(stats.proventos12m)}
-        icon={Coins}
+        title="Hoje sua carteira vale"
+        value={brl(stats.patrimonioTotal)}
+        icon={BadgeDollarSign}
         extra={(
           <p className="text-xs text-slate-400">
-            Fluxo acumulado: <span className="font-semibold text-slate-100">{brl(stats.proventos12m)}</span>
+            Valor atualizado de todos os investimentos.
           </p>
         )}
       />
 
       <StatCard
-        index={3}
-        title="Performance diaria"
-        value={formatPercent(stats.variacaoPercent)}
-        valueClassName={variacaoTrend.textClass}
-        icon={LineChart}
+        index={2}
+        title="Seu resultado"
+        value={brl(stats.lucroTotal)}
+        valueClassName={resultadoTrend.textClass}
+        icon={HandCoins}
         extra={(
           <div className="space-y-1 text-xs">
+            <p className={`inline-flex items-center gap-1 font-semibold ${resultadoTrend.textClass}`}>
+              <resultadoTrend.Icon className="h-3.5 w-3.5" />
+              Rentabilidade: {formatPercent(stats.rentabilidade)}
+            </p>
             <p className={`inline-flex items-center gap-1 font-semibold ${variacaoTrend.textClass}`}>
               <variacaoTrend.Icon className="h-3.5 w-3.5" />
-              Variacao hoje: {formatPercent(stats.variacaoPercent)} ({brl(stats.variacaoValor)})
+              Hoje: {brl(stats.variacaoValor)} ({formatPercent(stats.variacaoPercent)})
             </p>
             <p className={`inline-flex items-center gap-1 font-semibold ${rentabilidadeTrend.textClass}`}>
-              <rentabilidadeTrend.Icon className="h-3.5 w-3.5" />
-              Rentabilidade: {formatPercent(stats.rentabilidade)}
+              <LineChart className="h-3.5 w-3.5" />
+              Proventos recebidos: {brl(stats.proventos12m)}
             </p>
           </div>
         )}

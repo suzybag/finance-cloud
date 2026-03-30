@@ -1,13 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { BarChart3, Building2, Pencil } from "lucide-react";
+import { useState } from "react";
+import { ArrowDownRight, ArrowUpRight, Building2, Minus, Pencil } from "lucide-react";
 import { MiniChart } from "@/components/investments/MiniChart";
 import { DeleteActionButton } from "@/components/DeleteActionButton";
-import {
-  calculateInvestmentStatus,
-  calculateReturn,
-} from "@/lib/calculateInvestment";
+import { calculateReturn } from "@/lib/calculateInvestment";
 import { brl, formatPercent } from "@/lib/money";
 
 export type InvestmentCardItem = {
@@ -42,12 +39,6 @@ const formatQty = (value: number) =>
     maximumFractionDigits: 6,
   });
 
-const statusStyles: Record<ReturnType<typeof calculateInvestmentStatus>, string> = {
-  CARO: "border-rose-200/26 bg-rose-400/10 text-rose-100",
-  NORMAL: "border-slate-300/22 bg-slate-700/35 text-slate-100",
-  BARATO: "border-emerald-200/26 bg-emerald-400/10 text-emerald-100",
-};
-
 const resolveFallbackLogo = (item: InvestmentCardItem) => {
   const key = `${item.category} ${item.investment_type} ${item.asset_name}`.toLowerCase();
 
@@ -61,6 +52,9 @@ const resolveFallbackLogo = (item: InvestmentCardItem) => {
     return "https://assets.coincap.io/assets/icons/usdc@2x.png";
   }
   if (key.includes("caixinha")) {
+    return "/custom/icons/CDB-Caixinha.webp";
+  }
+  if (key.includes("cdb")) {
     return "/custom/icons/CDB-Caixinha.webp";
   }
   if (key.includes("cripto") || key.includes("bitcoin") || key.includes("btc") || key.includes("eth")) {
@@ -85,7 +79,7 @@ const resolveFallbackLogo = (item: InvestmentCardItem) => {
     || key.includes("ipca")
     || key.includes("poup")
   ) {
-    return "/custom/icons/barras-de-ouro.png";
+    return "/investments/fixed.svg";
   }
   if (key.includes("ouro") || key.includes("commodities")) {
     return "/custom/icons/barras-de-ouro.png";
@@ -104,33 +98,90 @@ const toAssetInitials = (name: string) =>
     .toUpperCase()
     || "AT";
 
+const getTrendAppearance = (value: number) => {
+  if (value > 0) {
+    return {
+      className: "text-emerald-200",
+      Icon: ArrowUpRight,
+      label: "No lucro",
+    };
+  }
+  if (value < 0) {
+    return {
+      className: "text-rose-200",
+      Icon: ArrowDownRight,
+      label: "Abaixo do aporte",
+    };
+  }
+  return {
+    className: "text-slate-200",
+    Icon: Minus,
+    label: "No zero",
+  };
+};
+
+type InvestmentAssetLogoProps = {
+  assetName: string;
+  preferredLogo: string | null;
+  fallbackLogo: string;
+};
+
+function InvestmentAssetLogo({
+  assetName,
+  preferredLogo,
+  fallbackLogo,
+}: InvestmentAssetLogoProps) {
+  const [imageSource, setImageSource] = useState<"preferred" | "fallback" | "none">(
+    preferredLogo ? "preferred" : "fallback",
+  );
+  const assetInitials = toAssetInitials(assetName);
+  const logoUrl = imageSource === "preferred"
+    ? preferredLogo
+    : imageSource === "fallback"
+      ? fallbackLogo
+      : null;
+
+  return (
+    <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-2xl border border-slate-200/15 bg-slate-900/85">
+      {logoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={logoUrl}
+          alt={assetName}
+          className="h-full w-full object-contain p-2.5"
+          loading="lazy"
+          onError={() => {
+            if (imageSource === "preferred" && preferredLogo && preferredLogo !== fallbackLogo) {
+              setImageSource("fallback");
+              return;
+            }
+            setImageSource("none");
+          }}
+        />
+      ) : (
+        <span className="text-sm font-bold tracking-wide text-slate-100">{assetInitials}</span>
+      )}
+    </div>
+  );
+}
+
 export function InvestmentCard({ item, deleting, editing, onEdit, onDelete }: InvestmentCardProps) {
-  const status = calculateInvestmentStatus(item.average_price, item.current_price);
   const { difference, percent } = calculateReturn(item.invested_amount, item.current_amount);
-  const positive = difference >= 0;
   const isBuy = item.operation === "compra";
-  const [logoFailed, setLogoFailed] = useState(false);
-  const logoUrl = !logoFailed ? (item.asset_logo_url || resolveFallbackLogo(item)) : null;
-  const assetInitials = useMemo(() => toAssetInitials(item.asset_name), [item.asset_name]);
+  const preferredLogo = item.asset_logo_url?.trim() || null;
+  const fallbackLogo = resolveFallbackLogo(item);
+  const resultTrend = getTrendAppearance(difference);
 
   return (
     <article className="group rounded-3xl border border-slate-200/10 bg-slate-950/68 p-4 shadow-[0_22px_44px_rgba(2,6,23,0.42)] transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-200/20 hover:shadow-[0_28px_52px_rgba(2,6,23,0.54)] sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-2xl border border-slate-200/15 bg-slate-900/85">
-            {logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={logoUrl}
-                alt={item.asset_name}
-                className="h-full w-full object-contain p-2.5"
-                loading="lazy"
-                onError={() => setLogoFailed(true)}
-              />
-            ) : (
-              <span className="text-sm font-bold tracking-wide text-slate-100">{assetInitials}</span>
-            )}
-          </div>
+          <InvestmentAssetLogo
+            key={`${item.id}-${preferredLogo || "none"}-${fallbackLogo}`}
+            assetName={item.asset_name}
+            preferredLogo={preferredLogo}
+            fallbackLogo={fallbackLogo}
+          />
 
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
@@ -142,8 +193,15 @@ export function InvestmentCard({ item, deleting, editing, onEdit, onDelete }: In
               }`}>
                 {isBuy ? "Compra" : "Venda"}
               </span>
-              <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${statusStyles[status]}`}>
-                {status}
+              <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold ${resultTrend.className} ${
+                difference > 0
+                  ? "border-emerald-200/28 bg-emerald-400/10"
+                  : difference < 0
+                    ? "border-rose-200/28 bg-rose-400/10"
+                    : "border-slate-300/22 bg-slate-700/35"
+              }`}>
+                <resultTrend.Icon className="h-3 w-3" />
+                {resultTrend.label}
               </span>
             </div>
             <p className="line-clamp-1 text-xs text-slate-400">
@@ -167,41 +225,33 @@ export function InvestmentCard({ item, deleting, editing, onEdit, onDelete }: In
 
       <div className="mt-4 grid gap-2 sm:grid-cols-3">
         <div className="rounded-2xl border border-slate-200/10 bg-slate-900/85 p-3">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-slate-400">Quantidade</p>
-          <p className="mt-1 text-sm font-bold text-slate-100">{formatQty(Math.abs(item.quantity))}</p>
-        </div>
-        <div className="rounded-2xl border border-slate-200/10 bg-slate-900/85 p-3">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-slate-400">Preco medio</p>
-          <p className="mt-1 text-sm font-bold text-slate-100">{brl(item.average_price)}</p>
-        </div>
-        <div className="rounded-2xl border border-slate-200/10 bg-slate-900/85 p-3">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-slate-400">Preco atual</p>
-          <p className="mt-1 text-sm font-bold text-slate-100">{brl(item.current_price)}</p>
-        </div>
-      </div>
-
-      <div className="mt-2 grid gap-2 sm:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200/10 bg-slate-900/78 p-3">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-slate-400">Total investido</p>
+          <p className="text-[11px] uppercase tracking-[0.08em] text-slate-400">Aporte total</p>
           <p className="mt-1 text-sm font-bold text-slate-100">{brl(item.invested_amount)}</p>
         </div>
-        <div className="rounded-2xl border border-slate-200/10 bg-slate-900/78 p-3">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-slate-400">Valor atual</p>
+        <div className="rounded-2xl border border-slate-200/10 bg-slate-900/85 p-3">
+          <p className="text-[11px] uppercase tracking-[0.08em] text-slate-400">Valor hoje</p>
           <p className="mt-1 text-sm font-bold text-slate-100">{brl(item.current_amount)}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200/10 bg-slate-900/85 p-3">
+          <p className="text-[11px] uppercase tracking-[0.08em] text-slate-400">Resultado</p>
+          <p className={`mt-1 text-sm font-bold ${resultTrend.className}`}>{brl(difference)}</p>
+          <p className={`text-xs font-semibold ${resultTrend.className}`}>{formatPercent(percent)}</p>
         </div>
       </div>
 
-      <div className="mt-2 rounded-2xl border border-slate-200/10 bg-slate-900/78 p-3">
-        <p className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.08em] text-slate-400">
-          <BarChart3 className="h-3.5 w-3.5 text-slate-300" />
-          Rentabilidade
-        </p>
-        <div className="mt-1 flex items-center justify-between gap-2">
-          <span className={`text-sm font-bold ${positive ? "text-emerald-200" : "text-rose-200"}`}>
-            {formatPercent(percent)}
+      <div className="mt-3 rounded-2xl border border-slate-200/10 bg-slate-900/78 p-3">
+        <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-slate-400">
+          <span>
+            Quantidade: <span className="font-semibold text-slate-100">{formatQty(Math.abs(item.quantity))}</span>
           </span>
-          <span className={`text-sm font-bold ${positive ? "text-emerald-200" : "text-rose-200"}`}>
-            {brl(difference)}
+          <span>
+            Preco medio: <span className="font-semibold text-slate-100">{brl(item.average_price)}</span>
+          </span>
+          <span>
+            Preco atual: <span className="font-semibold text-slate-100">{brl(item.current_price)}</span>
+          </span>
+          <span>
+            Custos: <span className="font-semibold text-slate-100">{brl(item.costs)}</span>
           </span>
         </div>
       </div>
@@ -213,7 +263,7 @@ export function InvestmentCard({ item, deleting, editing, onEdit, onDelete }: In
       <div className="mt-3 flex items-center justify-between gap-3 text-[11px] text-slate-500">
         <span className="inline-flex items-center gap-1.5">
           <Building2 className="h-3 w-3" />
-          Categoria: {item.category} - Custos: {brl(item.costs)}
+          Categoria: {item.category}
         </span>
         <DeleteActionButton
           onClick={() => onDelete(item.id)}

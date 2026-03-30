@@ -79,7 +79,7 @@ const SECTION_CLASS =
   "rounded-3xl border border-slate-200/12 bg-slate-950/60 shadow-[0_24px_56px_rgba(2,6,23,0.46)] backdrop-blur-xl";
 
 const PRIMARY_BUTTON_CLASS =
-  "inline-flex items-center gap-2 rounded-2xl border border-slate-100/60 bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-950 shadow-[0_14px_34px_rgba(15,23,42,0.28)] transition hover:bg-white";
+  "inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-200/55 bg-emerald-300 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-[0_14px_34px_rgba(16,185,129,0.22)] transition hover:bg-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-200/55";
 
 const LOW_USAGE_MODE = process.env.NEXT_PUBLIC_SUPABASE_LOW_USAGE_MODE !== "false";
 
@@ -172,6 +172,22 @@ const normalizeInvestment = (
   const investmentTypeLower = investmentType.toLowerCase();
   const isCaixinhaAsset = assetNameLower.includes("caixinha")
     || investmentTypeLower.includes("caixinha");
+  const isCdbAsset = assetNameLower.includes("cdb")
+    || investmentTypeLower.includes("cdb");
+  const isFixedIncomeAsset = isCdbAsset
+    || assetNameLower.includes("lci")
+    || investmentTypeLower.includes("lci")
+    || assetNameLower.includes("lca")
+    || investmentTypeLower.includes("lca")
+    || assetNameLower.includes("tesouro")
+    || investmentTypeLower.includes("tesouro")
+    || assetNameLower.includes("selic")
+    || investmentTypeLower.includes("selic")
+    || assetNameLower.includes("ipca")
+    || investmentTypeLower.includes("ipca")
+    || assetNameLower.includes("poup")
+    || investmentTypeLower.includes("poup")
+    || investmentTypeLower.includes("renda fixa");
   const isGoldAsset = assetNameLower.includes("ouro")
     || investmentTypeLower.includes("ouro")
     || investmentTypeLower.includes("xau");
@@ -230,8 +246,10 @@ const normalizeInvestment = (
 
   const resolvedAssetLogo = isGoldAsset
     ? "/custom/icons/barras-de-ouro.png"
-    : isCaixinhaAsset
+    : isCaixinhaAsset || isCdbAsset
       ? "/custom/icons/CDB-Caixinha.webp"
+      : isFixedIncomeAsset
+        ? "/investments/fixed.svg"
       : row.asset_logo_url?.trim() || assetLookup?.logo || bankLookup?.logo || null;
 
   return {
@@ -628,6 +646,14 @@ export default function InvestmentsPage() {
       }, 0),
     [groupedByCategory],
   );
+  const visibleCategories = useMemo(
+    () => INVESTMENT_CATEGORIES.filter((category) => (groupedByCategory.get(category) || []).length > 0),
+    [groupedByCategory],
+  );
+  const hasOpenVisibleCategory = useMemo(
+    () => visibleCategories.some((category) => openCategories[category]),
+    [openCategories, visibleCategories],
+  );
 
   const portfolioCurrentTotal = useMemo(
     () =>
@@ -660,7 +686,7 @@ export default function InvestmentsPage() {
   return (
     <AppShell
       title="Investimentos"
-      subtitle="Visao minimalista e informativa para acompanhar sua carteira em segundos"
+      subtitle="Resumo simples da carteira para acompanhar aportes, saldo atual e resultado"
       contentClassName="investments-ultra-bg"
     >
       <InvestmentModal
@@ -693,19 +719,19 @@ export default function InvestmentsPage() {
             <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
               <div className="space-y-2">
                 <span className="inline-flex items-center rounded-full border border-slate-200/20 bg-slate-800/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-200">
-                  Carteira em foco
+                  Resumo rapido
                 </span>
                 <h2 className="text-xl font-extrabold tracking-tight text-white sm:text-2xl">
-                  Lista de investimentos
+                  Sua carteira em um olhar
                 </h2>
                 <p className="max-w-2xl text-sm text-slate-300">
-                  Design limpo com destaque para os dados mais importantes: patrimonio, variacao e composicao por categoria.
+                  Veja quanto voce aplicou, quanto vale hoje e abra cada categoria para entender os ativos sem excesso de informacao.
                 </p>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <div className="grid grid-cols-2 gap-2 sm:min-w-[300px]">
                   <div className="rounded-2xl border border-slate-200/12 bg-slate-900/74 px-3 py-2">
-                    <p className="text-[11px] uppercase tracking-[0.08em] text-slate-400">Ativos</p>
+                    <p className="text-[11px] uppercase tracking-[0.08em] text-slate-400">Investimentos</p>
                     <p className="mt-1 text-lg font-bold text-slate-100">{investments.length}</p>
                   </div>
                   <div className="rounded-2xl border border-slate-200/12 bg-slate-900/74 px-3 py-2">
@@ -713,7 +739,7 @@ export default function InvestmentsPage() {
                     <p className="mt-1 text-lg font-bold text-slate-100">{activeCategoriesCount}</p>
                   </div>
                   <div className="col-span-2 rounded-2xl border border-slate-200/12 bg-slate-900/74 px-3 py-2">
-                    <p className="text-[11px] uppercase tracking-[0.08em] text-slate-400">Posicao atual</p>
+                    <p className="text-[11px] uppercase tracking-[0.08em] text-slate-400">Carteira hoje</p>
                     <p className={`mt-1 text-lg font-bold ${portfolioCurrentTone}`}>{brl(portfolioCurrentTotal)}</p>
                   </div>
                 </div>
@@ -723,7 +749,7 @@ export default function InvestmentsPage() {
                   onClick={() => setShowModal(true)}
                 >
                   <Plus className="h-4 w-4" />
-                  Adicionar lancamento
+                  Adicionar investimento
                 </button>
               </div>
             </div>
@@ -731,21 +757,30 @@ export default function InvestmentsPage() {
           <InvestmentSummary investments={investments} />
 
           <section className={`${SECTION_CLASS} p-4 sm:p-5`}>
-            <div className="space-y-3">
-              {INVESTMENT_CATEGORIES.map((category) => (
-                <InvestmentCategory
-                  key={category}
-                  category={category}
-                  items={groupedByCategory.get(category) || []}
-                  open={openCategories[category] ?? false}
-                  deletingId={deletingId}
-                  editingId={editingId}
-                  onToggle={() => toggleCategory(category)}
-                  onEdit={(id) => void handleEdit(id)}
-                  onDelete={(id) => void handleDelete(id)}
-                />
-              ))}
-            </div>
+            {visibleCategories.length ? (
+              <div className="space-y-3">
+                {visibleCategories.map((category) => (
+                  <InvestmentCategory
+                    key={category}
+                    category={category}
+                    items={groupedByCategory.get(category) || []}
+                    open={hasOpenVisibleCategory ? (openCategories[category] ?? false) : category === visibleCategories[0]}
+                    deletingId={deletingId}
+                    editingId={editingId}
+                    onToggle={() => toggleCategory(category)}
+                    onEdit={(id) => void handleEdit(id)}
+                    onDelete={(id) => void handleDelete(id)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-3xl border border-dashed border-slate-200/16 bg-slate-950/45 px-4 py-8 text-center">
+                <h3 className="text-base font-semibold text-slate-100">Nenhum investimento cadastrado</h3>
+                <p className="mt-2 text-sm text-slate-400">
+                  Adicione seu primeiro investimento para acompanhar aportes, saldo atual e rendimento.
+                </p>
+              </div>
+            )}
           </section>
         </div>
       )}
