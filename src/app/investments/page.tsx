@@ -10,7 +10,10 @@ import { AppShell } from "@/components/AppShell";
 import { useConfirmDialog } from "@/context/ConfirmDialogContext";
 import { InvestmentModal, type InvestmentLaunchPayload } from "@/components/investments/InvestmentModal";
 import { InvestmentCategory } from "@/components/investments/InvestmentCategory";
-import { InvestmentSummary } from "@/components/investments/InvestmentSummary";
+import {
+  InvestmentOverviewPanel,
+  type InvestmentOverviewPanelItem,
+} from "@/components/investments/InvestmentOverviewPanel";
 import { type InvestmentCardItem } from "@/components/investments/InvestmentCard";
 import {
   INVESTMENT_CATEGORIES,
@@ -20,7 +23,7 @@ import {
   resolvePriceHistory,
   type InvestmentCategory as InvestmentCategoryType,
 } from "@/lib/calculateInvestment";
-import { brl, toNumber } from "@/lib/money";
+import { toNumber } from "@/lib/money";
 import { supabase } from "@/lib/supabaseClient";
 
 type InvestmentRow = InvestmentCardItem & {
@@ -679,24 +682,41 @@ export default function InvestmentsPage() {
     () => INVESTMENT_CATEGORIES.filter((category) => (groupedByCategory.get(category) || []).length > 0),
     [groupedByCategory],
   );
+  const overviewItems = useMemo<InvestmentOverviewPanelItem[]>(() => {
+    const itemsByAsset = new Map<string, InvestmentOverviewPanelItem>();
+
+    investments.forEach((item) => {
+      const assetName = (item.asset_name || item.investment_type || "Ativo").trim();
+      const signal = item.operation === "venda" ? -1 : 1;
+      const currentEnd = item.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10);
+      const existing = itemsByAsset.get(assetName);
+
+      if (existing) {
+        existing.investido += item.invested_amount * signal;
+        existing.atual += item.current_amount * signal;
+        existing.inicio = item.start_date < existing.inicio ? item.start_date : existing.inicio;
+        existing.fim = currentEnd > existing.fim ? currentEnd : existing.fim;
+        return;
+      }
+
+      itemsByAsset.set(assetName, {
+        id: item.id,
+        nome: assetName,
+        investido: item.invested_amount * signal,
+        atual: item.current_amount * signal,
+        inicio: item.start_date,
+        fim: currentEnd,
+      });
+    });
+
+    return Array.from(itemsByAsset.values())
+      .filter((item) => Math.abs(item.investido) > 0 || Math.abs(item.atual) > 0)
+      .sort((left, right) => Math.abs(right.atual) - Math.abs(left.atual));
+  }, [investments]);
   const hasOpenVisibleCategory = useMemo(
     () => visibleCategories.some((category) => openCategories[category]),
     [openCategories, visibleCategories],
   );
-
-  const portfolioCurrentTotal = useMemo(
-    () =>
-      investments.reduce(
-        (sum, item) => sum + (item.operation === "venda" ? -item.current_amount : item.current_amount),
-        0,
-      ),
-    [investments],
-  );
-  const portfolioCurrentTone = portfolioCurrentTotal > 0
-    ? "text-emerald-200"
-    : portfolioCurrentTotal < 0
-      ? "text-rose-200"
-      : "text-slate-100";
 
   const isFeedbackError = useMemo(
     () =>
@@ -715,7 +735,7 @@ export default function InvestmentsPage() {
   return (
     <AppShell
       title="Investimentos"
-      subtitle="Resumo simples da carteira para acompanhar aportes, saldo atual e resultado"
+      subtitle="Carteira total, painel consolidado e detalhes dos ativos"
       contentClassName="investments-ultra-bg"
     >
       <InvestmentModal
@@ -745,33 +765,21 @@ export default function InvestmentsPage() {
           ) : null}
 
           <section className={`${SECTION_CLASS} p-5 sm:p-6`}>
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-              <div className="space-y-2">
-                <span className="inline-flex items-center rounded-full border border-slate-200/20 bg-slate-800/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-200">
-                  Resumo rapido
-                </span>
-                <h2 className="text-xl font-extrabold tracking-tight text-white sm:text-2xl">
-                  Sua carteira em um olhar
-                </h2>
-                <p className="max-w-2xl text-sm text-slate-300">
-                  Veja quanto voce aplicou, quanto vale hoje e abra cada categoria para entender os ativos sem excesso de informacao.
-                </p>
-              </div>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="space-y-4">
+              <InvestmentOverviewPanel investments={overviewItems} />
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="grid grid-cols-2 gap-2 sm:min-w-[300px]">
                   <div className="rounded-2xl border border-slate-200/12 bg-slate-900/74 px-3 py-2">
-                    <p className="text-[11px] uppercase tracking-[0.08em] text-slate-400">Investimentos</p>
-                    <p className="mt-1 text-lg font-bold text-slate-100">{investments.length}</p>
+                    <p className="text-[11px] uppercase tracking-[0.08em] text-slate-400">Ativos no painel</p>
+                    <p className="mt-1 text-lg font-bold text-slate-100">{overviewItems.length}</p>
                   </div>
                   <div className="rounded-2xl border border-slate-200/12 bg-slate-900/74 px-3 py-2">
                     <p className="text-[11px] uppercase tracking-[0.08em] text-slate-400">Categorias</p>
                     <p className="mt-1 text-lg font-bold text-slate-100">{activeCategoriesCount}</p>
                   </div>
-                  <div className="col-span-2 rounded-2xl border border-slate-200/12 bg-slate-900/74 px-3 py-2">
-                    <p className="text-[11px] uppercase tracking-[0.08em] text-slate-400">Carteira hoje</p>
-                    <p className={`mt-1 text-lg font-bold ${portfolioCurrentTone}`}>{brl(portfolioCurrentTotal)}</p>
-                  </div>
                 </div>
+
                 <button
                   type="button"
                   className={PRIMARY_BUTTON_CLASS}
@@ -783,7 +791,6 @@ export default function InvestmentsPage() {
               </div>
             </div>
           </section>
-          <InvestmentSummary investments={investments} />
 
           <section className={`${SECTION_CLASS} p-4 sm:p-5`}>
             {visibleCategories.length ? (
