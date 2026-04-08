@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import {
   Bar,
   BarChart,
+  Cell,
   CartesianGrid,
   LabelList,
   ResponsiveContainer,
@@ -293,37 +294,44 @@ export default function VendasPage() {
       {
         name: string;
         category: string;
-        profit: number;
+        chartValue: number;
         purchaseAmount: number;
         saleAmount: number;
+        soldCount: number;
+        stockCount: number;
       }
     >();
 
-    filteredSold.forEach((row) => {
+    filteredRows.forEach((row) => {
       const key = `${row.category}::${row.item_name}`;
       const purchaseAmount = Math.abs(toNumber(row.purchase_amount));
       const saleAmount = Math.abs(toNumber(row.sale_amount ?? 0));
-      const profit = round2(saleAmount - purchaseAmount);
+      const sold = isSoldItem(row);
+      const chartValue = sold ? round2(saleAmount - purchaseAmount) : round2(-purchaseAmount);
       const current = map.get(key);
 
       if (current) {
-        current.profit = round2(current.profit + profit);
+        current.chartValue = round2(current.chartValue + chartValue);
         current.purchaseAmount = round2(current.purchaseAmount + purchaseAmount);
         current.saleAmount = round2(current.saleAmount + saleAmount);
+        current.soldCount += sold ? 1 : 0;
+        current.stockCount += sold ? 0 : 1;
         return;
       }
 
       map.set(key, {
         name: row.item_name,
         category: row.category,
-        profit,
+        chartValue,
         purchaseAmount,
         saleAmount,
+        soldCount: sold ? 1 : 0,
+        stockCount: sold ? 0 : 1,
       });
     });
 
-    return Array.from(map.values()).sort((a, b) => b.profit - a.profit);
-  }, [filteredSold]);
+    return Array.from(map.values()).sort((a, b) => b.chartValue - a.chartValue);
+  }, [filteredRows]);
 
   const resetForm = () => {
     setForm(emptyForm());
@@ -733,7 +741,7 @@ export default function VendasPage() {
               </h2>
             </div>
             <span className="rounded-full border border-cyan-400/20 bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-100">
-              {filteredSold.length} venda(s) no filtro
+              {productProfitData.length} item(ns) no grafico
             </span>
           </div>
 
@@ -743,7 +751,7 @@ export default function VendasPage() {
                 <div>
                   <p className="text-sm font-semibold text-cyan-300">Lucro por Produto</p>
                   <p className="text-xs text-slate-400">
-                    Barras futuristas com os itens vendidos no filtro atual.
+                    Itens vendidos mostram lucro real. Estoque entra como investimento aberto.
                   </p>
                 </div>
                 <span className="rounded-full border border-fuchsia-400/20 bg-fuchsia-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-fuchsia-200">
@@ -758,6 +766,10 @@ export default function VendasPage() {
                     <linearGradient id="salesProductGradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#00f5ff" />
                       <stop offset="100%" stopColor="#7c3aed" />
+                    </linearGradient>
+                    <linearGradient id="salesLossGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#fb7185" />
+                      <stop offset="100%" stopColor="#b91c1c" />
                     </linearGradient>
                   </defs>
 
@@ -781,11 +793,23 @@ export default function VendasPage() {
                     cursor={{ fill: "rgba(34,211,238,0.06)" }}
                     formatter={(value, _name, item) => {
                       const payload = item?.payload as
-                        | { purchaseAmount?: number; saleAmount?: number }
+                        | {
+                            purchaseAmount?: number;
+                            saleAmount?: number;
+                            soldCount?: number;
+                            stockCount?: number;
+                          }
                         | undefined;
+                      const soldCount = Number(payload?.soldCount ?? 0);
+                      const stockCount = Number(payload?.stockCount ?? 0);
+                      const statusText = stockCount > 0 && soldCount === 0
+                        ? "Em estoque"
+                        : stockCount > 0
+                          ? "Misto"
+                          : "Vendido";
                       return [
-                        `${formatSignedBrl(Number(value ?? 0))} | Compra ${brl(Number(payload?.purchaseAmount ?? 0))} | Venda ${brl(Number(payload?.saleAmount ?? 0))}`,
-                        "Lucro",
+                        `${formatSignedBrl(Number(value ?? 0))} | Compra ${brl(Number(payload?.purchaseAmount ?? 0))} | Venda ${brl(Number(payload?.saleAmount ?? 0))} | ${statusText}`,
+                        "Resultado",
                       ];
                     }}
                     contentStyle={{
@@ -797,9 +821,15 @@ export default function VendasPage() {
                     itemStyle={{ color: "#00f5ff" }}
                     labelStyle={{ color: "#ffffff", fontWeight: 600 }}
                   />
-                  <Bar dataKey="profit" radius={[8, 8, 0, 0]} fill="url(#salesProductGradient)" barSize={36}>
+                  <Bar dataKey="chartValue" radius={[8, 8, 0, 0]} barSize={36}>
+                    {productProfitData.map((entry) => (
+                      <Cell
+                        key={`${entry.category}-${entry.name}`}
+                        fill={entry.chartValue >= 0 ? "url(#salesProductGradient)" : "url(#salesLossGradient)"}
+                      />
+                    ))}
                     <LabelList
-                      dataKey="profit"
+                      dataKey="chartValue"
                       position="top"
                       formatter={(value) => shortMoney(Number(value ?? 0))}
                       style={{ fill: "#00f5ff", fontWeight: 700, fontSize: 12 }}
@@ -811,7 +841,7 @@ export default function VendasPage() {
             </div>
           ) : (
             <div className="mt-4 rounded-3xl border border-white/8 bg-black/15 px-4 py-5 text-sm text-slate-300">
-              Ainda nao existe venda suficiente para montar o grafico de lucro por produto com o filtro atual.
+              Nenhum produto encontrado para montar o grafico com o filtro atual.
             </div>
           )}
         </motion.section>
