@@ -751,7 +751,7 @@ export default function VendasPage() {
                   />
                   <Tooltip
                     cursor={{ fill: "rgba(148,163,184,0.05)" }}
-                    formatter={(value: number) => [brl(Number(value)), "Lucro"]}
+                    formatter={(value) => [brl(Number(value ?? 0)), "Lucro"]}
                     contentStyle={{
                       background: "rgba(2, 6, 23, 0.95)",
                       border: "1px solid rgba(34,197,94,0.25)",
