@@ -5,7 +5,6 @@ import { motion } from "framer-motion";
 import {
   Bar,
   BarChart,
-  Cell,
   CartesianGrid,
   LabelList,
   ResponsiveContainer,
@@ -55,29 +54,38 @@ type ResaleFormState = {
   description: string;
 };
 
+type ProductChartDatum = {
+  name: string;
+  category: string;
+  profit: number;
+  purchaseAmount: number;
+  saleAmount: number;
+  soldAt: string;
+};
+
 const SECTION_CLASS =
-  "rounded-3xl border border-emerald-400/18 bg-[linear-gradient(160deg,rgba(10,28,33,0.92),rgba(9,12,24,0.96))] shadow-[0_18px_46px_rgba(0,0,0,0.34)] backdrop-blur-xl";
+  "rounded-3xl border border-cyan-500/12 bg-[linear-gradient(160deg,rgba(14,14,18,0.96),rgba(5,8,15,0.98))] shadow-[0_22px_52px_rgba(0,0,0,0.38)] backdrop-blur-xl";
 
 const INPUT_CLASS =
-  "w-full rounded-2xl border border-white/10 bg-slate-950/45 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-500/20";
+  "w-full rounded-2xl border border-zinc-800 bg-zinc-950/90 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-500/15";
 
 const PRIMARY_BUTTON_CLASS =
-  "inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 via-cyan-500 to-emerald-500 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-[0_14px_32px_rgba(6,182,212,0.25)] transition hover:brightness-110 disabled:opacity-60";
+  "inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 via-sky-400 to-violet-500 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-[0_14px_32px_rgba(6,182,212,0.25)] transition hover:brightness-110 disabled:opacity-60";
 
 const SECONDARY_BUTTON_CLASS =
-  "inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-slate-900/50 px-3 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-900/75 disabled:opacity-60";
+  "inline-flex items-center justify-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-950/85 px-3 py-2 text-sm font-semibold text-slate-100 transition hover:border-cyan-500/30 hover:bg-zinc-900 disabled:opacity-60";
 
 const STOCK_CARD_CLASS =
-  "rounded-2xl border border-slate-700 bg-[#1f2937] p-5 shadow-[0_20px_40px_rgba(0,0,0,0.22)]";
+  "rounded-2xl border border-zinc-800 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(13,13,18,0.98))] p-5 shadow-[0_20px_40px_rgba(0,0,0,0.24)]";
 
 const SOLD_CARD_CLASS =
-  "rounded-2xl border border-emerald-700/40 bg-emerald-900/70 p-5 shadow-[0_20px_40px_rgba(0,0,0,0.22)]";
+  "rounded-2xl border border-emerald-500/20 bg-[linear-gradient(180deg,rgba(14,28,24,0.98),rgba(8,18,16,0.98))] p-5 shadow-[0_20px_40px_rgba(0,0,0,0.24)]";
 
 const BLUE_BUTTON_CLASS =
-  "inline-flex items-center justify-center rounded-lg bg-blue-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-400 disabled:opacity-60";
+  "inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 px-3 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-60";
 
 const GREEN_BUTTON_CLASS =
-  "inline-flex items-center justify-center rounded-lg bg-emerald-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-400 disabled:opacity-60";
+  "inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-emerald-500 to-teal-400 px-3 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-60";
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const round2 = (value: number) => Math.round((Number.isFinite(value) ? value : 0) * 100) / 100;
@@ -144,6 +152,31 @@ const getItemIcon = (row: Pick<ResaleItemRow, "category" | "item_name" | "descri
     return Smartphone;
   }
   return ShoppingBag;
+};
+
+const ProductChartTooltip = ({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload: ProductChartDatum }>;
+}) => {
+  if (!active || !payload?.length) return null;
+
+  const item = payload[0]?.payload;
+  if (!item) return null;
+
+  const toneClass = item.profit > 0 ? "text-cyan-300" : item.profit < 0 ? "text-rose-300" : "text-slate-300";
+
+  return (
+    <div className="min-w-[180px] rounded-xl border border-cyan-400/40 bg-[#020617] px-4 py-3 shadow-[0_18px_40px_rgba(0,0,0,0.45)]">
+      <p className="text-base font-bold text-white">{item.name}</p>
+      <p className="mt-2 text-sm text-slate-300">{item.category}</p>
+      <p className={`mt-2 text-base font-semibold ${toneClass}`}>
+        lucro: {formatSignedBrl(item.profit)}
+      </p>
+    </div>
+  );
 };
 
 export default function VendasPage() {
@@ -291,47 +324,38 @@ export default function VendasPage() {
   const productProfitData = useMemo(() => {
     const map = new Map<
       string,
-      {
-        name: string;
-        category: string;
-        chartValue: number;
-        purchaseAmount: number;
-        saleAmount: number;
-        soldCount: number;
-        stockCount: number;
-      }
+      ProductChartDatum
     >();
 
-    filteredRows.forEach((row) => {
+    filteredSold.forEach((row) => {
       const key = `${row.category}::${row.item_name}`;
       const purchaseAmount = Math.abs(toNumber(row.purchase_amount));
       const saleAmount = Math.abs(toNumber(row.sale_amount ?? 0));
-      const sold = isSoldItem(row);
-      const chartValue = sold ? round2(saleAmount - purchaseAmount) : round2(-purchaseAmount);
+      const profit = round2(saleAmount - purchaseAmount);
       const current = map.get(key);
 
       if (current) {
-        current.chartValue = round2(current.chartValue + chartValue);
+        current.profit = round2(current.profit + profit);
         current.purchaseAmount = round2(current.purchaseAmount + purchaseAmount);
         current.saleAmount = round2(current.saleAmount + saleAmount);
-        current.soldCount += sold ? 1 : 0;
-        current.stockCount += sold ? 0 : 1;
+        if ((row.sold_at || row.purchase_date) > current.soldAt) {
+          current.soldAt = row.sold_at || row.purchase_date;
+        }
         return;
       }
 
       map.set(key, {
         name: row.item_name,
         category: row.category,
-        chartValue,
+        profit,
         purchaseAmount,
         saleAmount,
-        soldCount: sold ? 1 : 0,
-        stockCount: sold ? 0 : 1,
+        soldAt: row.sold_at || row.purchase_date,
       });
     });
 
-    return Array.from(map.values()).sort((a, b) => b.chartValue - a.chartValue);
-  }, [filteredRows]);
+    return Array.from(map.values()).sort((a, b) => b.profit - a.profit);
+  }, [filteredSold]);
 
   const resetForm = () => {
     setForm(emptyForm());
@@ -741,18 +765,16 @@ export default function VendasPage() {
               </h2>
             </div>
             <span className="rounded-full border border-cyan-400/20 bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-100">
-              {productProfitData.length} item(ns) no grafico
+              {productProfitData.length} venda(s) no grafico
             </span>
           </div>
 
           {productProfitData.length ? (
-            <div className="mt-5 rounded-[28px] border border-cyan-400/20 bg-gradient-to-br from-zinc-950 via-slate-950 to-black p-4 shadow-[0_24px_70px_rgba(34,211,238,0.12)]">
+            <div className="mt-5 rounded-[28px] border border-cyan-500/20 bg-[#05060a] p-4 shadow-[0_24px_70px_rgba(34,211,238,0.08)]">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold text-cyan-300">Lucro por Produto</p>
-                  <p className="text-xs text-slate-400">
-                    Itens vendidos mostram lucro real. Estoque entra como investimento aberto.
-                  </p>
+                  <p className="text-xs text-slate-500">Visual futurista com desempenho das suas revendas.</p>
                 </div>
                 <span className="rounded-full border border-fuchsia-400/20 bg-fuchsia-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-fuchsia-200">
                   Revenda
@@ -760,83 +782,71 @@ export default function VendasPage() {
               </div>
 
               <div className="h-[320px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={productProfitData} barCategoryGap={40}>
-                  <defs>
-                    <linearGradient id="salesProductGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#00f5ff" />
-                      <stop offset="100%" stopColor="#7c3aed" />
-                    </linearGradient>
-                    <linearGradient id="salesLossGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#fb7185" />
-                      <stop offset="100%" stopColor="#b91c1c" />
-                    </linearGradient>
-                  </defs>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={productProfitData} barCategoryGap={40}>
+                    <defs>
+                      <linearGradient id="salesProductGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#00f5ff" />
+                        <stop offset="100%" stopColor="#7c3aed" />
+                      </linearGradient>
+                    </defs>
 
-                  <CartesianGrid strokeDasharray="3 3" stroke="#111827" vertical={false} />
-                  <XAxis
-                    dataKey="name"
-                    stroke="#ffffff"
-                    tick={{ fill: "#ffffff", fontSize: 12 }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    stroke="#ffffff"
-                    tick={{ fill: "#ffffff", fontSize: 12 }}
-                    tickFormatter={(value) => shortMoney(Number(value))}
-                    axisLine={false}
-                    tickLine={false}
-                    width={72}
-                  />
-                  <Tooltip
-                    cursor={{ fill: "rgba(34,211,238,0.06)" }}
-                    formatter={(value, _name, item) => {
-                      const payload = item?.payload as
-                        | {
-                            purchaseAmount?: number;
-                            saleAmount?: number;
-                            soldCount?: number;
-                            stockCount?: number;
-                          }
-                        | undefined;
-                      const soldCount = Number(payload?.soldCount ?? 0);
-                      const stockCount = Number(payload?.stockCount ?? 0);
-                      const statusText = stockCount > 0 && soldCount === 0
-                        ? "Em estoque"
-                        : stockCount > 0
-                          ? "Misto"
-                          : "Vendido";
-                      return [
-                        `${formatSignedBrl(Number(value ?? 0))} | Compra ${brl(Number(payload?.purchaseAmount ?? 0))} | Venda ${brl(Number(payload?.saleAmount ?? 0))} | ${statusText}`,
-                        "Resultado",
-                      ];
-                    }}
-                    contentStyle={{
-                      background: "rgba(2, 6, 23, 0.95)",
-                      border: "1px solid #00f5ff",
-                      borderRadius: "16px",
-                      color: "#fff",
-                    }}
-                    itemStyle={{ color: "#00f5ff" }}
-                    labelStyle={{ color: "#ffffff", fontWeight: 600 }}
-                  />
-                  <Bar dataKey="chartValue" radius={[8, 8, 0, 0]} barSize={36}>
-                    {productProfitData.map((entry) => (
-                      <Cell
-                        key={`${entry.category}-${entry.name}`}
-                        fill={entry.chartValue >= 0 ? "url(#salesProductGradient)" : "url(#salesLossGradient)"}
-                      />
-                    ))}
-                    <LabelList
-                      dataKey="chartValue"
-                      position="top"
-                      formatter={(value) => shortMoney(Number(value ?? 0))}
-                      style={{ fill: "#00f5ff", fontWeight: 700, fontSize: 12 }}
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(15,23,42,0.6)" vertical={false} />
+                    <XAxis
+                      dataKey="name"
+                      stroke="#ffffff"
+                      tick={{ fill: "#ffffff", fontSize: 12 }}
+                      axisLine={false}
+                      tickLine={false}
                     />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+                    <YAxis
+                      stroke="#ffffff"
+                      tick={{ fill: "#ffffff", fontSize: 12 }}
+                      tickFormatter={(value) => shortMoney(Number(value))}
+                      axisLine={false}
+                      tickLine={false}
+                      width={72}
+                    />
+                    <Tooltip cursor={{ fill: "rgba(34,211,238,0.04)" }} content={<ProductChartTooltip />} />
+                    <Bar dataKey="profit" radius={[8, 8, 0, 0]} fill="url(#salesProductGradient)" barSize={36}>
+                      <LabelList
+                        dataKey="profit"
+                        position="top"
+                        formatter={(value) => shortMoney(Number(value ?? 0))}
+                        style={{ fill: "#00f5ff", fontWeight: 700, fontSize: 12 }}
+                      />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {productProfitData.map((item) => {
+                  const resultClass =
+                    item.profit > 0 ? "text-green-400" : item.profit < 0 ? "text-rose-400" : "text-slate-300";
+
+                  return (
+                    <motion.div
+                      key={`card-${item.category}-${item.name}`}
+                      whileHover={{ scale: 1.02 }}
+                      className="rounded-2xl border border-fuchsia-500/20 bg-zinc-900/90 shadow-[0_18px_32px_rgba(0,0,0,0.24)]"
+                    >
+                      <div className="p-4">
+                        <h3 className="text-lg font-bold text-white">{item.name}</h3>
+                        <p className="text-white">{item.category}</p>
+
+                        <div className="mt-3 space-y-1 text-sm text-white">
+                          <p className="text-yellow-400">Compra: {brl(item.purchaseAmount)}</p>
+                          <p className="text-cyan-400">Venda: {brl(item.saleAmount)}</p>
+                          <p className={`font-semibold ${resultClass}`}>
+                            Lucro: {formatSignedBrl(item.profit)}
+                          </p>
+                          <p className="text-xs text-white/60">{item.soldAt}</p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
               </div>
             </div>
           ) : (
