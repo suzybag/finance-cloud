@@ -3040,6 +3040,130 @@ begin
 end
 $$;
 
+create table if not exists public.resale_items (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  category text not null,
+  item_name text not null,
+  purchase_amount numeric not null,
+  purchase_date date not null default current_date,
+  description text,
+  sale_amount numeric,
+  sold_at date,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.resale_items add column if not exists user_id uuid;
+alter table public.resale_items add column if not exists category text;
+alter table public.resale_items add column if not exists item_name text;
+alter table public.resale_items add column if not exists purchase_amount numeric not null default 0;
+alter table public.resale_items add column if not exists purchase_date date default current_date;
+alter table public.resale_items add column if not exists description text;
+alter table public.resale_items add column if not exists sale_amount numeric;
+alter table public.resale_items add column if not exists sold_at date;
+alter table public.resale_items add column if not exists created_at timestamptz not null default now();
+alter table public.resale_items add column if not exists updated_at timestamptz not null default now();
+
+update public.resale_items set category = 'Compra' where category is null or trim(category) = '';
+update public.resale_items set item_name = 'Item sem nome' where item_name is null or trim(item_name) = '';
+update public.resale_items set purchase_amount = 0.01 where purchase_amount is null or purchase_amount <= 0;
+update public.resale_items set purchase_date = current_date where purchase_date is null;
+update public.resale_items set sale_amount = null where sale_amount is not null and sale_amount <= 0;
+update public.resale_items set sold_at = null where sale_amount is null;
+
+alter table public.resale_items alter column user_id set not null;
+alter table public.resale_items alter column category set not null;
+alter table public.resale_items alter column item_name set not null;
+alter table public.resale_items alter column purchase_amount set not null;
+alter table public.resale_items alter column purchase_date set not null;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'resale_items_user_id_fkey'
+      and conrelid = 'public.resale_items'::regclass
+  ) then
+    alter table public.resale_items
+    add constraint resale_items_user_id_fkey
+    foreign key (user_id) references auth.users(id) on delete cascade;
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'resale_items_purchase_amount_positive'
+      and conrelid = 'public.resale_items'::regclass
+  ) then
+    alter table public.resale_items
+    add constraint resale_items_purchase_amount_positive
+    check (purchase_amount > 0);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'resale_items_sale_amount_positive'
+      and conrelid = 'public.resale_items'::regclass
+  ) then
+    alter table public.resale_items
+    add constraint resale_items_sale_amount_positive
+    check (sale_amount is null or sale_amount > 0);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'resale_items_sale_pair_check'
+      and conrelid = 'public.resale_items'::regclass
+  ) then
+    alter table public.resale_items
+    add constraint resale_items_sale_pair_check
+    check (
+      (sale_amount is null and sold_at is null)
+      or (sale_amount is not null and sold_at is not null)
+    );
+  end if;
+end
+$$;
+
+create or replace function public.set_resale_items_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end
+$$;
+
+drop trigger if exists trg_resale_items_set_updated_at on public.resale_items;
+create trigger trg_resale_items_set_updated_at
+before update on public.resale_items
+for each row execute function public.set_resale_items_updated_at();
+
+create index if not exists idx_resale_items_user_purchase on public.resale_items(user_id, purchase_date desc, created_at desc);
+create index if not exists idx_resale_items_user_sale on public.resale_items(user_id, sold_at desc, purchase_date desc);
+
+alter table public.resale_items enable row level security;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'resale_items' and policyname = 'resale_items_crud_own'
+  ) then
+    create policy resale_items_crud_own
+    on public.resale_items
+    for all
+    using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);
+  end if;
+end
+$$;
+
 -- backfill optional institution/issuer labels so bank icons render on UI
 update public.accounts
 set institution = case
