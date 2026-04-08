@@ -6,7 +6,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
+  LabelList,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -85,15 +85,6 @@ const formatDateLabel = (value?: string | null) => {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
-  });
-};
-
-const formatMonthLabel = (value: string) => {
-  const parsed = new Date(`${value}-01T00:00:00`);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleDateString("pt-BR", {
-    month: "short",
-    year: "2-digit",
   });
 };
 
@@ -284,27 +275,42 @@ export default function VendasPage() {
     );
   }, [filteredRows]);
 
-  const monthlyProfitData = useMemo(() => {
-    const map = new Map<string, { monthKey: string; monthLabel: string; profit: number }>();
+  const productProfitData = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        name: string;
+        category: string;
+        profit: number;
+        purchaseAmount: number;
+        saleAmount: number;
+      }
+    >();
 
     filteredSold.forEach((row) => {
-      const soldAt = row.sold_at || row.purchase_date;
-      const monthKey = soldAt.slice(0, 7);
-      const profit = round2(Math.abs(toNumber(row.sale_amount ?? 0)) - Math.abs(toNumber(row.purchase_amount)));
-      const current = map.get(monthKey);
+      const key = `${row.category}::${row.item_name}`;
+      const purchaseAmount = Math.abs(toNumber(row.purchase_amount));
+      const saleAmount = Math.abs(toNumber(row.sale_amount ?? 0));
+      const profit = round2(saleAmount - purchaseAmount);
+      const current = map.get(key);
 
       if (current) {
         current.profit = round2(current.profit + profit);
-      } else {
-        map.set(monthKey, {
-          monthKey,
-          monthLabel: formatMonthLabel(monthKey),
-          profit,
-        });
+        current.purchaseAmount = round2(current.purchaseAmount + purchaseAmount);
+        current.saleAmount = round2(current.saleAmount + saleAmount);
+        return;
       }
+
+      map.set(key, {
+        name: row.item_name,
+        category: row.category,
+        profit,
+        purchaseAmount,
+        saleAmount,
+      });
     });
 
-    return Array.from(map.values()).sort((a, b) => a.monthKey.localeCompare(b.monthKey));
+    return Array.from(map.values()).sort((a, b) => b.profit - a.profit);
   }, [filteredSold]);
 
   const resetForm = () => {
@@ -722,58 +728,90 @@ export default function VendasPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xs uppercase tracking-[0.16em] text-cyan-200/70">Grafico</p>
-              <h2 className="mt-1 text-xl font-extrabold text-white">Lucro por mes</h2>
+              <h2 className="mt-1 bg-gradient-to-r from-cyan-300 via-sky-300 to-fuchsia-300 bg-clip-text text-xl font-extrabold text-transparent">
+                Lucro por produto
+              </h2>
             </div>
             <span className="rounded-full border border-cyan-400/20 bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-100">
               {filteredSold.length} venda(s) no filtro
             </span>
           </div>
 
-          {monthlyProfitData.length ? (
-            <div className="mt-5 h-[320px] rounded-3xl border border-white/8 bg-black/15 p-3">
+          {productProfitData.length ? (
+            <div className="mt-5 rounded-[28px] border border-cyan-400/20 bg-gradient-to-br from-zinc-950 via-slate-950 to-black p-4 shadow-[0_24px_70px_rgba(34,211,238,0.12)]">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-cyan-300">Lucro por Produto</p>
+                  <p className="text-xs text-slate-400">
+                    Barras futuristas com os itens vendidos no filtro atual.
+                  </p>
+                </div>
+                <span className="rounded-full border border-fuchsia-400/20 bg-fuchsia-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-fuchsia-200">
+                  Revenda
+                </span>
+              </div>
+
+              <div className="h-[320px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={monthlyProfitData} barCategoryGap={28}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.15)" vertical={false} />
+                <BarChart data={productProfitData} barCategoryGap={40}>
+                  <defs>
+                    <linearGradient id="salesProductGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#00f5ff" />
+                      <stop offset="100%" stopColor="#7c3aed" />
+                    </linearGradient>
+                  </defs>
+
+                  <CartesianGrid strokeDasharray="3 3" stroke="#111827" vertical={false} />
                   <XAxis
-                    dataKey="monthLabel"
-                    stroke="#94a3b8"
-                    tick={{ fill: "#cbd5e1", fontSize: 12 }}
+                    dataKey="name"
+                    stroke="#ffffff"
+                    tick={{ fill: "#ffffff", fontSize: 12 }}
                     axisLine={false}
                     tickLine={false}
                   />
                   <YAxis
-                    stroke="#94a3b8"
-                    tick={{ fill: "#cbd5e1", fontSize: 12 }}
+                    stroke="#ffffff"
+                    tick={{ fill: "#ffffff", fontSize: 12 }}
                     tickFormatter={(value) => shortMoney(Number(value))}
                     axisLine={false}
                     tickLine={false}
                     width={72}
                   />
                   <Tooltip
-                    cursor={{ fill: "rgba(148,163,184,0.05)" }}
-                    formatter={(value) => [brl(Number(value ?? 0)), "Lucro"]}
+                    cursor={{ fill: "rgba(34,211,238,0.06)" }}
+                    formatter={(value, _name, item) => {
+                      const payload = item?.payload as
+                        | { purchaseAmount?: number; saleAmount?: number }
+                        | undefined;
+                      return [
+                        `${formatSignedBrl(Number(value ?? 0))} | Compra ${brl(Number(payload?.purchaseAmount ?? 0))} | Venda ${brl(Number(payload?.saleAmount ?? 0))}`,
+                        "Lucro",
+                      ];
+                    }}
                     contentStyle={{
                       background: "rgba(2, 6, 23, 0.95)",
-                      border: "1px solid rgba(34,197,94,0.25)",
+                      border: "1px solid #00f5ff",
                       borderRadius: "16px",
                       color: "#fff",
                     }}
-                    labelStyle={{ color: "#e2e8f0" }}
+                    itemStyle={{ color: "#00f5ff" }}
+                    labelStyle={{ color: "#ffffff", fontWeight: 600 }}
                   />
-                  <Bar dataKey="profit" radius={[12, 12, 0, 0]} barSize={36}>
-                    {monthlyProfitData.map((entry) => (
-                      <Cell
-                        key={entry.monthKey}
-                        fill={entry.profit >= 0 ? "rgba(16,185,129,0.95)" : "rgba(244,63,94,0.95)"}
-                      />
-                    ))}
+                  <Bar dataKey="profit" radius={[8, 8, 0, 0]} fill="url(#salesProductGradient)" barSize={36}>
+                    <LabelList
+                      dataKey="profit"
+                      position="top"
+                      formatter={(value) => shortMoney(Number(value ?? 0))}
+                      style={{ fill: "#00f5ff", fontWeight: 700, fontSize: 12 }}
+                    />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
+              </div>
             </div>
           ) : (
             <div className="mt-4 rounded-3xl border border-white/8 bg-black/15 px-4 py-5 text-sm text-slate-300">
-              Ainda nao existe lucro suficiente para montar o grafico com o filtro atual.
+              Ainda nao existe venda suficiente para montar o grafico de lucro por produto com o filtro atual.
             </div>
           )}
         </motion.section>
