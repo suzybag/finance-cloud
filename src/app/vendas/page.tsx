@@ -13,15 +13,11 @@ import {
   YAxis,
 } from "recharts";
 import {
-  CalendarDays,
   CircleDollarSign,
-  Monitor,
   Package,
   Plus,
   Search,
   ShoppingBag,
-  Smartphone,
-  Tag,
   Trash2,
   TrendingDown,
   TrendingUp,
@@ -75,14 +71,8 @@ const PRIMARY_BUTTON_CLASS =
 const SECONDARY_BUTTON_CLASS =
   "inline-flex items-center justify-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-950/85 px-3 py-2 text-sm font-semibold text-slate-100 transition hover:border-cyan-500/30 hover:bg-zinc-900 disabled:opacity-60";
 
-const STOCK_CARD_CLASS =
-  "rounded-2xl border border-zinc-800 bg-[linear-gradient(180deg,rgba(24,24,27,0.98),rgba(13,13,18,0.98))] p-5 shadow-[0_20px_40px_rgba(0,0,0,0.24)]";
-
 const SOLD_CARD_CLASS =
   "rounded-2xl border border-emerald-500/20 bg-[linear-gradient(180deg,rgba(14,28,24,0.98),rgba(8,18,16,0.98))] p-5 shadow-[0_20px_40px_rgba(0,0,0,0.24)]";
-
-const BLUE_BUTTON_CLASS =
-  "inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 px-3 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-60";
 
 const GREEN_BUTTON_CLASS =
   "inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-emerald-500 to-teal-400 px-3 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-60";
@@ -91,7 +81,7 @@ const todayIso = () => new Date().toISOString().slice(0, 10);
 const round2 = (value: number) => Math.round((Number.isFinite(value) ? value : 0) * 100) / 100;
 
 const emptyForm = (): ResaleFormState => ({
-  category: "",
+  category: "PC",
   item_name: "",
   purchase_amount: "",
   purchase_date: todayIso(),
@@ -143,17 +133,6 @@ const shortMoney = (value: number) => {
 
 const getReferenceDate = (row: ResaleItemRow) => row.sold_at || row.purchase_date || row.created_at.slice(0, 10);
 
-const getItemIcon = (row: Pick<ResaleItemRow, "category" | "item_name" | "description">) => {
-  const text = normalizeText(`${row.category} ${row.item_name} ${row.description || ""}`);
-  if (text.includes("pc") || text.includes("gamer") || text.includes("notebook") || text.includes("monitor")) {
-    return Monitor;
-  }
-  if (text.includes("iphone") || text.includes("celular") || text.includes("smartphone")) {
-    return Smartphone;
-  }
-  return ShoppingBag;
-};
-
 const ProductChartTooltip = ({
   active,
   payload,
@@ -188,6 +167,7 @@ export default function VendasPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [form, setForm] = useState<ResaleFormState>(emptyForm());
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [sellTarget, setSellTarget] = useState<ResaleItemRow | null>(null);
   const [sellAmount, setSellAmount] = useState("");
   const [sellDate, setSellDate] = useState(todayIso());
@@ -276,11 +256,11 @@ export default function VendasPage() {
   }, [rows]);
 
   const filteredRows = useMemo(() => {
-    const search = searchFilter.trim().toLowerCase();
+    const search = normalizeText(searchFilter);
 
     return rows.filter((row) => {
       const referenceDate = getReferenceDate(row);
-      const haystack = `${row.item_name} ${row.category} ${row.description || ""}`.toLowerCase();
+      const haystack = normalizeText(`${row.item_name} ${row.category} ${row.description || ""}`);
       const matchesSearch = search ? haystack.includes(search) : true;
       const matchesCategory = categoryFilter === "todas" ? true : row.category === categoryFilter;
       const matchesStart = dateStart ? referenceDate >= dateStart : true;
@@ -361,6 +341,11 @@ export default function VendasPage() {
     setForm(emptyForm());
   };
 
+  const closeCreateModal = () => {
+    setIsCreateModalOpen(false);
+    resetForm();
+  };
+
   const clearFilters = () => {
     setSearchFilter("");
     setCategoryFilter("todas");
@@ -422,7 +407,7 @@ export default function VendasPage() {
       }
 
       setSaving(false);
-      resetForm();
+      closeCreateModal();
       setFeedback("Compra de revenda adicionada com sucesso.");
       await loadRows(resolvedUserId);
     } catch (error) {
@@ -567,7 +552,100 @@ export default function VendasPage() {
       subtitle="Compras, revenda, estoque e lucro no mesmo painel"
       actions={actions}
     >
-      <div className="space-y-5">
+      <div className="space-y-6">
+        {isCreateModalOpen ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/78 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-lg rounded-[28px] border border-cyan-500/20 bg-[linear-gradient(180deg,rgba(6,9,18,0.98),rgba(2,6,23,0.98))] p-6 shadow-[0_30px_90px_rgba(0,0,0,0.52)]">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-bold text-white">Adicionar produto</h2>
+                  <p className="mt-1 text-sm text-slate-400">Cadastre uma nova compra para revenda.</p>
+                </div>
+                <button type="button" className={SECONDARY_BUTTON_CLASS} onClick={closeCreateModal}>
+                  Fechar
+                </button>
+              </div>
+
+              <div className="mt-5 grid gap-3 md:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+                    Nome
+                  </label>
+                  <input
+                    className={INPUT_CLASS}
+                    placeholder="Ex: PC Gamer"
+                    value={form.item_name}
+                    onChange={(event) => setForm((prev) => ({ ...prev, item_name: event.target.value }))}
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+                    Categoria
+                  </label>
+                  <input
+                    className={INPUT_CLASS}
+                    placeholder="Ex: PC"
+                    value={form.category}
+                    onChange={(event) => setForm((prev) => ({ ...prev, category: event.target.value }))}
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+                    Valor comprado
+                  </label>
+                  <input
+                    className={INPUT_CLASS}
+                    placeholder="Ex: 2000"
+                    value={form.purchase_amount}
+                    onChange={(event) => setForm((prev) => ({ ...prev, purchase_amount: event.target.value }))}
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+                    Data da compra
+                  </label>
+                  <input
+                    type="date"
+                    className={INPUT_CLASS}
+                    value={form.purchase_date}
+                    onChange={(event) => setForm((prev) => ({ ...prev, purchase_date: event.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="mt-3">
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+                  Descricao
+                </label>
+                <textarea
+                  className={`${INPUT_CLASS} min-h-[110px] resize-y`}
+                  placeholder="Ex: i5, 16GB RAM, GTX 1660"
+                  value={form.description}
+                  onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
+                />
+              </div>
+
+              <div className="mt-5 flex justify-end gap-3">
+                <button type="button" className={SECONDARY_BUTTON_CLASS} onClick={closeCreateModal}>
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className={PRIMARY_BUTTON_CLASS}
+                  onClick={() => void handleCreate()}
+                  disabled={saving}
+                >
+                  <Plus className="h-4 w-4" />
+                  {saving ? "Salvando..." : "Adicionar"}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         {sellTarget ? (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/72 p-4 backdrop-blur-sm">
             <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
@@ -625,45 +703,67 @@ export default function VendasPage() {
           </div>
         ) : null}
 
-        {feedback ? (
-          <div className="rounded-2xl border border-white/10 bg-slate-950/45 px-4 py-3 text-sm text-slate-100">
-            {feedback}
-          </div>
-        ) : null}
+        <section className={`${SECTION_CLASS} overflow-hidden px-6 py-6`}>
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <span className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-cyan-200">
+                <ShoppingBag className="h-3.5 w-3.5" />
+                Revenda
+              </span>
+              <h2 className="mt-4 bg-gradient-to-r from-cyan-300 via-violet-300 to-fuchsia-300 bg-clip-text text-3xl font-black text-transparent sm:text-4xl">
+                Vendas Futuristicas
+              </h2>
+              <p className="mt-3 max-w-2xl text-sm text-slate-300">
+                Cadastre produtos, marque como vendido e acompanhe seu lucro em tempo real.
+              </p>
+            </div>
 
-        <section className="rounded-3xl border border-white/10 bg-slate-950/35 px-5 py-4">
+            <button type="button" className={PRIMARY_BUTTON_CLASS} onClick={() => setIsCreateModalOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Adicionar produto
+            </button>
+          </div>
+
+          {feedback ? (
+            <div className="mt-5 rounded-2xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-100">
+              {feedback}
+            </div>
+          ) : null}
+        </section>
+
+        <section className="hidden">
           <h2 className="text-2xl font-bold text-white">💰 Vendas / Revenda</h2>
           <p className="mt-1 text-sm text-slate-300">
             Cadastre produtos, marque como vendido e acompanhe seu lucro em tempo real.
           </p>
         </section>
 
-        <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <article className={`${SECTION_CLASS} p-4`}>
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <article className={`${SECTION_CLASS} border-yellow-500/18 p-4`}>
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Total investido</p>
-                <p className="mt-2 text-2xl font-extrabold text-white">{brl(totals.invested)}</p>
+                <p className="mt-2 text-2xl font-extrabold text-yellow-400">{brl(totals.invested)}</p>
               </div>
-              <span className="grid h-12 w-12 place-items-center rounded-2xl border border-cyan-400/25 bg-cyan-500/12">
-                <CircleDollarSign className="h-5 w-5 text-cyan-200" />
+              <span className="grid h-12 w-12 place-items-center rounded-2xl border border-yellow-400/25 bg-yellow-500/12">
+                <CircleDollarSign className="h-5 w-5 text-yellow-300" />
               </span>
             </div>
           </article>
 
-          <article className={`${SECTION_CLASS} p-4`}>
+          <article className={`${SECTION_CLASS} border-cyan-500/18 p-4`}>
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Total vendido</p>
-                <p className="mt-2 text-2xl font-extrabold text-emerald-300">{brl(totals.sold)}</p>
+                <p className="mt-2 text-2xl font-extrabold text-cyan-400">{brl(totals.sold)}</p>
               </div>
-              <span className="grid h-12 w-12 place-items-center rounded-2xl border border-emerald-400/25 bg-emerald-500/12">
-                <TrendingUp className="h-5 w-5 text-emerald-200" />
+              <span className="grid h-12 w-12 place-items-center rounded-2xl border border-cyan-400/25 bg-cyan-500/12">
+                <TrendingUp className="h-5 w-5 text-cyan-200" />
               </span>
             </div>
           </article>
 
-          <article className={`${SECTION_CLASS} p-4`}>
+          <article className={`${SECTION_CLASS} border-emerald-500/18 p-4`}>
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Lucro total</p>
@@ -687,20 +787,20 @@ export default function VendasPage() {
             </div>
           </article>
 
-          <article className={`${SECTION_CLASS} p-4`}>
+          <article className={`${SECTION_CLASS} border-violet-500/18 p-4`}>
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Produtos em estoque</p>
-                <p className="mt-2 text-2xl font-extrabold text-slate-100">{filteredInStock.length}</p>
+                <p className="mt-2 text-2xl font-extrabold text-violet-300">{filteredInStock.length}</p>
               </div>
-              <span className="grid h-12 w-12 place-items-center rounded-2xl border border-slate-400/20 bg-slate-500/10">
-                <Package className="h-5 w-5 text-slate-200" />
+              <span className="grid h-12 w-12 place-items-center rounded-2xl border border-violet-400/20 bg-violet-500/10">
+                <Package className="h-5 w-5 text-violet-200" />
               </span>
             </div>
           </article>
         </section>
 
-        <section className={`${SECTION_CLASS} p-5`}>
+        <section className="hidden">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xs uppercase tracking-[0.16em] text-cyan-200/70">Filtros</p>
@@ -856,7 +956,7 @@ export default function VendasPage() {
           )}
         </motion.section>
 
-        <section className={`${SECTION_CLASS} p-5`}>
+        <section className="hidden">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xs uppercase tracking-[0.16em] text-cyan-200/70">Nova compra</p>
@@ -938,82 +1038,92 @@ export default function VendasPage() {
         <section className={`${SECTION_CLASS} p-5`}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Estoque</p>
-              <h2 className="mt-1 text-xl font-extrabold text-white">Produtos comprados</h2>
+              <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Produtos</p>
+              <h2 className="mt-1 text-xl font-extrabold text-white">Compras e revendas</h2>
             </div>
-            <span className="rounded-full border border-slate-400/20 bg-slate-500/10 px-3 py-1 text-xs font-semibold text-slate-300">
-              {filteredInStock.length} item(ns) em estoque
+            <span className="rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1 text-xs font-semibold text-violet-200">
+              {filteredRows.length} item(ns)
             </span>
           </div>
 
           {loading ? (
-            <p className="mt-4 text-sm text-slate-300">Carregando produtos...</p>
-          ) : filteredInStock.length ? (
-            <div className="mt-4 grid gap-3 xl:grid-cols-2">
-              {filteredInStock.map((row) => {
-                const Icon = getItemIcon(row);
+            <div className="mt-4 rounded-3xl border border-white/8 bg-black/15 px-4 py-5 text-sm text-slate-300">
+              Carregando produtos...
+            </div>
+          ) : filteredRows.length ? (
+            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {filteredRows.map((row) => {
+                const sold = isSoldItem(row);
+                const purchaseAmount = Math.abs(toNumber(row.purchase_amount));
+                const saleAmount = Math.abs(toNumber(row.sale_amount ?? 0));
+                const profit = round2(saleAmount - purchaseAmount);
 
                 return (
-                  <article
+                  <motion.article
                     key={row.id}
-                    className={STOCK_CARD_CLASS}
+                    whileHover={{ scale: 1.02 }}
+                    className={`rounded-[26px] border p-5 shadow-[0_18px_44px_rgba(0,0,0,0.28)] ${
+                      sold
+                        ? "border-emerald-500/22 bg-[linear-gradient(180deg,rgba(7,24,20,0.98),rgba(3,13,12,0.98))]"
+                        : "border-zinc-800 bg-[linear-gradient(180deg,rgba(17,24,39,0.98),rgba(8,12,20,0.98))]"
+                    }`}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex min-w-0 items-start gap-3">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="truncate text-lg font-bold text-white">{row.item_name}</h3>
-                            <span className="rounded-full bg-slate-600/70 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-100">
-                              Em estoque
-                            </span>
-                          </div>
-                          <p className="mt-2 text-sm text-slate-100">
-                            Compra: {brl(Math.abs(toNumber(row.purchase_amount)))}
-                          </p>
-                          <p className="mt-1 text-sm text-slate-200">{row.description || "Sem descricao cadastrada."}</p>
-                          <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-400">
-                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-700/70 px-2.5 py-1">
-                              <Tag className="h-3.5 w-3.5" />
-                              {row.category}
-                            </span>
-                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-700/70 px-2.5 py-1">
-                              <CalendarDays className="h-3.5 w-3.5" />
-                              {formatDateLabel(row.purchase_date)}
-                            </span>
-                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-700/70 px-2.5 py-1">
-                              <Icon className="h-3.5 w-3.5" />
-                              Produto
-                            </span>
-                          </div>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="truncate text-lg font-bold text-white">{row.item_name}</h3>
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${
+                              sold ? "bg-emerald-500/20 text-emerald-200" : "bg-zinc-700 text-zinc-100"
+                            }`}
+                          >
+                            {sold ? "Vendido" : "Em estoque"}
+                          </span>
                         </div>
+                        <p className="mt-2 text-sm text-slate-300">{row.category}</p>
                       </div>
 
                       <button
                         type="button"
-                        className="rounded-lg bg-slate-700 px-2.5 py-2 text-sm font-semibold text-white transition hover:bg-slate-600 disabled:opacity-60"
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-rose-500/20 bg-rose-500/10 text-rose-300 transition hover:bg-rose-500/18 disabled:opacity-60"
                         onClick={() => void handleDelete(row)}
                         disabled={busyId === row.id}
+                        aria-label={`Excluir ${row.item_name}`}
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
 
-                    <div className="mt-4 flex justify-end">
+                    <div className="mt-4 space-y-2 text-sm text-white">
+                      <p className="text-yellow-400">Compra: {brl(purchaseAmount)}</p>
+                      {sold ? <p className="text-cyan-400">Venda: {brl(saleAmount)}</p> : null}
+                      {sold ? (
+                        <p className={`font-semibold ${getResultTone(profit)}`}>
+                          Lucro: {formatSignedBrl(profit)}
+                        </p>
+                      ) : null}
+                      <p className="text-slate-300">{row.description || "Sem descricao cadastrada."}</p>
+                      <p className="text-xs text-slate-500">
+                        {sold ? formatDateLabel(row.sold_at) : formatDateLabel(row.purchase_date)}
+                      </p>
+                    </div>
+
+                    {!sold ? (
                       <button
                         type="button"
-                        className={BLUE_BUTTON_CLASS}
+                        className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 px-4 py-3 text-sm font-semibold text-white transition hover:brightness-110"
                         onClick={() => openSellModal(row)}
                       >
                         Marcar como vendido
                       </button>
-                    </div>
-                  </article>
+                    ) : null}
+                  </motion.article>
                 );
               })}
             </div>
           ) : (
-            <div className="mt-4 rounded-3xl border border-slate-400/15 bg-slate-900/35 px-4 py-5 text-sm text-slate-300">
-              Nenhum produto em estoque encontrado no filtro atual.
+            <div className="mt-4 rounded-3xl border border-white/8 bg-black/15 px-4 py-5 text-sm text-slate-300">
+              Nenhum produto encontrado com o filtro atual.
             </div>
           )}
         </section>
