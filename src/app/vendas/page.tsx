@@ -66,6 +66,18 @@ const PRIMARY_BUTTON_CLASS =
 const SECONDARY_BUTTON_CLASS =
   "inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-slate-900/50 px-3 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-900/75 disabled:opacity-60";
 
+const STOCK_CARD_CLASS =
+  "rounded-2xl border border-slate-700 bg-[#1f2937] p-5 shadow-[0_20px_40px_rgba(0,0,0,0.22)]";
+
+const SOLD_CARD_CLASS =
+  "rounded-2xl border border-emerald-700/40 bg-emerald-900/70 p-5 shadow-[0_20px_40px_rgba(0,0,0,0.22)]";
+
+const BLUE_BUTTON_CLASS =
+  "inline-flex items-center justify-center rounded-lg bg-blue-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-400 disabled:opacity-60";
+
+const GREEN_BUTTON_CLASS =
+  "inline-flex items-center justify-center rounded-lg bg-emerald-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-400 disabled:opacity-60";
+
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const round2 = (value: number) => Math.round((Number.isFinite(value) ? value : 0) * 100) / 100;
 
@@ -526,32 +538,16 @@ export default function VendasPage() {
       <div className="space-y-5">
         {sellTarget ? (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/72 p-4 backdrop-blur-sm">
-            <div className={`${SECTION_CLASS} w-full max-w-md p-5`}>
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.16em] text-emerald-200/70">Marcar como vendido</p>
-                  <h2 className="mt-1 text-xl font-extrabold text-white">{sellTarget.item_name}</h2>
-                  <p className="mt-1 text-sm text-slate-300">
-                    Comprado por {brl(Math.abs(toNumber(sellTarget.purchase_amount)))} em {formatDateLabel(sellTarget.purchase_date)}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={closeSellModal}
-                  className="rounded-xl border border-white/10 bg-slate-900/45 px-3 py-1.5 text-xs font-semibold text-slate-100 transition hover:bg-slate-900/70"
-                  disabled={selling}
-                >
-                  Fechar
-                </button>
-              </div>
+            <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
+              <h2 className="mb-1 text-lg font-bold text-white">Valor de venda</h2>
+              <p className="mb-4 text-sm text-slate-300">
+                {sellTarget.item_name} | Compra: {brl(Math.abs(toNumber(sellTarget.purchase_amount)))}
+              </p>
 
-              <div className="mt-4 space-y-3">
+              <div className="space-y-3">
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
-                    Valor vendido
-                  </label>
                   <input
-                    className={INPUT_CLASS}
+                    className="w-full rounded-lg border border-slate-600 bg-white px-3 py-2 text-black outline-none transition focus:border-emerald-500"
                     placeholder="Ex: 3000"
                     value={sellAmount}
                     onChange={(event) => setSellAmount(event.target.value)}
@@ -560,12 +556,9 @@ export default function VendasPage() {
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
-                    Data da venda
-                  </label>
                   <input
                     type="date"
-                    className={INPUT_CLASS}
+                    className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-white outline-none transition focus:border-emerald-500"
                     value={sellDate}
                     onChange={(event) => setSellDate(event.target.value)}
                   />
@@ -578,10 +571,10 @@ export default function VendasPage() {
                 </div>
               ) : null}
 
-              <div className="mt-5 flex justify-end gap-2">
+              <div className="mt-4 flex justify-end gap-2">
                 <button
                   type="button"
-                  className={SECONDARY_BUTTON_CLASS}
+                  className="rounded-lg bg-slate-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-600 disabled:opacity-60"
                   onClick={closeSellModal}
                   disabled={selling}
                 >
@@ -589,7 +582,7 @@ export default function VendasPage() {
                 </button>
                 <button
                   type="button"
-                  className={PRIMARY_BUTTON_CLASS}
+                  className={GREEN_BUTTON_CLASS}
                   onClick={() => void handleSellSave()}
                   disabled={selling}
                 >
@@ -605,6 +598,13 @@ export default function VendasPage() {
             {feedback}
           </div>
         ) : null}
+
+        <section className="rounded-3xl border border-white/10 bg-slate-950/35 px-5 py-4">
+          <h2 className="text-2xl font-bold text-white">💰 Vendas / Revenda</h2>
+          <p className="mt-1 text-sm text-slate-300">
+            Cadastre produtos, marque como vendido e acompanhe seu lucro em tempo real.
+          </p>
+        </section>
 
         <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <article className={`${SECTION_CLASS} p-4`}>
@@ -916,28 +916,33 @@ export default function VendasPage() {
                 return (
                   <article
                     key={row.id}
-                    className="rounded-3xl border border-slate-500/20 bg-[linear-gradient(160deg,rgba(54,65,83,0.25),rgba(15,23,42,0.5))] p-4"
+                    className={STOCK_CARD_CLASS}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex min-w-0 items-start gap-3">
-                        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-slate-400/20 bg-slate-500/10">
-                          <Icon className="h-5 w-5 text-slate-100" />
-                        </span>
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <h3 className="truncate text-lg font-bold text-white">{row.item_name}</h3>
-                            <span className="rounded-full border border-slate-400/20 bg-slate-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-300">
+                            <span className="rounded-full bg-slate-600/70 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-100">
                               Em estoque
                             </span>
                           </div>
-                          <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-400">
-                            <span className="inline-flex items-center gap-1 rounded-full border border-white/8 bg-black/15 px-2.5 py-1">
+                          <p className="mt-2 text-sm text-slate-100">
+                            Compra: {brl(Math.abs(toNumber(row.purchase_amount)))}
+                          </p>
+                          <p className="mt-1 text-sm text-slate-200">{row.description || "Sem descricao cadastrada."}</p>
+                          <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-400">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-700/70 px-2.5 py-1">
                               <Tag className="h-3.5 w-3.5" />
                               {row.category}
                             </span>
-                            <span className="inline-flex items-center gap-1 rounded-full border border-white/8 bg-black/15 px-2.5 py-1">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-700/70 px-2.5 py-1">
                               <CalendarDays className="h-3.5 w-3.5" />
                               {formatDateLabel(row.purchase_date)}
+                            </span>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-700/70 px-2.5 py-1">
+                              <Icon className="h-3.5 w-3.5" />
+                              Produto
                             </span>
                           </div>
                         </div>
@@ -945,7 +950,7 @@ export default function VendasPage() {
 
                       <button
                         type="button"
-                        className={SECONDARY_BUTTON_CLASS}
+                        className="rounded-lg bg-slate-700 px-2.5 py-2 text-sm font-semibold text-white transition hover:bg-slate-600 disabled:opacity-60"
                         onClick={() => void handleDelete(row)}
                         disabled={busyId === row.id}
                       >
@@ -953,21 +958,10 @@ export default function VendasPage() {
                       </button>
                     </div>
 
-                    <div className="mt-4 grid gap-3 md:grid-cols-2">
-                      <div className="rounded-2xl border border-white/8 bg-black/15 p-3">
-                        <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Comprado</p>
-                        <p className="mt-2 text-xl font-extrabold text-slate-100">{brl(Math.abs(toNumber(row.purchase_amount)))}</p>
-                      </div>
-                      <div className="rounded-2xl border border-white/8 bg-black/15 p-3">
-                        <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Descricao</p>
-                        <p className="mt-2 text-sm text-slate-300">{row.description || "Sem descricao cadastrada."}</p>
-                      </div>
-                    </div>
-
                     <div className="mt-4 flex justify-end">
                       <button
                         type="button"
-                        className={PRIMARY_BUTTON_CLASS}
+                        className={BLUE_BUTTON_CLASS}
                         onClick={() => openSellModal(row)}
                       >
                         Marcar como vendido
@@ -999,7 +993,6 @@ export default function VendasPage() {
           ) : filteredSold.length ? (
             <div className="mt-4 space-y-3">
               {filteredSold.map((row) => {
-                const Icon = getItemIcon(row);
                 const purchaseAmount = Math.abs(toNumber(row.purchase_amount));
                 const saleAmount = Math.abs(toNumber(row.sale_amount ?? 0));
                 const profit = round2(saleAmount - purchaseAmount);
@@ -1008,30 +1001,27 @@ export default function VendasPage() {
                 return (
                   <article
                     key={row.id}
-                    className="rounded-3xl border border-emerald-400/20 bg-[linear-gradient(160deg,rgba(16,76,56,0.18),rgba(9,18,24,0.72))] p-4"
+                    className={SOLD_CARD_CLASS}
                   >
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                       <div className="flex min-w-0 items-start gap-3">
-                        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-emerald-400/20 bg-emerald-500/10">
-                          <Icon className="h-5 w-5 text-emerald-100" />
-                        </span>
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <h3 className="truncate text-lg font-bold text-white">{row.item_name}</h3>
-                            <span className="rounded-full border border-emerald-400/25 bg-emerald-500/12 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-200">
+                            <span className="rounded-full bg-emerald-600/70 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white">
                               Vendido
                             </span>
-                            <span className="rounded-full border border-cyan-400/25 bg-cyan-500/12 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-200">
+                            <span className="rounded-full bg-emerald-950/70 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-100">
                               {row.category}
                             </span>
                           </div>
-                          <p className="mt-2 text-sm text-slate-300">{row.description || "Sem descricao cadastrada."}</p>
+                          <p className="mt-2 text-sm text-emerald-50">{row.description || "Sem descricao cadastrada."}</p>
                         </div>
                       </div>
 
                       <button
                         type="button"
-                        className={SECONDARY_BUTTON_CLASS}
+                        className="rounded-lg bg-emerald-950/80 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-900 disabled:opacity-60"
                         onClick={() => void handleDelete(row)}
                         disabled={busyId === row.id}
                       >
@@ -1041,27 +1031,27 @@ export default function VendasPage() {
                     </div>
 
                     <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-                      <div className="rounded-2xl border border-white/8 bg-black/15 p-3">
-                        <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Comprado</p>
-                        <p className="mt-2 text-lg font-extrabold text-slate-100">{brl(purchaseAmount)}</p>
+                      <div className="rounded-xl bg-emerald-950/45 p-3">
+                        <p className="text-xs uppercase tracking-[0.12em] text-emerald-200/70">Compra</p>
+                        <p className="mt-2 text-lg font-extrabold text-white">{brl(purchaseAmount)}</p>
                       </div>
-                      <div className="rounded-2xl border border-white/8 bg-black/15 p-3">
-                        <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Vendido</p>
-                        <p className="mt-2 text-lg font-extrabold text-emerald-300">{brl(saleAmount)}</p>
+                      <div className="rounded-xl bg-emerald-950/45 p-3">
+                        <p className="text-xs uppercase tracking-[0.12em] text-emerald-200/70">Venda</p>
+                        <p className="mt-2 text-lg font-extrabold text-cyan-300">{brl(saleAmount)}</p>
                       </div>
-                      <div className="rounded-2xl border border-white/8 bg-black/15 p-3">
-                        <p className="text-xs uppercase tracking-[0.12em] text-slate-500">{resultLabel}</p>
+                      <div className="rounded-xl bg-emerald-950/45 p-3">
+                        <p className="text-xs uppercase tracking-[0.12em] text-emerald-200/70">{resultLabel}</p>
                         <p className={`mt-2 text-lg font-extrabold ${getResultTone(profit)}`}>
                           {formatSignedBrl(profit)}
                         </p>
                       </div>
-                      <div className="rounded-2xl border border-white/8 bg-black/15 p-3">
-                        <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Data compra</p>
-                        <p className="mt-2 text-sm font-semibold text-slate-200">{formatDateLabel(row.purchase_date)}</p>
+                      <div className="rounded-xl bg-emerald-950/45 p-3">
+                        <p className="text-xs uppercase tracking-[0.12em] text-emerald-200/70">Data compra</p>
+                        <p className="mt-2 text-sm font-semibold text-emerald-50">{formatDateLabel(row.purchase_date)}</p>
                       </div>
-                      <div className="rounded-2xl border border-white/8 bg-black/15 p-3">
-                        <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Data venda</p>
-                        <p className="mt-2 text-sm font-semibold text-slate-200">{formatDateLabel(row.sold_at)}</p>
+                      <div className="rounded-xl bg-emerald-950/45 p-3">
+                        <p className="text-xs uppercase tracking-[0.12em] text-emerald-200/70">Data venda</p>
+                        <p className="mt-2 text-sm font-semibold text-emerald-50">{formatDateLabel(row.sold_at)}</p>
                       </div>
                     </div>
                   </article>
