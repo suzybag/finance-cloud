@@ -6,6 +6,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   LabelList,
   ResponsiveContainer,
   Tooltip,
@@ -52,11 +53,15 @@ type ResaleFormState = {
 
 type ProductChartDatum = {
   name: string;
+  shortName: string;
   category: string;
   profit: number;
+  chartValue: number;
   purchaseAmount: number;
   saleAmount: number;
   soldAt: string;
+  resultLabel: string;
+  tone: "profit" | "loss" | "neutral";
 };
 
 const SECTION_CLASS =
@@ -133,6 +138,23 @@ const shortMoney = (value: number) => {
 
 const getReferenceDate = (row: ResaleItemRow) => row.sold_at || row.purchase_date || row.created_at.slice(0, 10);
 
+const truncateChartName = (value: string, max = 12) => {
+  if (!value) return "";
+  return value.length > max ? `${value.slice(0, max - 1)}...` : value;
+};
+
+const getChartTone = (profit: number): ProductChartDatum["tone"] => {
+  if (profit > 0) return "profit";
+  if (profit < 0) return "loss";
+  return "neutral";
+};
+
+const getChartFill = (tone: ProductChartDatum["tone"]) => {
+  if (tone === "loss") return "url(#salesLossGradient)";
+  if (tone === "neutral") return "#94a3b8";
+  return "url(#salesProfitGradient)";
+};
+
 const ProductChartTooltip = ({
   active,
   payload,
@@ -145,16 +167,52 @@ const ProductChartTooltip = ({
   const item = payload[0]?.payload;
   if (!item) return null;
 
-  const toneClass = item.profit > 0 ? "text-cyan-300" : item.profit < 0 ? "text-rose-300" : "text-slate-300";
+  const toneClass = item.tone === "profit" ? "text-cyan-300" : item.tone === "loss" ? "text-rose-300" : "text-slate-300";
 
   return (
     <div className="min-w-[180px] rounded-xl border border-cyan-400/40 bg-[#020617] px-4 py-3 shadow-[0_18px_40px_rgba(0,0,0,0.45)]">
       <p className="text-base font-bold text-white">{item.name}</p>
       <p className="mt-2 text-sm text-slate-300">{item.category}</p>
       <p className={`mt-2 text-base font-semibold ${toneClass}`}>
-        lucro: {formatSignedBrl(item.profit)}
+        {item.resultLabel}: {formatSignedBrl(item.profit)}
       </p>
+      <div className="mt-2 space-y-1 text-xs text-slate-400">
+        <p>Compra: {brl(item.purchaseAmount)}</p>
+        <p>Venda: {brl(item.saleAmount)}</p>
+      </div>
     </div>
+  );
+};
+
+const ProductChartLabel = ({
+  x,
+  y,
+  width,
+  payload,
+}: {
+  x?: number | string;
+  y?: number | string;
+  width?: number | string;
+  payload?: ProductChartDatum;
+}) => {
+  if (!payload) return null;
+
+  const resolvedX = Number(x ?? 0);
+  const resolvedY = Number(y ?? 0);
+  const resolvedWidth = Number(width ?? 0);
+  const fill = payload.tone === "profit" ? "#22d3ee" : payload.tone === "loss" ? "#fb7185" : "#cbd5e1";
+
+  return (
+    <text
+      x={resolvedX + resolvedWidth / 2}
+      y={Math.max(18, resolvedY - 10)}
+      fill={fill}
+      fontSize={12}
+      fontWeight={700}
+      textAnchor="middle"
+    >
+      {formatSignedBrl(payload.profit)}
+    </text>
   );
 };
 
@@ -318,6 +376,9 @@ export default function VendasPage() {
         current.profit = round2(current.profit + profit);
         current.purchaseAmount = round2(current.purchaseAmount + purchaseAmount);
         current.saleAmount = round2(current.saleAmount + saleAmount);
+        current.chartValue = Math.abs(current.profit);
+        current.resultLabel = current.profit > 0 ? "Lucro" : current.profit < 0 ? "Prejuizo" : "Empate";
+        current.tone = getChartTone(current.profit);
         if ((row.sold_at || row.purchase_date) > current.soldAt) {
           current.soldAt = row.sold_at || row.purchase_date;
         }
@@ -326,15 +387,19 @@ export default function VendasPage() {
 
       map.set(key, {
         name: row.item_name,
+        shortName: truncateChartName(row.item_name),
         category: row.category,
         profit,
+        chartValue: Math.abs(profit),
         purchaseAmount,
         saleAmount,
         soldAt: row.sold_at || row.purchase_date,
+        resultLabel: profit > 0 ? "Lucro" : profit < 0 ? "Prejuizo" : "Empate",
+        tone: getChartTone(profit),
       });
     });
 
-    return Array.from(map.values()).sort((a, b) => b.profit - a.profit);
+    return Array.from(map.values()).sort((a, b) => b.chartValue - a.chartValue);
   }, [filteredSold]);
 
   const resetForm = () => {
@@ -861,7 +926,7 @@ export default function VendasPage() {
             <div>
               <p className="text-xs uppercase tracking-[0.16em] text-cyan-200/70">Grafico</p>
               <h2 className="mt-1 bg-gradient-to-r from-cyan-300 via-sky-300 to-fuchsia-300 bg-clip-text text-xl font-extrabold text-transparent">
-                Lucro por produto
+                Resultado por produto
               </h2>
             </div>
             <span className="rounded-full border border-cyan-400/20 bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-100">
@@ -873,8 +938,8 @@ export default function VendasPage() {
             <div className="mt-5 rounded-[28px] border border-cyan-500/20 bg-[#05060a] p-4 shadow-[0_24px_70px_rgba(34,211,238,0.08)]">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold text-cyan-300">Lucro por Produto</p>
-                  <p className="text-xs text-slate-500">Visual futurista com desempenho das suas revendas.</p>
+                  <p className="text-sm font-semibold text-cyan-300">Resultado por Produto</p>
+                  <p className="text-xs text-slate-500">Todas as barras sobem para facilitar a leitura. Prejuizo aparece em vermelho.</p>
                 </div>
                 <span className="rounded-full border border-fuchsia-400/20 bg-fuchsia-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-fuchsia-200">
                   Revenda
@@ -883,21 +948,30 @@ export default function VendasPage() {
 
               <div className="h-[320px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={productProfitData} barCategoryGap={40}>
+                  <BarChart
+                    data={productProfitData}
+                    barCategoryGap={36}
+                    margin={{ top: 22, right: 12, left: 0, bottom: 0 }}
+                  >
                     <defs>
-                      <linearGradient id="salesProductGradient" x1="0" y1="0" x2="0" y2="1">
+                      <linearGradient id="salesProfitGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#00f5ff" />
                         <stop offset="100%" stopColor="#7c3aed" />
+                      </linearGradient>
+                      <linearGradient id="salesLossGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#fb7185" />
+                        <stop offset="100%" stopColor="#ef4444" />
                       </linearGradient>
                     </defs>
 
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(15,23,42,0.6)" vertical={false} />
                     <XAxis
-                      dataKey="name"
+                      dataKey="shortName"
                       stroke="#ffffff"
                       tick={{ fill: "#ffffff", fontSize: 12 }}
                       axisLine={false}
                       tickLine={false}
+                      tickMargin={10}
                     />
                     <YAxis
                       stroke="#ffffff"
@@ -906,15 +980,14 @@ export default function VendasPage() {
                       axisLine={false}
                       tickLine={false}
                       width={72}
+                      domain={[0, (dataMax: number) => Math.max(100, Math.ceil(dataMax * 1.15))]}
                     />
-                    <Tooltip cursor={{ fill: "rgba(34,211,238,0.04)" }} content={<ProductChartTooltip />} />
-                    <Bar dataKey="profit" radius={[8, 8, 0, 0]} fill="url(#salesProductGradient)" barSize={36}>
-                      <LabelList
-                        dataKey="profit"
-                        position="top"
-                        formatter={(value) => shortMoney(Number(value ?? 0))}
-                        style={{ fill: "#00f5ff", fontWeight: 700, fontSize: 12 }}
-                      />
+                    <Tooltip cursor={false} content={<ProductChartTooltip />} />
+                    <Bar dataKey="chartValue" radius={[8, 8, 0, 0]} barSize={42} minPointSize={8}>
+                      {productProfitData.map((item) => (
+                        <Cell key={`chart-cell-${item.category}-${item.name}`} fill={getChartFill(item.tone)} />
+                      ))}
+                      <LabelList dataKey="chartValue" content={ProductChartLabel} />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -939,9 +1012,9 @@ export default function VendasPage() {
                           <p className="text-yellow-400">Compra: {brl(item.purchaseAmount)}</p>
                           <p className="text-cyan-400">Venda: {brl(item.saleAmount)}</p>
                           <p className={`font-semibold ${resultClass}`}>
-                            Lucro: {formatSignedBrl(item.profit)}
+                            {item.resultLabel}: {formatSignedBrl(item.profit)}
                           </p>
-                          <p className="text-xs text-white/60">{item.soldAt}</p>
+                          <p className="text-xs text-white/60">{formatDateLabel(item.soldAt)}</p>
                         </div>
                       </div>
                     </motion.div>
